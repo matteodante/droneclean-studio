@@ -111,9 +111,12 @@ fs.writeFileSync(
 )
 
 const notes = path.join(distDir, 'RELEASE_NOTES.md')
+// What changed in this version, when `release-notes/<version>.md` says it (shown first on the release page)
+const whatsNewFile = path.join(desktopDir, 'release-notes', `${version}.md`)
+const whatsNew = fs.existsSync(whatsNewFile) ? `${fs.readFileSync(whatsNewFile, 'utf8').trim()}\n\n` : ''
 fs.writeFileSync(
   notes,
-  `DroneClean Studio ${version} for Mac (Apple silicon), built from ${commit.slice(0, 12)}.
+  `${whatsNew}DroneClean Studio ${version} for Mac (Apple silicon), built from ${commit.slice(0, 12)}.
 
 **Install:** open the disk image and drag DroneClean Studio to Applications.
 

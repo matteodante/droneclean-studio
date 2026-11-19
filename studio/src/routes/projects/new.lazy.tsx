@@ -52,12 +52,6 @@ function NewProject() {
             <FreeCutLogo variant="full" size="md" className="hover:opacity-80 transition-opacity" />
           </Link>
           <div className="flex items-center gap-3">
-            <Link
-              to="/licenses"
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              {t('licenses.title')}
-            </Link>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -78,6 +79,7 @@ export function DocsShell({ children, currentSlug }: DocsShellProps) {
 }
 
 function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const trimmed = query.trim().toLowerCase()
 
@@ -144,6 +146,14 @@ function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
           </div>
         )
       })}
+
+      {/* DroneClean: the licence notices live here, one click from every page's Docs button. */}
+      <Link
+        to="/licenses"
+        className="block rounded-md border-t border-border px-2 pt-3 text-sm text-muted-foreground hover:text-foreground"
+      >
+        {t('licenses.title')}
+      </Link>
     </div>
   )
 }

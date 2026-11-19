@@ -687,6 +687,7 @@
       "speed": "Hız",
       "motionBlur": "Hareket bulanıklığı",
       "motionBlurShutter": "Perde",
+      "motionBlurBlendSlow": "Akıcı ağır çekim",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "{{speed}}x hızda bu, strobo etkisini ortadan kaldırır",
       "motionBlurIdentity": "Bu hızda etkisi yok"

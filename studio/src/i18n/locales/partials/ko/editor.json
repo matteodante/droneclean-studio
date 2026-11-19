@@ -687,6 +687,7 @@
       "speed": "속도",
       "motionBlur": "모션 블러",
       "motionBlurShutter": "셔터",
+      "motionBlurBlendSlow": "부드러운 슬로 모션",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "{{speed}}배속에서는 이렇게 하면 스트로브 현상이 없어집니다",
       "motionBlurIdentity": "이 속도에서는 효과 없음"

@@ -200,10 +200,10 @@ export function normalizeItemUpdates(updates: Partial<TimelineItem>): Partial<Ti
     normalized.strokeWidth = MIN_ENABLED_STROKE_WIDTH
   }
 
-  // Keep legacy end-only bounds explicit and stable.
-  if (normalized.sourceEnd !== undefined && normalized.sourceStart === undefined) {
-    normalized.sourceStart = 0
-  }
+  // DroneClean: no `sourceStart = 0` back-fill here. A patch that sets only `sourceEnd` (a speed
+  // curve edit does) leaves the clip's own start alone; a legacy end-only item still gets 0 from
+  // `normalizeLegacySourceStart` once the patch is merged (`normalizeFrameFields`). In a patch the
+  // back-fill moved every trimmed clip given a curve to the file's first frame (19 Nov 2026).
 
   return normalized as Partial<TimelineItem>
 }

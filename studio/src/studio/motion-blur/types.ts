@@ -23,4 +23,10 @@ export interface MotionBlurSettings {
    * instead, because a value that reaches it broken is a caller's bug.
    */
   shutterDegrees: ShutterDegrees
+  /**
+   * Smooth slow motion (19 Nov 2026): where an output frame covers less than one source frame (a clip slower than 1x,
+   * or a 30 fps file in a 60 fps project), blend the two source frames around its position, weighted by how far it is
+   * between them, instead of showing the same frame twice. Absent or false: the frame is held, as before.
+   */
+  blendSlowMotion?: boolean
 }

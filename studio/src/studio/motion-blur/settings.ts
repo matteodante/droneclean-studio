@@ -27,8 +27,12 @@ export function isShutterDegrees(value: unknown): value is ShutterDegrees {
  */
 function normalizeMotionBlur(value: unknown): MotionBlurSettings | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const degrees = (value as { shutterDegrees?: unknown }).shutterDegrees
-  return { shutterDegrees: isShutterDegrees(degrees) ? degrees : DEFAULT_SHUTTER_DEGREES }
+  const { shutterDegrees: degrees, blendSlowMotion } = value as { shutterDegrees?: unknown; blendSlowMotion?: unknown }
+  return {
+    shutterDegrees: isShutterDegrees(degrees) ? degrees : DEFAULT_SHUTTER_DEGREES,
+    // Only a stored `true` turns the blend on; anything else is the hold, and is not written back.
+    ...(blendSlowMotion === true ? { blendSlowMotion: true } : {}),
+  }
 }
 
 /**

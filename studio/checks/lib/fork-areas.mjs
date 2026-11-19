@@ -38,6 +38,10 @@ const FORK_FOLDERS = [
     why: "the fork's table of changed FreeCut files, named by AGENTS.md and the plan",
   },
   {
+    path: 'src/features/docs/pages/27-drone-footage.ts',
+    why: "the docs load every page with import.meta.glob('./pages/*.ts'): the drone-footage guide page has to sit there (19 Nov 2026)",
+  },
+  {
     path: 'src/routes/licenses.lazy.tsx',
     why: "the router's file-based routes: a page is one file in src/routes/ (task 1.4)",
   },

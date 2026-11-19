@@ -527,9 +527,9 @@ describe('normalizeItemUpdates', () => {
     expect(result.audioEqHighCutFrequencyHz).toBe(22000)
   })
 
-  it('back-fills sourceStart=0 when only sourceEnd is updated (legacy clips)', () => {
+  it('leaves sourceStart out of a patch that sets only sourceEnd, so the clip keeps its own start', () => {
     const result = normalizeItemUpdates({ sourceEnd: 240 })
-    expect(result.sourceStart).toBe(0)
+    expect('sourceStart' in result).toBe(false)
     expect(result.sourceEnd).toBe(240)
   })
 

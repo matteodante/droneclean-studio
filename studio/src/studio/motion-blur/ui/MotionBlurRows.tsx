@@ -28,6 +28,7 @@ import {
   isShutterDegrees,
   SHUTTER_DEGREES,
 } from '../settings'
+import type { ShutterDegrees } from '../types'
 
 interface MotionBlurRowsProps {
   /** The selected items; the rows work on the video clips among them that can carry blur */
@@ -55,6 +56,12 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
     targets.find((item) => item.motionBlur !== undefined)?.motionBlur?.shutterDegrees ??
     DEFAULT_SHUTTER_DEGREES
   const fastest = Math.max(...targets.map(peakSpeed))
+  const blend = targets.every((item) => item.motionBlur?.blendSlowMotion === true)
+  /** The blur settings with the shutter and the blend the rows show, one of them changed. */
+  const settingsWith = (change: { shutterDegrees?: ShutterDegrees; blendSlowMotion?: boolean }) => {
+    const next = { shutterDegrees: change.shutterDegrees ?? shutter, blendSlowMotion: change.blendSlowMotion ?? blend }
+    return next.blendSlowMotion ? next : { shutterDegrees: next.shutterDegrees }
+  }
 
   return (
     <div className="space-y-1" data-testid="motion-blur-rows">
@@ -62,7 +69,7 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
         <Switch
           checked={enabled}
           onCheckedChange={(checked) =>
-            setMotionBlur(ids, checked ? { shutterDegrees: shutter } : null)
+            setMotionBlur(ids, checked ? settingsWith({}) : null)
           }
           aria-label={t('editor.videoSection.motionBlur', { defaultValue: 'Motion blur' })}
           data-testid="motion-blur-enabled"
@@ -85,7 +92,7 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
               value={String(shutter)}
               onValueChange={(value) => {
                 const degrees = Number(value)
-                if (isShutterDegrees(degrees)) setMotionBlur(ids, { shutterDegrees: degrees })
+                if (isShutterDegrees(degrees)) setMotionBlur(ids, settingsWith({ shutterDegrees: degrees }))
               }}
             >
               <SelectTrigger className="h-7 text-xs" data-testid="motion-blur-shutter">
@@ -103,7 +110,17 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
               </SelectContent>
             </Select>
           </PropertyRow>
-          {fastest <= 1 && (
+          <PropertyRow
+            label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
+          >
+            <Switch
+              checked={blend}
+              onCheckedChange={(checked) => setMotionBlur(ids, settingsWith({ blendSlowMotion: checked }))}
+              aria-label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
+              data-testid="motion-blur-blend-slow"
+            />
+          </PropertyRow>
+          {fastest <= 1 && !blend && (
             <p className="text-xs text-muted-foreground" data-testid="motion-blur-identity">
               {t('editor.videoSection.motionBlurIdentity', {
                 defaultValue: 'No effect at this speed',

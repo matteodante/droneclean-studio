@@ -21,10 +21,10 @@ failed call leaves the project exactly as it was. The same content is committed 
 | `studio.markers` | 9 |
 | `studio.selection` | 3 |
 | `studio.playback` | 6 |
-| `studio.export` | 7 |
+| `studio.export` | 8 |
 | `studio.history` | 8 |
 | `studio.workspace` | 1 |
-| `studio.looks` | 1 |
+| `studio.looks` | 2 |
 | `studio.shadow` | 5 |
 
 ## studio.project
@@ -716,7 +716,7 @@ studio.clips.getMotionBlur('c1')?.shutterDegrees
 setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void
 ```
 
-Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x, and changes nothing at and below 1x. One undo step.
+Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x; with `blendSlowMotion` it also blends the two frames around each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project), so a slow-down plays smoothly instead of repeating frames. One undo step.
 
 - Maps to: `SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT
@@ -1558,6 +1558,23 @@ Example:
 studio.export.setSettings({ quality: 'high' })
 ```
 
+### `studio.export.presets()`
+
+```ts
+presets(): ExportPresetInfo[]
+```
+
+The export dialog's presets resolved for the open project (Instagram Reel, YouTube 4K, Small file, and Same as source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters need the native encoder and are not offered here. Not an undo step.
+
+- Maps to: `getPilotPresets / resolvePilotPreset (src/studio/export/presets.ts)`
+- Throws: UNSUPPORTED
+
+Example:
+
+```ts
+studio.export.presets().find((preset) => preset.id === 'instagram-reel')?.settings
+```
+
 ### `studio.export.start()`
 
 ```ts
@@ -1823,6 +1840,23 @@ Example:
 
 ```ts
 await studio.looks.list()
+```
+
+### `studio.looks.add()`
+
+```ts
+add(input: LookAddInput): Promise<LookInfo>
+```
+
+Add a look to the library from the text of a `.cube` file (3D table, 65 points per side at most, input range 0…1) and answer it as `list` does. An agent can write the text with code in the same `run` call (a function over r, g, b) instead of sending a large file. The look is the workspace's, not the project's: not an undo step. `name` is the picker's label (default: the file's TITLE, or its name).
+
+- Maps to: `useLooksStore.add (src/studio/looks/store.ts)`
+- Throws: INVALID_ARGUMENT, INTERNAL
+
+Example:
+
+```ts
+await studio.looks.add({ fileName: 'warm.cube', text: cubeText, name: 'Warm' })
 ```
 
 ## studio.shadow
@@ -2401,6 +2435,7 @@ A clip's motion blur, as `clips.getMotionBlur` reads it and `clips.setMotionBlur
 ```ts
 export interface MotionBlurSettings {
     shutterDegrees: 90 | 180 | 270 | 360;
+    blendSlowMotion?: boolean;
 }
 ```
 
@@ -2450,6 +2485,18 @@ What `clips.setLook` takes: the id of a look of the library and, optionally, the
 export interface ClipLookRequest {
     id: string;
     intensity?: number;
+}
+```
+
+### `LookAddInput`
+
+What `looks.add` takes: a `.cube` file's text and name.
+
+```ts
+export interface LookAddInput {
+    text: string;
+    fileName: string;
+    name?: string;
 }
 ```
 
@@ -2760,6 +2807,33 @@ export interface KeyframeInfo {
     frame: Frame;
     value: number;
     easing: Easing;
+    bezier?: KeyframeBezier;
+    spring?: KeyframeSpring;
+}
+```
+
+### `KeyframeBezier`
+
+Control points of a `cubic-bezier` easing, as CSS `cubic-bezier(x1, y1, x2, y2)` writes them.
+
+```ts
+export interface KeyframeBezier {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+}
+```
+
+### `KeyframeSpring`
+
+A `spring` easing's physics.
+
+```ts
+export interface KeyframeSpring {
+    tension: number;
+    friction: number;
+    mass: number;
 }
 ```
 
@@ -2771,6 +2845,8 @@ Fields `keyframes.update` can change.
 export interface KeyframePatch {
     value?: number;
     easing?: Easing;
+    bezier?: KeyframeBezier;
+    spring?: KeyframeSpring;
     frame?: Frame;
 }
 ```
@@ -3044,6 +3120,25 @@ Fields `export.setSettings` can change; an absent field is left as it is.
 
 ```ts
 export type ExportSettingsPatch = Partial<ExportSettingsInfo>;
+```
+
+### `ExportPresetInfo`
+
+One export preset of the export dialog, resolved for the open project by `export.presets`.
+
+```ts
+export interface ExportPresetInfo {
+    id: string;
+    label: string;
+    settings: ExportSettingsPatch;
+    numbers: {
+        width: number;
+        height: number;
+        fps: number;
+        codec: ExportCodec;
+        bitrate: number;
+    };
+}
 ```
 
 ### `ExportStartInput`

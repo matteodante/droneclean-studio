@@ -687,6 +687,7 @@
       "speed": "速度",
       "motionBlur": "动态模糊",
       "motionBlurShutter": "快门",
+      "motionBlurBlendSlow": "平滑慢动作",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "在 {{speed}} 倍速下,这样可以消除频闪",
       "motionBlurIdentity": "在此速度下无效果"

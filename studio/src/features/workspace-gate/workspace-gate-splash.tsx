@@ -3,6 +3,7 @@ import { FolderOpen, FolderX, Loader2, RefreshCw, AlertTriangle, BookOpen } from
 import { Button } from '@/components/ui/button'
 import { FreeCutLogo } from '@/components/brand/freecut-logo'
 import { withBase } from '@/studio/web/base-path'
+import { DesktopAppNotice } from '@/studio/web/desktop-app-notice'
 
 type Status =
   | { kind: 'initializing' }
@@ -113,6 +114,9 @@ export function WorkspaceGateSplash({ status, error, onPickFolder, onReconnect }
             </Button>
           </div>
         )}
+        <div className="mt-8 text-left">
+          <DesktopAppNotice />
+        </div>
       </div>
     </div>
   )

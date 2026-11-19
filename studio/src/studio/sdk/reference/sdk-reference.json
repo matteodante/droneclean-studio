@@ -435,7 +435,7 @@
         {
           "name": "setMotionBlur",
           "signature": "setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void",
-          "summary": "Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x, and changes nothing at and below 1x. One undo step.",
+          "summary": "Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x; with `blendSlowMotion` it also blends the two frames around each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project), so a slow-down plays smoothly instead of repeating frames. One undo step.",
           "mapsTo": "SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)",
           "throws": [
             "NOT_FOUND",
@@ -965,6 +965,16 @@
           "example": "studio.export.setSettings({ quality: 'high' })"
         },
         {
+          "name": "presets",
+          "signature": "presets(): ExportPresetInfo[]",
+          "summary": "The export dialog's presets resolved for the open project (Instagram Reel, YouTube 4K, Small file, and Same as source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters need the native encoder and are not offered here. Not an undo step.",
+          "mapsTo": "getPilotPresets / resolvePilotPreset (src/studio/export/presets.ts)",
+          "throws": [
+            "UNSUPPORTED"
+          ],
+          "example": "studio.export.presets().find((preset) => preset.id === 'instagram-reel')?.settings"
+        },
+        {
           "name": "start",
           "signature": "start(options?: ExportStartInput): Promise<ExportJobInfo>",
           "summary": "Queue an export and return its job. Not an undo step.",
@@ -1117,6 +1127,17 @@
             "INTERNAL"
           ],
           "example": "await studio.looks.list()"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: LookAddInput): Promise<LookInfo>",
+          "summary": "Add a look to the library from the text of a `.cube` file (3D table, 65 points per side at most, input range 0…1) and answer it as `list` does. An agent can write the text with code in the same `run` call (a function over r, g, b) instead of sending a large file. The look is the workspace's, not the project's: not an undo step. `name` is the picker's label (default: the file's TITLE, or its name).",
+          "mapsTo": "useLooksStore.add (src/studio/looks/store.ts)",
+          "throws": [
+            "INVALID_ARGUMENT",
+            "INTERNAL"
+          ],
+          "example": "await studio.looks.add({ fileName: 'warm.cube', text: cubeText, name: 'Warm' })"
         }
       ]
     },
@@ -1394,7 +1415,7 @@
     },
     {
       "name": "MotionBlurSettings",
-      "declaration": "export interface MotionBlurSettings {\n    shutterDegrees: 90 | 180 | 270 | 360;\n}",
+      "declaration": "export interface MotionBlurSettings {\n    shutterDegrees: 90 | 180 | 270 | 360;\n    blendSlowMotion?: boolean;\n}",
       "summary": "A clip's motion blur, as `clips.getMotionBlur` reads it and `clips.setMotionBlur` takes it (design 7.2, section 4.7)."
     },
     {
@@ -1421,6 +1442,11 @@
       "name": "ClipLookRequest",
       "declaration": "export interface ClipLookRequest {\n    id: string;\n    intensity?: number;\n}",
       "summary": "What `clips.setLook` takes: the id of a look of the library and, optionally, the blend."
+    },
+    {
+      "name": "LookAddInput",
+      "declaration": "export interface LookAddInput {\n    text: string;\n    fileName: string;\n    name?: string;\n}",
+      "summary": "What `looks.add` takes: a `.cube` file's text and name."
     },
     {
       "name": "LookInfo",
@@ -1539,12 +1565,22 @@
     },
     {
       "name": "KeyframeInfo",
-      "declaration": "export interface KeyframeInfo {\n    id: KeyframeId;\n    property: KeyframeProperty;\n    frame: Frame;\n    value: number;\n    easing: Easing;\n}",
+      "declaration": "export interface KeyframeInfo {\n    id: KeyframeId;\n    property: KeyframeProperty;\n    frame: Frame;\n    value: number;\n    easing: Easing;\n    bezier?: KeyframeBezier;\n    spring?: KeyframeSpring;\n}",
       "summary": "One keyframe (`Keyframe`). `frame` is relative to the start of the clip."
     },
     {
+      "name": "KeyframeBezier",
+      "declaration": "export interface KeyframeBezier {\n    x1: number;\n    y1: number;\n    x2: number;\n    y2: number;\n}",
+      "summary": "Control points of a `cubic-bezier` easing, as CSS `cubic-bezier(x1, y1, x2, y2)` writes them."
+    },
+    {
+      "name": "KeyframeSpring",
+      "declaration": "export interface KeyframeSpring {\n    tension: number;\n    friction: number;\n    mass: number;\n}",
+      "summary": "A `spring` easing's physics."
+    },
+    {
       "name": "KeyframePatch",
-      "declaration": "export interface KeyframePatch {\n    value?: number;\n    easing?: Easing;\n    frame?: Frame;\n}",
+      "declaration": "export interface KeyframePatch {\n    value?: number;\n    easing?: Easing;\n    bezier?: KeyframeBezier;\n    spring?: KeyframeSpring;\n    frame?: Frame;\n}",
       "summary": "Fields `keyframes.update` can change."
     },
     {
@@ -1666,6 +1702,11 @@
       "name": "ExportSettingsPatch",
       "declaration": "export type ExportSettingsPatch = Partial<ExportSettingsInfo>;",
       "summary": "Fields `export.setSettings` can change; an absent field is left as it is."
+    },
+    {
+      "name": "ExportPresetInfo",
+      "declaration": "export interface ExportPresetInfo {\n    id: string;\n    label: string;\n    settings: ExportSettingsPatch;\n    numbers: {\n        width: number;\n        height: number;\n        fps: number;\n        codec: ExportCodec;\n        bitrate: number;\n    };\n}",
+      "summary": "One export preset of the export dialog, resolved for the open project by `export.presets`."
     },
     {
       "name": "ExportStartInput",

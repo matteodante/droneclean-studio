@@ -272,12 +272,6 @@ function ProjectsIndex() {
                   Docs
                 </Link>
               </Button>
-              <Link
-                to="/licenses"
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                {t('licenses.title')}
-              </Link>
 
               <Separator orientation="vertical" className="h-6" />
 

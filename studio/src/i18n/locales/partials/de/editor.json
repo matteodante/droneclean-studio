@@ -687,6 +687,7 @@
       "speed": "Geschwindigkeit",
       "motionBlur": "Bewegungsunschärfe",
       "motionBlurShutter": "Verschluss",
+      "motionBlurBlendSlow": "Flüssige Zeitlupe",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "Bei {{speed}}x entfernt das den Stroboskop-Effekt",
       "motionBlurIdentity": "Bei dieser Geschwindigkeit ohne Wirkung"

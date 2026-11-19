@@ -254,6 +254,12 @@ Color workspace the panel is the colour grading dock.
 - SDK: `studio.clips.getMotionBlur`
 - Code: `src/studio/motion-blur/ui/MotionBlurRows.tsx`
 
+### Smooth slow motion
+- Where: Editor › Properties › Video tab › Playback › Motion blur › Smooth slow motion
+- Does: Where an output frame covers less than one source frame (a clip slower than 1x, or a 30 fps file in a 60 fps project), blends the two source frames around it by position instead of showing one frame twice; shown only while the blur is on.
+- SDK: `studio.clips.setMotionBlur`
+- Code: `src/studio/motion-blur/ui/MotionBlurRows.tsx`
+
 ### Fade In
 - Where: Editor › Properties › Video tab › Playback
 - Does: Fades the picture in from black over the given time.
@@ -381,6 +387,12 @@ The colour profile and the creative look of a video clip (task 5.2); each is one
 - Does: Lists the looks of the workspace's library, which the pilot extends by adding .cube files in the dialog it opens; an agent reads the list to pick a look id.
 - SDK: `studio.looks.list`
 - Code: `src/studio/looks/LooksSection.tsx`
+
+### Add a look
+- Where: Editor › Properties › Video tab › Looks › Manage looks › Add .cube
+- Does: Adds a .cube file (a 3D table of 65 points per side at most) to the workspace's looks library, so any clip of any project can use it; an agent passes the file's text, which its code can compute in the same call.
+- SDK: `studio.looks.add`
+- Code: `src/studio/looks/LooksLibraryDialog.tsx`
 
 ## DroneClean shadow removal
 

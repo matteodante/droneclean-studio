@@ -687,6 +687,7 @@
       "speed": "速度",
       "motionBlur": "モーションブラー",
       "motionBlurShutter": "シャッター",
+      "motionBlurBlendSlow": "なめらかなスローモーション",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "{{speed}}倍速では、これでストロボ効果がなくなります",
       "motionBlurIdentity": "この速度では効果なし"

@@ -503,6 +503,11 @@ export interface MotionBlurSettings {
    * frames an output frame covers, 180 the first half. At and below 1x every angle changes nothing.
    */
   shutterDegrees: 90 | 180 | 270 | 360
+  /**
+   * Smooth slow motion: where an output frame covers less than one source frame (slower than 1x, or a 30 fps file
+   * in a 60 fps project), blend the two source frames around it instead of showing one frame twice. Default false.
+   */
+  blendSlowMotion?: boolean
 }
 
 /** The ramp shapes `clips.setSpeedPreset` builds (design §4.9 of task 7.1). */
@@ -533,6 +538,16 @@ export interface ClipLookRequest {
   id: string
   /** The blend, `0..1`; default 1. */
   intensity?: number
+}
+
+/** What `looks.add` takes: a `.cube` file's text and name. */
+export interface LookAddInput {
+  /** The `.cube` file's text. */
+  text: string
+  /** The file name the look keeps, ending in `.cube`. */
+  fileName: string
+  /** The name the clip panel's picker shows; default the file's TITLE, or its name. */
+  name?: string
 }
 
 /** One look of the workspace's looks library, as `looks.list` reads it. */
@@ -870,6 +885,32 @@ export interface KeyframeInfo {
   value: number
   /** Easing from this keyframe to the next. */
   easing: Easing
+  /** The curve of a `cubic-bezier` easing, as CSS writes it (x in 0..1, y may overshoot). */
+  bezier?: KeyframeBezier
+  /** The physics of a `spring` easing. */
+  spring?: KeyframeSpring
+}
+
+/** Control points of a `cubic-bezier` easing, as CSS `cubic-bezier(x1, y1, x2, y2)` writes them. */
+export interface KeyframeBezier {
+  /** First control point X, 0..1. */
+  x1: number
+  /** First control point Y; outside 0..1 overshoots. */
+  y1: number
+  /** Second control point X, 0..1. */
+  x2: number
+  /** Second control point Y; outside 0..1 overshoots. */
+  y2: number
+}
+
+/** A `spring` easing's physics. */
+export interface KeyframeSpring {
+  /** Stiffness, 1..500 (the editor's default 170). */
+  tension: number
+  /** Damping, 1..100 (default 26). */
+  friction: number
+  /** Mass, 0.1..10 (default 1). */
+  mass: number
 }
 
 /** Fields `keyframes.update` can change. */
@@ -878,6 +919,10 @@ export interface KeyframePatch {
   value?: number
   /** New easing. */
   easing?: Easing
+  /** A custom curve: sets the easing to `cubic-bezier` with these control points (the graph editor's handles). */
+  bezier?: KeyframeBezier
+  /** Spring physics: sets the easing to `spring` with these values. */
+  spring?: KeyframeSpring
   /** New frame, still relative to the start of the clip. */
   frame?: Frame
 }
@@ -1106,6 +1151,18 @@ export interface ExportSettingsInfo {
 
 /** Fields `export.setSettings` can change; an absent field is left as it is. */
 export type ExportSettingsPatch = Partial<ExportSettingsInfo>
+
+/** One export preset of the export dialog, resolved for the open project by `export.presets`. */
+export interface ExportPresetInfo {
+  /** The preset's id, as the export dialog names it (`instagram-reel`, `youtube-4k`, ...). */
+  id: string
+  /** Its English name in the export dialog. */
+  label: string
+  /** The settings it stands for: pass them to `export.setSettings` or as `export.start({ settings })`. */
+  settings: ExportSettingsPatch
+  /** The numbers it stands for; the frame rate is the project's, which the export always keeps. */
+  numbers: { width: number; height: number; fps: number; codec: ExportCodec; bitrate: number }
+}
 
 /** Input of `export.start`. */
 export interface ExportStartInput {
@@ -1780,13 +1837,16 @@ export interface ClipsApi {
   /**
    * Switch a clip's motion blur on with a shutter angle, or off with null. The
    * blur blends the source frames each output frame covers when the clip plays
-   * faster than 1x, and changes nothing at and below 1x. One undo step.
+   * faster than 1x; with `blendSlowMotion` it also blends the two frames around
+   * each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project), so a
+   * slow-down plays smoothly instead of repeating frames. One undo step.
    * @mapsTo SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED for a clip that cannot carry blur: a reversed clip, a
    *   composition wrapper, or a kind that is not video
    * @throws INVALID_ARGUMENT when `settings` is not null or an object whose
-   *   `shutterDegrees` is one of 90, 180, 270 or 360
+   *   `shutterDegrees` is one of 90, 180, 270 or 360 (and `blendSlowMotion`, when
+   *   given, a boolean)
    * @example studio.clips.setMotionBlur('c1', { shutterDegrees: 360 })
    */
   setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void
@@ -2291,6 +2351,16 @@ export interface ExportApi {
   setSettings(patch: ExportSettingsPatch): void
 
   /**
+   * The export dialog's presets resolved for the open project (Instagram Reel, YouTube 4K, Small file, and Same as
+   * source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters
+   * need the native encoder and are not offered here. Not an undo step.
+   * @mapsTo getPilotPresets / resolvePilotPreset (src/studio/export/presets.ts)
+   * @throws UNSUPPORTED when no project is open
+   * @example studio.export.presets().find((preset) => preset.id === 'instagram-reel')?.settings
+   */
+  presets(): ExportPresetInfo[]
+
+  /**
    * Queue an export and return its job. Not an undo step.
    * @mapsTo buildRenderJob (build-render-job.ts:149) + enqueueJobs (render-queue-store.ts:104)
    * @throws UNSUPPORTED when no project is open, or when the settings name proResProfile
@@ -2435,6 +2505,20 @@ export interface LooksApi {
    * @example await studio.looks.list()
    */
   list(): Promise<LookInfo[]>
+
+  /**
+   * Add a look to the library from the text of a `.cube` file (3D table, 65
+   * points per side at most, input range 0…1) and answer it as `list` does.
+   * An agent can write the text with code in the same `run` call (a function
+   * over r, g, b) instead of sending a large file. The look is the workspace's,
+   * not the project's: not an undo step. `name` is the picker's label (default:
+   * the file's TITLE, or its name).
+   * @mapsTo useLooksStore.add (src/studio/looks/store.ts)
+   * @throws INVALID_ARGUMENT when the text is not a usable `.cube` look (the message names why)
+   * @throws INTERNAL when the library cannot be read or written in the workspace
+   * @example await studio.looks.add({ fileName: 'warm.cube', text: cubeText, name: 'Warm' })
+   */
+  add(input: LookAddInput): Promise<LookInfo>
 }
 
 /**

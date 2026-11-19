@@ -193,6 +193,42 @@ describe('studio.export', () => {
     })
   })
 
+  describe('presets', () => {
+    it('resolves the Instagram Reel preset for a 2K vertical project at 59.94 fps', () => {
+      useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1440, height: 2560, fps: 59.94 } }) })
+
+      const reel = api.presets().find((preset) => preset.id === 'instagram-reel')
+
+      expect(reel).toMatchObject({
+        label: 'Instagram Reel',
+        settings: { codec: 'h264', videoContainer: 'mp4', resolution: { width: 1440, height: 2560 }, videoBitrate: 25_000_000 },
+        numbers: { width: 1440, height: 2560, fps: 59.94, codec: 'h264', bitrate: 25_000_000 },
+      })
+    })
+
+    it('offers settings export.setSettings accepts as they are', () => {
+      for (const preset of api.presets()) api.setSettings(preset.settings)
+      expect(api.settings().codec).toBe(api.presets().at(-1)?.settings.codec)
+    })
+
+    it('throws UNSUPPORTED when no project is open', () => {
+      useProjectStore.setState({ currentProject: null })
+      const error = (() => {
+        try {
+          api.presets()
+        } catch (caught) {
+          return caught
+        }
+      })()
+      expect(error).toBeInstanceOf(StudioError)
+      expect(error).toMatchObject({ code: 'UNSUPPORTED' })
+    })
+
+    it("studio.export.presets().find((preset) => preset.id === 'instagram-reel')?.settings", () => {
+      expect(api.presets().find((preset) => preset.id === 'instagram-reel')?.settings.codec).toBe('h264')
+    })
+  })
+
   describe('setSettings', () => {
     it('merges the patch into the settings', () => {
       api.setSettings({ quality: 'high', videoBitrate: 12_000_000 })

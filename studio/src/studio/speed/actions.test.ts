@@ -145,6 +145,27 @@ describe('setSpeedCurve', () => {
     expect(useTimelineCommandStore.getState().undoStack).toHaveLength(1)
   })
 
+  it('keeps the start of a clip cut from the middle of its file', () => {
+    useItemsStore.getState().setItems([
+      makeTimelineVideoItem({
+        id: 'ramp',
+        durationInFrames: 600,
+        sourceStart: 1_200,
+        sourceEnd: 1_800,
+        sourceDuration: 4_000,
+        sourceFps: 30,
+        speed: 1,
+      }),
+    ])
+
+    setSpeedCurve('ramp', RAMP_600)
+
+    const edited = storedVideo()
+    expect(edited.sourceStart).toBe(1_200)
+    expect(edited.sourceEnd).toBe(1_800)
+    expect(edited.durationInFrames).toBe(156)
+  })
+
   it('reads the span of a curved clip that has no explicit source bounds from its curve', () => {
     useItemsStore.getState().setItems([makeRampItem({ sourceEnd: undefined })])
 

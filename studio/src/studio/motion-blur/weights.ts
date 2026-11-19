@@ -72,6 +72,8 @@ export interface MotionBlurQuery {
   projectRate: Rate
   /** The shutter angle in degrees: one of 90, 180, 270, 360. */
   shutterDegrees: ShutterDegrees
+  /** Blend the two source frames around a slow-motion frame (`MotionBlurSettings.blendSlowMotion`). */
+  blendSlowMotion?: boolean
 }
 
 /** The fraction of the span the shutter is open, `shutterDegrees / 360`; throws on any other value. */
@@ -121,6 +123,22 @@ export function motionBlurFrameCount(span: SourceFrameSpan): number {
 }
 
 /**
+ * The frame blend of a slow-motion output frame (19 Nov 2026): it sits at `position` between source frames `first` and
+ * `first + 1`, and takes each in proportion to how near it is, `1 - t` and `t` for `t = position - first`. A frame
+ * that lands on a whole source frame (within 1e-6) is that frame alone, so a 2x slow-down alternates a source frame
+ * and an even mix of two, and a clip at 1x with equal rates never blends.
+ */
+function slowMotionBlend(position: number, first: number): MotionBlurSample[] {
+  const t = position - first
+  if (t <= 1e-6) return [{ sourceFrame: first, weight: 1 }]
+  if (t >= 1 - 1e-6) return [{ sourceFrame: first + 1, weight: 1 }]
+  return [
+    { sourceFrame: first, weight: 1 - t },
+    { sourceFrame: first + 1, weight: t },
+  ]
+}
+
+/**
  * The blend of one output frame (design 7.2, section 4.1): its source span, the decode count,
  * and one sample per source frame inside the causal shutter window.
  *
@@ -150,6 +168,9 @@ export function planMotionBlur(query: MotionBlurQuery): MotionBlurPlan {
   const firstFrame = start.frame
   const lastFrame = Number(ceilFraction(end.position)) - 1
   const frameCount = lastFrame - firstFrame + 1
+  if (query.blendSlowMotion === true && endFrame - startFrame < 1) {
+    return { startFrame, endFrame, frameCount, samples: slowMotionBlend(startFrame, firstFrame) }
+  }
   const duration = fraction * (endFrame - startFrame)
   const open = startFrame
   const close = open + duration

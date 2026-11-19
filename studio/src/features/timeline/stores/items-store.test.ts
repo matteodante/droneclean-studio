@@ -479,6 +479,21 @@ describe('items-store rate stretch', () => {
     expect(updated.sourceEnd).toBe(250)
   })
 
+  it('keeps a clip\'s source start when an update sets only its source end', () => {
+    useItemsStore.getState().setItems([
+      makeVideoItem({ id: 'trimmed', durationInFrames: 120, sourceStart: 1200, sourceEnd: 1320, sourceFps: 30 }),
+      makeVideoItem({ id: 'legacy', durationInFrames: 120, sourceStart: undefined, sourceEnd: 300, sourceFps: 30 }),
+    ])
+
+    useItemsStore.getState()._updateItem('trimmed', { sourceEnd: 1400 })
+    useItemsStore.getState()._updateItem('legacy', { sourceEnd: 320 })
+
+    const byId = useItemsStore.getState().itemById
+    expect((byId.trimmed as VideoItem).sourceStart).toBe(1200)
+    expect((byId.trimmed as VideoItem).sourceEnd).toBe(1400)
+    expect((byId.legacy as VideoItem).sourceStart).toBe(0)
+  })
+
   it('normalizes legacy end-only bounds to sourceStart=0', () => {
     const legacySplit = makeVideoItem({
       id: 'legacy-end-only',

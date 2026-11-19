@@ -687,6 +687,7 @@
       "speed": "Speed",
       "motionBlur": "Motion blur",
       "motionBlurShutter": "Shutter",
+      "motionBlurBlendSlow": "Smooth slow motion",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "At {{speed}}x this removes the strobe",
       "motionBlurIdentity": "No effect at this speed"

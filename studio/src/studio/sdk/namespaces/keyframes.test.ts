@@ -291,6 +291,22 @@ describe('keyframes namespace', () => {
       )
     })
 
+    it('lets a size keyframe reach past the graph bound of 2000 px in a 2K project, and still bounds it', () => {
+      useProjectStore.setState({
+        currentProject: {
+          id: 'p', name: 'p', description: '', createdAt: 1, updatedAt: 1, duration: 0,
+          metadata: { width: 1440, height: 2560, fps: 60 },
+        },
+      })
+
+      const id = studio.keyframes.add('c1', 'height', 0, 2900)
+      expect(lane('height')).toEqual([{ id, frame: 0, value: 2900, easing: 'linear' }])
+
+      const error = catchError(() => studio.keyframes.add('c1', 'height', 5, 20_000))
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.message).toContain('from 0 to 10240')
+    })
+
     it('throws INVALID_ARGUMENT when the easing is not an easing type', () => {
       const error = catchError(() => studio.keyframes.add('c1', 'opacity', 0, 1, 'bounce' as never))
 
@@ -360,6 +376,42 @@ describe('keyframes namespace', () => {
       expect(undoDepth()).toBe(depthBefore)
     })
 
+    it('gives a keyframe a custom bezier curve, which list reads back', () => {
+      studio.keyframes.update('c1', 'k1', { bezier: { x1: 0.16, y1: 1, x2: 0.3, y2: 1 } })
+
+      expect(lane('opacity')[0]).toMatchObject({
+        easing: 'cubic-bezier',
+        easingConfig: { type: 'cubic-bezier', bezier: { x1: 0.16, y1: 1, x2: 0.3, y2: 1 } },
+      })
+      expect(studio.keyframes.list('c1')[0]).toMatchObject({
+        easing: 'cubic-bezier',
+        bezier: { x1: 0.16, y1: 1, x2: 0.3, y2: 1 },
+      })
+    })
+
+    it('gives a keyframe spring physics, and a plain easing afterwards drops them', () => {
+      studio.keyframes.update('c1', 'k1', { spring: { tension: 220, friction: 18, mass: 1 } })
+      expect(studio.keyframes.list('c1')[0]).toMatchObject({ easing: 'spring', spring: { tension: 220, friction: 18, mass: 1 } })
+
+      studio.keyframes.update('c1', 'k1', { easing: 'ease-out' })
+      expect(studio.keyframes.list('c1')[0]).toEqual({ id: 'k1', property: 'opacity', frame: 10, value: 0.5, easing: 'ease-out' })
+    })
+
+    it('refuses a bezier x outside 0..1, and a patch with both a bezier and a spring', () => {
+      const outside = catchError(() =>
+        studio.keyframes.update('c1', 'k1', { bezier: { x1: 1.4, y1: 0, x2: 0.5, y2: 1 } }),
+      )
+      const both = catchError(() =>
+        studio.keyframes.update('c1', 'k1', {
+          bezier: { x1: 0.2, y1: 0, x2: 0.5, y2: 1 },
+          spring: { tension: 170, friction: 26, mass: 1 },
+        }),
+      )
+
+      expect(outside).toMatchObject({ code: 'INVALID_ARGUMENT', argument: 'patch.bezier.x1' })
+      expect(both).toMatchObject({ code: 'INVALID_ARGUMENT' })
+    })
+
     it('does nothing and adds no undo step for an empty patch', () => {
       const before = useKeyframesStore.getState().keyframes
       const depthBefore = undoDepth()
@@ -425,7 +477,7 @@ describe('keyframes namespace', () => {
 
       expect(error.code).toBe('INVALID_ARGUMENT')
       expect(error.argument).toBe('patch')
-      expect(error.message).toContain('"patch" must be an object with value, easing or frame')
+      expect(error.message).toContain('"patch" must be an object with value, easing, bezier, spring or frame')
     })
 
     it('throws CONFLICT when the new frame is outside the clip', () => {

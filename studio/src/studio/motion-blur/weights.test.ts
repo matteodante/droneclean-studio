@@ -225,6 +225,48 @@ describe('the table of design 7.2, section 5.7', () => {
   })
 })
 
+describe('the slow-motion blend (19 Nov 2026)', () => {
+  const blendAt = (speed: number, timelineFrame: number, shutterDegrees: ShutterDegrees = 180) =>
+    planMotionBlur({
+      clip: clipOf(flatCurve(speed)),
+      timelineFrame,
+      projectRate: RATE_59_94,
+      shutterDegrees,
+      blendSlowMotion: true,
+    })
+
+  it('alternates a source frame and an even mix of the next two at 0.5x, for every angle', () => {
+    for (const shutterDegrees of SHUTTERS) {
+      expect(blendAt(0.5, 10, shutterDegrees).samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+      expect(blendAt(0.5, 11, shutterDegrees).samples).toEqual([
+        { sourceFrame: 5, weight: 0.5 },
+        { sourceFrame: 6, weight: 0.5 },
+      ])
+    }
+  })
+
+  it('weights the two frames by position at 0.25x: 3/4 and 1/4, then a half, then 1/4 and 3/4', () => {
+    const weights = [1, 2, 3].map((frame) => blendAt(0.25, frame).samples.map((sample) => sample.weight))
+    expect(weights).toEqual([
+      [0.75, 0.25],
+      [0.5, 0.5],
+      [0.25, 0.75],
+    ])
+    for (const frame of [1, 2, 3]) expect(weightSum(blendAt(0.25, frame))).toBeCloseTo(1, 12)
+  })
+
+  it('changes nothing at 1x, and leaves a sped-up frame to the shutter', () => {
+    for (let frame = 0; frame < 60; frame += 1) {
+      expect(blendAt(1, frame).samples).toEqual([{ sourceFrame: frame, weight: 1 }])
+    }
+    expect(blendAt(4, 2, 360).samples).toEqual(planAt(4, 2, 360).samples)
+  })
+
+  it('is off unless asked: 0.5x without the blend holds the frame', () => {
+    expect(planAt(0.5, 11, 180).samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+  })
+})
+
 describe('a cut between two source frames', () => {
   it('gives the cut clip its parent’s spans: the remainder is added before the floor', () => {
     // Frame 1 of the ramp sits at source frame 1.05, so the clip a cut leaves there starts on

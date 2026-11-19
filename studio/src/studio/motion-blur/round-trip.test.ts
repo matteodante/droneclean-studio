@@ -62,6 +62,22 @@ describe('VideoItem.motionBlur round trip', () => {
     expect(stored()?.motionBlur).toEqual({ shutterDegrees: 180 })
   })
 
+  it('keeps the slow-motion blend through a save and a load', async () => {
+    useItemsStore
+      .getState()
+      .setItems([
+        makeTimelineVideoItem({
+          id: 'clip-1',
+          trackId: TRACK.id,
+          motionBlur: { shutterDegrees: 270, blendSlowMotion: true },
+        }),
+      ])
+
+    await saveAndLoad()
+
+    expect(stored()?.motionBlur).toEqual({ shutterDegrees: 270, blendSlowMotion: true })
+  })
+
   it('passes the project schema the bundle load validates with, even with an unknown angle', () => {
     useItemsStore
       .getState()

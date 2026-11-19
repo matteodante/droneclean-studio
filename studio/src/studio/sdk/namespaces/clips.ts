@@ -284,18 +284,27 @@ function requireMotionBlurClip(id: ClipId, method: string): TimelineItem {
   })
 }
 
-/** The settings `clips.setMotionBlur` accepts: null, or an object with one of the four angles. */
+/** A field of a settings object, or undefined for anything that is not an object. */
+function fieldOf(value: unknown, field: string): unknown {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)[field]
+    : undefined
+}
+
+/** The settings `clips.setMotionBlur` accepts: null, or an object with one of the four angles and an optional blend. */
 function requireMotionBlurSettings(value: unknown, method: string): MotionBlurSettings | null {
   if (value === null) return null
-  const degrees =
-    typeof value === 'object' && !Array.isArray(value)
-      ? (value as { shutterDegrees?: unknown }).shutterDegrees
-      : undefined
-  if (isShutterDegrees(degrees)) return { shutterDegrees: degrees }
+  const degrees = fieldOf(value, 'shutterDegrees')
+  const blend = fieldOf(value, 'blendSlowMotion')
+  const blendValid = blend === undefined || typeof blend === 'boolean'
+  if (isShutterDegrees(degrees) && blendValid) {
+    return blend === true ? { shutterDegrees: degrees, blendSlowMotion: true } : { shutterDegrees: degrees }
+  }
   throw invalidArgumentError({
     method,
     argument: 'settings',
-    expectation: 'null, or an object whose "shutterDegrees" is 90, 180, 270 or 360',
+    expectation:
+      'null, or an object whose "shutterDegrees" is 90, 180, 270 or 360 and whose optional "blendSlowMotion" is a boolean',
     value,
     valid: SHUTTER_DEGREES.map(String),
     hint: 'Pass null to switch the blur off.',
@@ -1004,7 +1013,10 @@ export function createClipsApi(): ClipsApi {
     getMotionBlur(id: ClipId): MotionBlurSettings | null {
       const item = requireMotionBlurClip(id, 'clips.getMotionBlur')
       const settings = item.type === 'video' ? item.motionBlur : undefined
-      return settings === undefined ? null : { shutterDegrees: settings.shutterDegrees }
+      if (settings === undefined) return null
+      return settings.blendSlowMotion === true
+        ? { shutterDegrees: settings.shutterDegrees, blendSlowMotion: true }
+        : { shutterDegrees: settings.shutterDegrees }
     },
 
     setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void {

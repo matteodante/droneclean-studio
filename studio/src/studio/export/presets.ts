@@ -1,6 +1,6 @@
 /**
- * Export presets a drone pilot understands: "Same as source", "YouTube 4K" and
- * "Small file", each resolved to concrete numbers (resolution, frame rate,
+ * Export presets a drone pilot understands: "Same as source", "YouTube 4K",
+ * "Instagram Reel" and "Small file", each resolved to concrete numbers (resolution, frame rate,
  * codec, bitrate, bit depth) that the dialog shows and lets the user edit.
  * "Master ProRes" and 10-bit HEVC need the native encoder (task 3.3); they are
  * defined here behind the `nativeEncoder` capability, which only the desktop
@@ -20,6 +20,7 @@ import type { ExportSettings } from '@/types/export'
 export type PilotPresetId =
   | 'same-as-source'
   | 'youtube-4k'
+  | 'instagram-reel'
   | 'small-file'
   | 'master-prores'
   | 'master-hevc-10bit'
@@ -100,6 +101,26 @@ const MAX_VIDEO_BITRATE = 500_000_000
  */
 function youtube4kBitrate(fps: number): number {
   return fps > 30 ? 60_000_000 : 40_000_000
+}
+
+/**
+ * Instagram plays Reels at 1080x1920 at most and re-encodes every upload; it publishes no bitrate, and the guides
+ * that measure it (2026) agree on H.264 in MP4, 9:16, up to 60 fps, about 8-15 Mbps at 1080p. A 1440x2560 upload is
+ * scaled down by Instagram itself from a sharper picture, which is what creators mean by "upload in 2K". So the box
+ * is 1440x2560 when the project is at least that large on its short side, else 1080x1920, turned like the project;
+ * and the rate sits at the top of the measured range, scaled by pixels and doubled frame rate.
+ */
+function instagramReelBox(project: PresetFrame): { width: number; height: number } {
+  const twoK = Math.min(project.width, project.height) >= 1440
+  const short = twoK ? 1440 : 1080
+  const long = twoK ? 2560 : 1920
+  return project.height >= project.width ? { width: short, height: long } : { width: long, height: short }
+}
+
+function instagramReelBitrate(box: { width: number; height: number }, fps: number): number {
+  const twoK = Math.min(box.width, box.height) >= 1440
+  if (twoK) return fps > 30 ? 25_000_000 : 16_000_000
+  return fps > 30 ? 15_000_000 : 10_000_000
 }
 
 /**
@@ -225,6 +246,20 @@ const DEFINITIONS: PilotPresetDefinition[] = [
         codec: 'h265',
         resolution: fitInBox(context.project, { width: 3840, height: 2160 }),
         bitrate: youtube4kBitrate(context.project.fps),
+        bitDepth: 8,
+      })
+    },
+  },
+  {
+    id: 'instagram-reel',
+    labelKey: 'export.settings.presetInstagramReel',
+    resolve(context) {
+      const resolution = fitInBox(context.project, instagramReelBox(context.project))
+      return build(context, {
+        container: 'mp4',
+        codec: 'h264',
+        resolution,
+        bitrate: instagramReelBitrate(resolution, context.project.fps),
         bitDepth: 8,
       })
     },

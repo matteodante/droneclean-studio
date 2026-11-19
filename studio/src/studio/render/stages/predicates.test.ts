@@ -157,6 +157,26 @@ describe('motion blur and the playback rates', () => {
   })
 })
 
+describe('the slow-motion blend', () => {
+  const blended = (extra: Record<string, unknown> = {}) =>
+    clip({ motionBlur: { shutterDegrees: 180, blendSlowMotion: true }, ...extra })
+  const equal = { source: toRate(60), project: toRate(60) }
+
+  it('a clip below 1x blends two frames, so it is drawn through the stages from exact frames', () => {
+    expect(hasMotionBlurSpan(blended({ speed: 0.5 }), equal)).toBe(true)
+    expect(needsSourceStages(blended({ speed: 0.5 }), equal)).toBe(true)
+  })
+
+  it('a 30 fps file in a 60 fps project blends at 1x, a 60 fps one does not', () => {
+    expect(hasMotionBlurSpan(blended({ speed: 1 }), { source: toRate(30), project: toRate(60) })).toBe(true)
+    expect(hasMotionBlurSpan(blended({ speed: 1 }), equal)).toBe(false)
+  })
+
+  it('without the blend a slow clip still needs nothing', () => {
+    expect(hasMotionBlurSpan(clip({ motionBlur: { shutterDegrees: 180 }, speed: 0.5 }), equal)).toBe(false)
+  })
+})
+
 describe('the predicates derive the rates from the clip and the project (no argument at the call sites)', () => {
   const fast = (extra: Record<string, unknown> = {}) => clip({ sourceFps: 120, speed: 1, ...extra })
 

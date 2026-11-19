@@ -126,6 +126,28 @@ describe('MotionBlurRows', () => {
     expect(screen.getByTestId('motion-blur-identity')).toBeTruthy()
   })
 
+  it('switches the smooth slow motion on at 0.5x, and the 1x note gives way to it', () => {
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 180 } }))
+    expect(screen.getByTestId('motion-blur-identity')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('motion-blur-blend-slow'))
+
+    expect(stored()).toEqual({ shutterDegrees: 180, blendSlowMotion: true })
+    expect(undoDepth()).toBe(1)
+    expect(screen.queryByTestId('motion-blur-identity')).toBeNull()
+  })
+
+  it('keeps the smooth slow motion when the shutter angle changes', async () => {
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 360, blendSlowMotion: true } }))
+
+    const trigger = screen.getByTestId('motion-blur-shutter')
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('option', { name: '90°' }))
+
+    expect(stored()).toEqual({ shutterDegrees: 90, blendSlowMotion: true })
+  })
+
   it('changes the shutter angle with the select: one undo step per choice', async () => {
     renderStored(clip({ speed: 4, motionBlur: { shutterDegrees: 360 } }))
 

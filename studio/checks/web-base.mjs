@@ -6,7 +6,8 @@
 // Serves dist-web/ under /studio/ the way the static server in web/ does (cross-origin isolation headers, a
 // single-page fallback for unknown paths under /studio/), opens it in headless Chrome and checks that:
 //   - /studio/ loads, is cross-origin isolated, `window.studio` exists, and lands on /studio/projects;
-//   - the deep link /studio/projects loads (the fallback answers index.html) and renders;
+//   - the deep link /studio/projects loads (the fallback answers index.html), renders, and a first visit's folder
+//     picker points to the desktop app;
 //   - the stabilization worker (gyroflow/wasm/js/gyro-worker.js, under the base) answers `smoothingMethods`;
 //   - no manifest is linked and no service worker is registered; a worker and shell cache left by the earlier
 //     build are removed at startup;
@@ -131,9 +132,12 @@ async function main() {
       path: window.location.pathname,
       text: document.body.innerText.trim().slice(0, 80),
       studio: typeof window.studio,
+      // A first visit has no workspace yet: the folder picker is what it sees, and it points to the desktop app.
+      desktopNotice: [...document.querySelectorAll('a')].some((a) => a.href.endsWith('/#get-studio')),
     }))
     if (deep.path !== `${BASE}projects`) fail(`/studio/projects became ${deep.path}`)
     if (deep.studio !== 'object') fail('window.studio is missing on /studio/projects')
+    if (!deep.desktopNotice) fail('the first screen of the web editor does not point to the desktop app')
     console.log(`/studio/projects: path=${deep.path} text="${deep.text.replace(/\s+/g, ' ')}"`)
 
     const methods = await page.evaluate(

@@ -17,7 +17,9 @@
 import type { ExtendedExportSettings } from '@/types/export'
 import type {
   ExportApi,
+  ExportCodec,
   ExportJobInfo,
+  ExportPresetInfo,
   ExportSettingsPatch,
   ExportStartInput,
   ExportWaitOptions,
@@ -32,6 +34,8 @@ import {
   StudioError,
 } from '../errors'
 import { requireFrame } from '../context'
+import { getPilotPresets, resolvePilotPreset, WEB_PRESET_CAPABILITIES } from '@/studio/export/presets'
+import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { readExportSettings, resolveExportSettings, writeExportSettings } from './export-settings'
 import { buildRenderJob } from '@/features/export/utils/build-render-job'
 import { useRenderQueueStore } from '@/features/export/stores/render-queue-store'
@@ -182,6 +186,59 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** The dialog's English names of the presets `export.presets` can offer. */
+const PRESET_LABELS: Record<string, string> = {
+  'same-as-source': 'Same as source',
+  'youtube-4k': 'YouTube 4K',
+  'instagram-reel': 'Instagram Reel',
+  'small-file': 'Small file (sharing)',
+}
+
+/** The source the dialog's "Same as source" reads: the first placed video clip's file, when there is one. */
+function presetSource(): { width: number; height: number; fps: number; bitrate: number } | undefined {
+  const video = useItemsStore.getState().items.find((item) => item.type === 'video')
+  if (!video || video.type !== 'video') return undefined
+  const { sourceWidth, sourceHeight, sourceFps } = video as { sourceWidth?: number; sourceHeight?: number; sourceFps?: number }
+  if (!sourceWidth || !sourceHeight || !sourceFps) return undefined
+  return { width: sourceWidth, height: sourceHeight, fps: sourceFps, bitrate: 0 }
+}
+
+/** `studio.export.presets`: the dialog's presets, resolved for the open project. */
+function presets(): ExportPresetInfo[] {
+  const project = useProjectStore.getState().currentProject
+  if (!project) {
+    throw studioError({
+      code: 'UNSUPPORTED',
+      method: 'export.presets',
+      message: 'no project is open, so there is no frame to resolve the presets for',
+      hint: 'Open a project with studio.project.open(id) first.',
+    })
+  }
+  const { width, height, fps } = project.metadata
+  const context = { project: { width, height, fps }, source: presetSource(), capabilities: WEB_PRESET_CAPABILITIES }
+  return getPilotPresets(context).flatMap(({ id }) => {
+    const resolved = resolvePilotPreset(id, context)
+    if (!resolved || resolved.settings.codec === 'prores') return []
+    const codec = resolved.settings.codec as ExportCodec
+    return [
+      {
+        id,
+        label: PRESET_LABELS[id] ?? id,
+        settings: {
+          codec,
+          quality: resolved.settings.quality,
+          resolution: { ...resolved.settings.resolution },
+          rateControl: resolved.settings.rateControl,
+          videoBitrate: resolved.settings.videoBitrate,
+          smartCopy: resolved.settings.smartCopy,
+          videoContainer: resolved.container,
+        },
+        numbers: { ...resolved.numbers, codec },
+      },
+    ]
+  })
+}
+
 /** Queue an export and return its job; the editor's runner renders it. */
 async function start(options: ExportStartInput = {}): Promise<ExportJobInfo> {
   requireOptions(options, 'options', 'export.start')
@@ -262,6 +319,7 @@ export function createExportApi(): ExportApi {
     setSettings: (patch: ExportSettingsPatch) => {
       writeExportSettings(patch, 'export.setSettings')
     },
+    presets,
     start,
     jobs: () => useRenderQueueStore.getState().jobs.map(toJobInfo),
     status: (id: string) => {

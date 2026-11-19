@@ -72,6 +72,12 @@ read the same store).
 - SDK: `studio.export.settings`
 - Code: `src/studio/export/presets.ts`
 
+### Instagram Reel
+- Where: Editor › Export dialog › Preset
+- Does: H.264 MP4 at the project's frame rate, fitted in 1440x2560 for a project at least that large (else 1080x1920), at 25 Mbps (2K, above 30 fps) down to 10 Mbps (1080, 30 fps): what Instagram ingests best, scaled down by Instagram itself.
+- SDK: `studio.export.presets`
+- Code: `src/studio/export/presets.ts`
+
 ### Small file (sharing)
 - Where: Editor › Export dialog › Preset
 - Does: H.265 MP4 fitted in 1920x1080 with a low bitrate, for sending the clip around.

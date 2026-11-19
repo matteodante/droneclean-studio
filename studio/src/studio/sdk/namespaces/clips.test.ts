@@ -1978,6 +1978,26 @@ describe('studio.clips', () => {
   // -------------------------------------------------------------------------
 
   describe('getMotionBlur', () => {
+    it('switches the slow-motion blend on with the blur and reads it back', () => {
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: true })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, blendSlowMotion: true })
+
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: false })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180 })
+    })
+
+    it('refuses a slow-motion blend that is not a boolean', () => {
+      const error = (() => {
+        try {
+          studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: 'yes' as unknown as boolean })
+        } catch (caught) {
+          return caught
+        }
+      })()
+      expect(error).toMatchObject({ code: 'INVALID_ARGUMENT' })
+      expect((error as Error).message).toContain('clips.setMotionBlur: ')
+    })
+
     it('answers null for a clip with no blur, and reads what setMotionBlur wrote', () => {
       expect(studio.clips.getMotionBlur('c1')).toBeNull()
 

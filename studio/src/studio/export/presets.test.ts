@@ -35,10 +35,11 @@ function exported(id: PilotPresetId, ctx: PresetContext) {
 }
 
 describe('web presets', () => {
-  it('offers exactly the three pilot presets without the native encoder', () => {
+  it('offers exactly the four pilot presets without the native encoder', () => {
     expect(getPilotPresets(context()).map((p) => p.id)).toEqual([
       'same-as-source',
       'youtube-4k',
+      'instagram-reel',
       'small-file',
     ])
   })
@@ -67,7 +68,7 @@ describe('web presets', () => {
     const ctx = context({ capabilities: desktop })
     expect(resolvePilotPreset('master-prores', ctx)?.nativeFormat).toBe('prores-422-hq')
     expect(resolvePilotPreset('master-hevc-10bit', ctx)?.nativeFormat).toBe('hevc-main10')
-    for (const id of ['same-as-source', 'youtube-4k', 'small-file'] as const) {
+    for (const id of ['same-as-source', 'youtube-4k', 'instagram-reel', 'small-file'] as const) {
       expect(resolvePilotPreset(id, ctx)?.nativeFormat).toBeUndefined()
     }
   })
@@ -75,9 +76,10 @@ describe('web presets', () => {
   it('offers only the masters whose format the native encoder can write', () => {
     const only = (nativeFormats: Array<'hevc-main10' | 'prores-422-hq'>) =>
       getPilotPresets(context({ capabilities: { nativeEncoder: true, nativeFormats } })).map((p) => p.id)
-    expect(only(['hevc-main10'])).toEqual(['same-as-source', 'youtube-4k', 'small-file', 'master-hevc-10bit'])
-    expect(only(['prores-422-hq'])).toEqual(['same-as-source', 'youtube-4k', 'small-file', 'master-prores'])
-    expect(only([])).toEqual(['same-as-source', 'youtube-4k', 'small-file'])
+    const web = ['same-as-source', 'youtube-4k', 'instagram-reel', 'small-file']
+    expect(only(['hevc-main10'])).toEqual([...web, 'master-hevc-10bit'])
+    expect(only(['prores-422-hq'])).toEqual([...web, 'master-prores'])
+    expect(only([])).toEqual(web)
     expect(
       resolvePilotPreset('master-prores', context({ capabilities: { nativeEncoder: false, nativeFormats: ['prores-422-hq'] } })),
     ).toBeNull()
@@ -100,17 +102,18 @@ describe('web presets', () => {
     expect(prores?.settings.videoBitrate).toBe(500_000_000)
   })
 
-  it('every web preset is 8-bit H.265', () => {
+  it('every web preset is 8-bit, H.265 but for the Instagram Reel, which Instagram reliably ingests as H.264', () => {
     for (const { id } of getPilotPresets(context())) {
       const { resolved } = exported(id, context())
       expect(resolved.numbers.bitDepth).toBe(8)
-      expect(resolved.settings.codec).toBe('h265')
+      expect(resolved.settings.codec).toBe(id === 'instagram-reel' ? 'h264' : 'h265')
     }
   })
 
   it('hides Same as source when no clip is on the timeline', () => {
     expect(getPilotPresets(context({ source: undefined })).map((p) => p.id)).toEqual([
       'youtube-4k',
+      'instagram-reel',
       'small-file',
     ])
     expect(resolvePilotPreset('same-as-source', context({ source: undefined }))).toBeNull()
@@ -119,6 +122,33 @@ describe('web presets', () => {
   it('recognises pilot ids', () => {
     expect(isPilotPresetId('youtube-4k')).toBe(true)
     expect(isPilotPresetId('max')).toBe(false)
+  })
+})
+
+describe('Instagram Reel', () => {
+  const vertical = (width: number, height: number, fps: number) =>
+    context({ project: { width, height, fps }, source: undefined })
+
+  it('is 1440x2560 H.264 at 25 Mbps for a 2K vertical project at 59.94 fps', () => {
+    const { resolved, client } = exported('instagram-reel', vertical(1440, 2560, 59.94))
+    expect(client.resolution).toEqual({ width: 1440, height: 2560 })
+    expect(client.codec).toBe('avc')
+    expect(client.container).toBe('mp4')
+    expect(resolved.numbers).toMatchObject({ fps: 59.94, bitrate: 25_000_000, bitDepth: 8 })
+  })
+
+  it('is 1080x1920 at 15 Mbps (60 fps) or 10 Mbps (30 fps) for a 1080 project, never scaled up', () => {
+    expect(exported('instagram-reel', vertical(1080, 1920, 60)).resolved.numbers).toMatchObject({
+      width: 1080,
+      height: 1920,
+      bitrate: 15_000_000,
+    })
+    expect(exported('instagram-reel', vertical(1080, 1920, 30)).resolved.numbers.bitrate).toBe(10_000_000)
+  })
+
+  it('scales a 4K vertical project down to 1440x2560 and turns the box for a landscape one', () => {
+    expect(exported('instagram-reel', vertical(2160, 3840, 30)).client.resolution).toEqual({ width: 1440, height: 2560 })
+    expect(exported('instagram-reel', context()).client.resolution).toEqual({ width: 2560, height: 1440 })
   })
 })
 

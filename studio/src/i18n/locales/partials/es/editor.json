@@ -687,6 +687,7 @@
       "speed": "Velocidad",
       "motionBlur": "Desenfoque de movimiento",
       "motionBlurShutter": "Obturador",
+      "motionBlurBlendSlow": "Cámara lenta fluida",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "A {{speed}}x esto elimina el efecto estroboscópico",
       "motionBlurIdentity": "Sin efecto a esta velocidad"

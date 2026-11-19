@@ -65,9 +65,11 @@ test('the real SDK reference, guide and feature map load', async () => {
   assert.ok(sdk.some((document) => document.title === 'INVALID_ARGUMENT'))
   assert.equal(
     guide.filter((document) => /^guide:[^:]+$/.test(document.id)).length,
-    27,
+    28,
     'the user guide should contribute one document per page',
   )
+  // The drone-footage page (19 Nov 2026) is what an agent finds for the fork's own tools.
+  assert.ok(guide.some((document) => document.id === 'guide:drone-footage'), 'the drone-footage guide page is indexed')
   assert.ok(map.length > 50, `only ${map.length} feature-map entries`)
 
   const index = createSearchIndex(documents)
