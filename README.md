@@ -1,29 +1,97 @@
-# DroneClean Studio
+<h1 align="center">DroneClean Studio</h1>
 
-A free, local-first video editor for FPV and drone pilots: stabilization from the drone's own gyro data (Gyroflow's
-engine, compiled to WebAssembly), DJI D-Log M to Rec.709, speed ramps with motion blur, 10-bit masters (ProRes HQ,
-HEVC Main 10) with the Mac's hardware encoders, and an MCP server so an AI agent can edit with you. Removing the
-drone's own shadow is its one paid effect, done through the DroneClean cloud service.
+<p align="center"><strong>A free, local-first video editor for FPV and drone pilots.</strong></p>
 
-This is the source of release 0.1.2. Downloads are on the [releases page](../../releases).
+<p align="center">
+  <a href="https://github.com/matteodante/droneclean-studio/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/matteodante/droneclean-studio?label=release"></a>
+  <a href="LICENSE"><img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-blue"></a>
+  <img alt="macOS (Apple silicon) and the web" src="https://img.shields.io/badge/platform-macOS%20%7C%20web-lightgrey">
+</p>
 
-## Layout
+<p align="center">
+  <img src=".github/assets/studio.webp" alt="The DroneClean Studio editor with a beach clip on the timeline and a drone's shadow marked on the picture" width="820">
+</p>
 
-- `studio/`: the editor, a fork of [FreeCut](https://github.com/walterlow/freecut) (MIT), and its desktop shell
-  (`studio/desktop/`, Electron).
-- `gyroflow/`: a fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its
-  engine for the editor.
+<p align="center">
+  <a href="https://github.com/matteodante/droneclean-studio/releases/latest/download/DroneClean-Studio-arm64.dmg"><strong>Download for Mac</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://droneclean.app/studio/"><strong>Open in your browser</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://droneclean.app">droneclean.app</a>
+</p>
 
-## Build (macOS, Apple silicon)
+## Features
 
-Node 24, Rust with the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` 0.2.130 and `wasm-opt` (Binaryen).
+- **Stabilization from the gyro.** DJI and GoPro files carry the camera's motion; Studio steadies them with
+  [Gyroflow](https://github.com/gyroflow/gyroflow)'s engine compiled to WebAssembly, with no analysis pass. A 4:3
+  clip in a 9:16 project fills the vertical frame by itself.
+- **Colour for drone footage.** DJI D-Log M and D-Log to Rec.709, creative looks from `.cube` files, colour wheels,
+  curves, secondary qualifiers and power windows.
+- **Speed.** Speed curves and ramps, motion blur with a shutter angle, and smooth slow motion that blends frames
+  instead of repeating them.
+- **Keyframes** on every property and effect parameter, with bezier and spring easing.
+- **Export.** Presets for YouTube 4K and Instagram Reels, and 10-bit masters (ProRes 422 HQ, HEVC Main 10) in the
+  desktop app.
+- **AI agents.** A local MCP server: Claude, or another MCP client, can build, grade and export a project through the
+  same SDK the editor uses, and every change is an undo step.
+- **Drone shadow removal**, the one paid effect, through the DroneClean cloud service.
+- **Local-first.** Projects and media stay in a folder you choose; footage leaves your computer only when you send a
+  piece of it to clean the shadow.
+
+## Install
+
+**Mac (Apple silicon):** download the disk image from the [latest release](../../releases/latest) and drag
+DroneClean Studio to Applications. This build is not signed by Apple yet, so macOS stops it the first time: open it
+once, then go to System Settings › Privacy & Security and press **Open Anyway**.
+
+**Browser:** [droneclean.app/studio](https://droneclean.app/studio/) runs the same editor in Chrome or Edge on a
+computer (it needs the File System Access API).
+
+## Use it with an AI agent
+
+In the desktop app, turn on **Settings › Agent access › Allow AI agents**; the panel shows the exact command. For
+Claude Code:
+
+```sh
+claude mcp add droneclean -- "/Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp"
+```
+
+The server has four tools: `search` (the SDK reference, the user guide and the feature map), `run` (a script against
+the editor's SDK), `frame` (a rendered frame or contact sheet) and `export`.
+
+## Build from source
+
+macOS on Apple silicon, Node 24, Rust with the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` 0.2.130 and
+`wasm-opt` (Binaryen).
 
 ```sh
 cd studio && npm ci && cd desktop && npm ci
-npm run package        # builds the editor, Gyroflow's wasm and FFmpeg, then the app in dist/mac-arm64
+npm run package        # the editor, Gyroflow's wasm and FFmpeg, then the app in dist/mac-arm64
 ```
 
-## Licence
+In `studio/`, `npm run check:quick` runs the fast checks and `npm run verify` the full suite (it needs Google Chrome
+and FFmpeg).
 
-GPL-3.0-or-later (see `LICENSE`). It includes FreeCut (MIT), Gyroflow (GPL-3.0) and, in the app, FFmpeg
-(LGPL-2.1, built from its official source by `studio/desktop/scripts/build-ffmpeg.sh`).
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `studio/` | The editor, a fork of [FreeCut](https://github.com/walterlow/freecut) (MIT). DroneClean's own code is in `studio/src/studio/`. |
+| `studio/desktop/` | The Electron app, its FFmpeg build and the release script. |
+| `studio/mcp/` | The MCP launcher an agent starts. |
+| `studio/web/` | The static server of the web editor. |
+| `gyroflow/` | A fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its engine for the editor. |
+
+This repository is published by the release process: each release is one commit, tagged `v0.1.2` for this one.
+
+## Contributing and security
+
+Bug reports and ideas are welcome: [open an issue](../../issues/new/choose). [CONTRIBUTING.md](CONTRIBUTING.md) says
+how changes reach a release. Report a vulnerability privately as [SECURITY.md](SECURITY.md) describes, never in a
+public issue.
+
+## Licence and credits
+
+GPL-3.0-or-later (see [LICENSE](LICENSE)). DroneClean Studio includes FreeCut (MIT) and Gyroflow (GPL-3.0); the
+desktop app includes FFmpeg (LGPL-2.1), built from its official source by `studio/desktop/scripts/build-ffmpeg.sh`.
+The screenshot shows Pexels video 39579103 under the [Pexels License](https://www.pexels.com/license/).

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/matteodante/droneclean-studio/security/advisories/new
+    about: Report a vulnerability privately, never in a public issue.
+  - name: droneclean.app
+    url: https://droneclean.app
+    about: Downloads, the web editor and shadow removal.

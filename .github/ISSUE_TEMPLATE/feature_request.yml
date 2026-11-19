@@ -1,0 +1,16 @@
+name: Idea
+description: Something DroneClean Studio could do for your footage.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like to do
+      description: The result you want, in your own words; how you do it today, if you do.
+    validations:
+      required: true
+  - type: textarea
+    id: footage
+    attributes:
+      label: The footage it is for
+      placeholder: FPV freestyle, cinematic drone, 4K 60 fps, …
