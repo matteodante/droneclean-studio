@@ -3,15 +3,7 @@
     "newVersionAvailable": "Eine neue Version ist verfügbar. Speichere deine Arbeit und lade neu.",
     "saveAndReload": "Speichern und neu laden",
     "reloadWithoutSaving": "Ohne Speichern neu laden",
-    "dockPanel": "Panel andocken",
-    "installPrompt": {
-      "label": "DroneClean Studio installieren",
-      "title": "DroneClean Studio installieren",
-      "description": "Starte es vom Desktop oder Startbildschirm.",
-      "install": "Installieren",
-      "notNow": "Jetzt nicht",
-      "dismiss": "Installationshinweis ausblenden"
-    }
+    "dockPanel": "Panel andocken"
   },
   "common": {
     "save": "Speichern",

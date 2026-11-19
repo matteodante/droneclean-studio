@@ -77,7 +77,7 @@
     {"file":"src/features/media-library/components/media-picker-dialog.tsx","expression":"`media.picker.noFilesFiltered.${filterType}`","reason":"template key: the part after 'media.picker.noFilesFiltered.' is a runtime value (an enum, id or status), so the key cannot be listed statically"},
     {"file":"src/features/media-library/components/orphaned-clips-dialog.tsx","expression":"`media.orphanedClips.clipMediaDeleted.${orphan.itemType}`","reason":"template key: the part after 'media.orphanedClips.clipMediaDeleted.' is a runtime value (an enum, id or status), so the key cannot be listed statically"},
     {"file":"src/features/preview/components/alignment-hud.tsx","expression":"labelKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
-    {"file": "src/features/projects/components/project-form.tsx", "expression": "key", "reason": "the form schema passes its message keys (literals in the schema file) through `t`"},
+    {"file":"src/features/projects/components/project-form.tsx","expression":"key","reason":"the form schema passes its message keys (literals in the schema file) through `t`"},
     {"file":"src/features/projects/components/project-list.tsx","expression":"labelKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
     {"file":"src/features/scene-browser/components/scene-browser-panel.tsx","expression":"option.labelKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
     {"file":"src/features/settings/components/agent-access-panel.tsx","expression":"snippet.descriptionKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
@@ -96,13 +96,11 @@
     {"file":"src/features/timeline/components/filler-removal-dialog.tsx","expression":"`timeline.fillerRemoval.preset.${preset.id}`","reason":"template key: the part after 'timeline.fillerRemoval.preset.' is a runtime value (an enum, id or status), so the key cannot be listed statically"},
     {"file":"src/features/timeline/components/keyframe-graph-panel.tsx","expression":"option.labelKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
     {"file":"src/features/timeline/components/timeline.tsx","expression":"option.labelKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
-    {"file": "src/infrastructure/analysis/embeddings/clip-provider.ts", "expression": "trimmed", "reason": "false positive: `t` is a local prompt-template function here, not the translation function"},
+    {"file":"src/infrastructure/analysis/embeddings/clip-provider.ts","expression":"trimmed","reason":"false positive: `t` is a local prompt-template function here, not the translation function"},
     {"file":"src/routes/changelog.lazy.tsx","expression":"`changelog.${release.subtitleKey}`","reason":"template key: the part after 'changelog.' is a runtime value (an enum, id or status), so the key cannot be listed statically"},
     {"file":"src/routes/changelog.lazy.tsx","expression":"groupLabelKeys[group]","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
-    {"file":"src/routes/index.tsx","expression":"item.descriptionKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
-    {"file":"src/routes/index.tsx","expression":"item.titleKey","reason":"key read from a table field or variable; the table's own literals are checked when written as a namespaced `...Key:` property"},
     {"file":"src/studio/preview/StagedClipStatus.tsx","expression":"`editor.stagedClip.stage.${state.stage}`","reason":"template key: the part after 'editor.stagedClip.stage.' is a runtime value (an enum, id or status), so the key cannot be listed statically"},
-    {"file": "src/studio/speed/panel/speed-curve-panel.tsx", "expression": "key", "reason": "the panel's label table `LABELS` is keyed by literal translation keys, which the check reads as static uses"},
+    {"file":"src/studio/speed/panel/speed-curve-panel.tsx","expression":"key","reason":"the panel's label table `LABELS` is keyed by literal translation keys, which the check reads as static uses"},
     {"file":"src/studio/subclips/library/subclips-section.tsx","expression":"`media.subclips.invalid.${validity.reason}`","reason":"template key: the part after 'media.subclips.invalid.' is a runtime value (an enum, id or status), so the key cannot be listed statically"}
   ]
 }

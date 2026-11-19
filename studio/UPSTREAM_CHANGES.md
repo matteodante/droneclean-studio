@@ -597,3 +597,18 @@ read hooks and workflows at the repository's root only.
 | `src/i18n/locales/partials/pt-BR/editor.json` | Three keys in `editor.aiPanel`: `musicgenLicense`, `supertonicLicense`, `modelLicenseLink`. | model licences shown before download, audit of 19 Nov 2026. |
 | `src/i18n/locales/partials/tr/editor.json` | Three keys in `editor.aiPanel`: `musicgenLicense`, `supertonicLicense`, `modelLicenseLink`. | model licences shown before download, audit of 19 Nov 2026. |
 | `src/i18n/locales/partials/zh/editor.json` | Three keys in `editor.aiPanel`: `musicgenLicense`, `supertonicLicense`, `modelLicenseLink`. | model licences shown before download, audit of 19 Nov 2026. |
+| `src/routes/index.tsx` | The landing page is deleted; the route redirects to `/projects` in `beforeLoad`. | task: the editor opens on the projects page; the product site presents the product. |
+| `src/app/pwa-install-prompt.tsx` | Deleted, with its `appShell.installPrompt` strings in the nine base language files. | task: no PWA; the web editor does not offer to install itself. |
+| `public/sw.js` | Deleted. | task: no PWA; no service worker (a worker left by the earlier build is removed at startup by `src/bootstrap.ts`). |
+| `public/manifest.webmanifest` | Deleted, with its `<link rel="manifest">` in `index.html`. | task: no PWA. |
+| `index.html` | The `<link rel="manifest">` is removed. | task: no PWA. |
+| `vite.config.ts` | `serviceWorkerVersionPlugin` and the `pwa-install-prompt` entry of the app-shell chunk rule are removed. | task: no PWA; nothing stamps or chunks a service worker or an install prompt any more. |
+| `src/main.tsx` | The service worker registration and its update watcher are removed; the app-shell update check (interval and on visibility) stays. | task: no PWA. |
+| `src/bootstrap.ts` | Runs in production as well as in development, unregisters the service worker registrations of the app's own scope (`BASE_URL`) and deletes the `freecut-app-shell-*` caches, reloading once if a worker controlled the page. | task: no PWA; visitors of the earlier web build stop being served stale files. |
+| `src/app.tsx` | The `PwaInstallPrompt` import and element are removed. | task: no PWA. |
+| `src/features/docs/docs-shell.tsx` | The logo and "Home" links point to `/projects`. | task: `/` is only a redirect to `/projects`. |
+| `src/routes/changelog.lazy.tsx` | The header links to `/` point to `/projects`. | task: `/` is only a redirect to `/projects`. |
+| `src/routes/projects/new.lazy.tsx` | The logo link points to `/projects`. | task: `/` is only a redirect to `/projects`. |
+| `src/routes/projects/index.lazy.tsx` | The logo link points to `/projects`; `<DesktopAppNotice />` is mounted in the banners area. | task: `/` is only a redirect to `/projects`; the web editor recommends the desktop app. |
+| `src/i18n/locales/partials/en/projects.json` | The `projects.landing.*` keys are replaced by `projects.desktopNotice.*` (message, link, dismiss), in nine languages (each language's `partials/<lang>/projects.json`). | task: the landing page is deleted; the web editor's desktop app notice. |
+| `src/i18n/locales/en.json` | The `appShell.installPrompt` keys are removed, in nine languages (each language's base file). | task: no PWA. |

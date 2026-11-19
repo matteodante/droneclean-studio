@@ -264,67 +264,10 @@
       "mediaWillBeSavedTo": "メディアの保存先:",
       "startImport": "インポートを開始"
     },
-    "landing": {
-      "beta": "ベータ",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "ドローンとFPVパイロットのための無料動画エディター。自分のコンピューターで飛行映像をカット、カラー調整、書き出しできます。",
-      "disclaimer": "映像はあなたのコンピューターに残ります。頼まない限り、何もアップロードされません。",
-      "openEditor": "エディターを開く",
-      "removeShadow": "ドローンの影を消す",
-      "features": {
-        "timeline": {
-          "title": "タイムライン編集",
-          "description": "複数のトラックでクリップをカット、トリム、分割、配置できます。"
-        },
-        "colour": {
-          "title": "カラー",
-          "description": "カラーツールと自分の .cube LUT でグレーディングできます。"
-        },
-        "keyframes": {
-          "title": "キーフレームとエフェクト",
-          "description": "あらゆるプロパティをアニメーション化。エフェクト、トランジション、ブレンドモードを重ねられます。"
-        },
-        "titlesAudio": {
-          "title": "タイトルとオーディオ",
-          "description": "テキスト、音楽、ボイスオーバーを追加できます。"
-        },
-        "export": {
-          "title": "書き出し",
-          "description": "高ビットレートの H.265 をブラウザから直接。"
-        },
-        "private": {
-          "title": "プライバシー重視",
-          "description": "プロジェクトとメディアはディスク上のフォルダに残ります。"
-        }
-      },
-      "faqHeading": "よくある質問",
-      "faqSubheading": "DroneClean Studio について知っておくべきすべて。",
-      "faq": {
-        "free": {
-          "question": "DroneClean Studio は無料ですか？",
-          "answer": "はい。エディターは無料で、あなたのコンピューター上で動作します。ドローンの影の除去は、droneclean.app の別の DroneClean サービスです。"
-        },
-        "upload": {
-          "question": "動画はアップロードされますか？",
-          "answer": "いいえ。プロジェクトとメディアは、ディスク上で選んだフォルダに残り、エディターはアカウントなしで動作します。"
-        },
-        "browsers": {
-          "question": "どのブラウザで動作しますか？",
-          "answer": "デスクトップコンピューターの Chrome と Edge です。"
-        },
-        "builtOn": {
-          "question": "何をベースにしていますか？",
-          "answer": "DroneClean Studio は、MIT ライセンスのオープンソース動画エディター FreeCut と、動画ファイルの読み書きのための mediabunny をベースにしています。<licenses>ライセンス</licenses>をご覧ください。"
-        },
-        "drones": {
-          "question": "どのドローンに対応していますか？",
-          "answer": "Chrome で再生できるドローンやアクションカメラの映像: H.264 または H.265（HEVC）の DJI Avata、Mavic、Air、Mini のクリップ。"
-        }
-      },
-      "ctaHeading": "編集を始める準備はできましたか？",
-      "ctaSubheading": "さっそく数秒で最初のプロジェクトを作成しましょう。",
-      "startEditing": "編集を始める",
-      "footer": "© {{year}} DroneClean · <freecut>FreeCut</freecut>（MIT）をベースに · <licenses>ライセンス</licenses>"
+    "desktopNotice": {
+      "message": "デスクトップアプリなら、10ビットのマスター、AIエージェントが使え、ブラウザの制限もありません。",
+      "link": "デスクトップアプリを入手",
+      "dismiss": "閉じる"
     },
     "settings": {
       "localInference": {

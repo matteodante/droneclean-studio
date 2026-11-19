@@ -264,67 +264,10 @@
       "mediaWillBeSavedTo": "미디어 저장 위치:",
       "startImport": "가져오기 시작"
     },
-    "landing": {
-      "beta": "베타",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "드론과 FPV 파일럿을 위한 무료 동영상 편집기. 내 컴퓨터에서 비행 영상을 자르고, 색을 입히고, 내보내세요.",
-      "disclaimer": "영상은 내 컴퓨터에 남습니다. 요청하지 않는 한 아무것도 업로드되지 않습니다.",
-      "openEditor": "편집기 열기",
-      "removeShadow": "드론 그림자 제거",
-      "features": {
-        "timeline": {
-          "title": "타임라인 편집",
-          "description": "여러 트랙에서 클립을 자르고, 다듬고, 분할하고, 배치하세요."
-        },
-        "colour": {
-          "title": "색 보정",
-          "description": "색 도구와 직접 만든 .cube LUT로 색을 입히세요."
-        },
-        "keyframes": {
-          "title": "키프레임과 효과",
-          "description": "모든 속성을 애니메이션하고 효과, 전환, 블렌드 모드를 쌓으세요."
-        },
-        "titlesAudio": {
-          "title": "타이틀과 오디오",
-          "description": "텍스트, 음악, 내레이션을 추가하세요."
-        },
-        "export": {
-          "title": "내보내기",
-          "description": "브라우저에서 바로 고비트레이트 H.265로."
-        },
-        "private": {
-          "title": "설계부터 프라이빗",
-          "description": "프로젝트와 미디어는 디스크의 폴더에 남습니다."
-        }
-      },
-      "faqHeading": "자주 묻는 질문",
-      "faqSubheading": "DroneClean Studio에 대해 알아야 할 모든 것.",
-      "faq": {
-        "free": {
-          "question": "DroneClean Studio는 무료인가요?",
-          "answer": "네. 편집기는 무료이며 내 컴퓨터에서 실행됩니다. 드론 그림자 제거는 droneclean.app의 별도 DroneClean 서비스입니다."
-        },
-        "upload": {
-          "question": "내 동영상이 업로드되나요?",
-          "answer": "아니요. 프로젝트와 미디어는 디스크에서 선택한 폴더에 남고, 편집기는 계정 없이 작동합니다."
-        },
-        "browsers": {
-          "question": "어떤 브라우저에서 실행되나요?",
-          "answer": "데스크톱 컴퓨터의 Chrome과 Edge입니다."
-        },
-        "builtOn": {
-          "question": "무엇을 기반으로 만들어졌나요?",
-          "answer": "DroneClean Studio는 MIT 라이선스의 오픈 소스 동영상 편집기 FreeCut과 동영상 파일을 읽고 쓰기 위한 mediabunny를 기반으로 만들어졌습니다. <licenses>라이선스</licenses>를 참고하세요."
-        },
-        "drones": {
-          "question": "어떤 드론과 호환되나요?",
-          "answer": "Chrome에서 재생되는 모든 드론이나 액션 카메라의 영상: H.264 또는 H.265(HEVC)의 DJI Avata, Mavic, Air, Mini 클립."
-        }
-      },
-      "ctaHeading": "편집을 시작할 준비가 되셨나요?",
-      "ctaSubheading": "바로 시작해서 몇 초 만에 첫 프로젝트를 만드세요.",
-      "startEditing": "편집 시작",
-      "footer": "© {{year}} DroneClean · <freecut>FreeCut</freecut>(MIT) 기반 · <licenses>라이선스</licenses>"
+    "desktopNotice": {
+      "message": "데스크톱 앱은 10비트 마스터와 AI 에이전트를 지원하며 브라우저 제한이 없습니다.",
+      "link": "데스크톱 앱 받기",
+      "dismiss": "닫기"
     },
     "settings": {
       "localInference": {

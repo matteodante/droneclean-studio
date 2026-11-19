@@ -16,11 +16,11 @@ export function LicensesPage() {
     <div className="min-h-screen bg-background text-foreground select-text">
       <header className="border-b border-border/70 px-6 py-5">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link to="/" aria-label={t('licenses.backToHome')}>
+          <Link to="/projects" aria-label={t('licenses.backToHome')}>
             <FreeCutLogo size="md" />
           </Link>
           <Button asChild variant="ghost" size="sm" className="gap-2">
-            <Link to="/">
+            <Link to="/projects">
               <ArrowLeft className="h-4 w-4" />
               {t('licenses.backToHome')}
             </Link>

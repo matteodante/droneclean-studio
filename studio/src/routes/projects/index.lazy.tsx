@@ -1,3 +1,4 @@
+import { DesktopAppNotice } from '@/studio/web/desktop-app-notice'
 import { createLazyFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, useRef } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
@@ -253,7 +254,7 @@ function ProjectsIndex() {
         {/* Header */}
         <div className="panel-header border-b border-border" data-no-marquee>
           <div className="max-w-[1920px] mx-auto px-6 py-5 flex items-center justify-between">
-            <Link to="/">
+            <Link to="/projects">
               <FreeCutLogo
                 variant="full"
                 size="md"
@@ -324,6 +325,7 @@ function ProjectsIndex() {
           <LegacyMigrationBanner onMigrated={loadProjects} />
           {/* Retry banner — appears only when a previous migration left failed items behind */}
           <LegacyMigrationErrors onRetried={loadProjects} />
+          <DesktopAppNotice />
         </div>
 
         {/* Loading state */}

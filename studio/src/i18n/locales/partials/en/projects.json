@@ -264,67 +264,10 @@
       "mediaWillBeSavedTo": "Media will be saved to:",
       "startImport": "Start Import"
     },
-    "landing": {
-      "beta": "Beta",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "The free video editor for drone and FPV pilots. Cut, grade and export your flights on your own computer.",
-      "disclaimer": "Your footage stays on your computer: nothing is uploaded unless you ask for it.",
-      "openEditor": "Open the editor",
-      "removeShadow": "Remove your drone's shadow",
-      "features": {
-        "timeline": {
-          "title": "Timeline editing",
-          "description": "Cut, trim, split and arrange clips on several tracks."
-        },
-        "colour": {
-          "title": "Colour",
-          "description": "Grade with the colour tools and your own .cube LUTs."
-        },
-        "keyframes": {
-          "title": "Keyframes and effects",
-          "description": "Animate any property; stack effects, transitions and blend modes."
-        },
-        "titlesAudio": {
-          "title": "Titles and audio",
-          "description": "Add text, music and voice-over."
-        },
-        "export": {
-          "title": "Export",
-          "description": "High-bitrate H.265 straight from the browser."
-        },
-        "private": {
-          "title": "Private by design",
-          "description": "Your projects and media stay in a folder on your disk."
-        }
-      },
-      "faqHeading": "Frequently Asked Questions",
-      "faqSubheading": "Everything you need to know about DroneClean Studio.",
-      "faq": {
-        "free": {
-          "question": "Is DroneClean Studio free?",
-          "answer": "Yes. The editor is free and runs on your computer. Removing the drone's shadow is a separate DroneClean service at droneclean.app."
-        },
-        "upload": {
-          "question": "Are my videos uploaded?",
-          "answer": "No. Your projects and media stay in a folder you choose on your disk, and the editor works without an account."
-        },
-        "browsers": {
-          "question": "Which browsers does it run in?",
-          "answer": "Chrome and Edge on a desktop computer."
-        },
-        "builtOn": {
-          "question": "What is it built on?",
-          "answer": "DroneClean Studio is built on FreeCut, an open-source video editor under the MIT licence, and on mediabunny for reading and writing video files. See the <licenses>licences</licenses>."
-        },
-        "drones": {
-          "question": "Which drones does it work with?",
-          "answer": "Footage from any drone or action camera that plays in Chrome: DJI Avata, Mavic, Air and Mini clips in H.264 or H.265 (HEVC)."
-        }
-      },
-      "ctaHeading": "Ready to start editing?",
-      "ctaSubheading": "Jump in and create your first project in seconds.",
-      "startEditing": "Start editing",
-      "footer": "© {{year}} DroneClean · Built on <freecut>FreeCut</freecut> (MIT) · <licenses>Licences</licenses>"
+    "desktopNotice": {
+      "message": "The desktop app adds 10-bit masters, the AI agent and no browser limits.",
+      "link": "Get the desktop app",
+      "dismiss": "Dismiss"
     },
     "settings": {
       "localInference": {

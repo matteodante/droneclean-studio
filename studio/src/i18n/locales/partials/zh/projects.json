@@ -264,67 +264,10 @@
       "mediaWillBeSavedTo": "媒体将保存到：",
       "startImport": "开始导入"
     },
-    "landing": {
-      "beta": "测试版",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "为无人机和 FPV 飞手打造的自由视频编辑器。在自己的电脑上剪辑、调色并导出你的飞行影像。",
-      "disclaimer": "你的素材留在自己的电脑上：除非你主动请求，否则不会上传任何内容。",
-      "openEditor": "打开编辑器",
-      "removeShadow": "去除无人机阴影",
-      "features": {
-        "timeline": {
-          "title": "时间线剪辑",
-          "description": "在多条轨道上剪切、修剪、分割和排列片段。"
-        },
-        "colour": {
-          "title": "调色",
-          "description": "使用调色工具和你自己的 .cube LUT 进行调色。"
-        },
-        "keyframes": {
-          "title": "关键帧与效果",
-          "description": "为任意属性设置动画；叠加效果、转场和混合模式。"
-        },
-        "titlesAudio": {
-          "title": "标题与音频",
-          "description": "添加文字、音乐和旁白。"
-        },
-        "export": {
-          "title": "导出",
-          "description": "直接从浏览器导出高码率 H.265。"
-        },
-        "private": {
-          "title": "隐私优先",
-          "description": "你的项目和媒体保存在你磁盘上的文件夹中。"
-        }
-      },
-      "faqHeading": "常见问题",
-      "faqSubheading": "关于 DroneClean Studio 你需要知道的一切。",
-      "faq": {
-        "free": {
-          "question": "DroneClean Studio 免费吗？",
-          "answer": "免费。编辑器免费，并在你自己的电脑上运行。去除无人机阴影是 droneclean.app 上的一项独立的 DroneClean 服务。"
-        },
-        "upload": {
-          "question": "我的视频会被上传吗？",
-          "answer": "不会。你的项目和媒体保存在你磁盘上选择的文件夹中，编辑器无需账号即可使用。"
-        },
-        "browsers": {
-          "question": "它支持哪些浏览器？",
-          "answer": "桌面电脑上的 Chrome 和 Edge。"
-        },
-        "builtOn": {
-          "question": "它基于什么构建？",
-          "answer": "DroneClean Studio 基于 MIT 许可证的开源视频编辑器 FreeCut，以及用于读写视频文件的 mediabunny。请查看<licenses>许可证</licenses>。"
-        },
-        "drones": {
-          "question": "它支持哪些无人机？",
-          "answer": "任何能在 Chrome 中播放的无人机或运动相机素材：H.264 或 H.265（HEVC）格式的 DJI Avata、Mavic、Air 和 Mini 片段。"
-        }
-      },
-      "ctaHeading": "准备好开始编辑了吗？",
-      "ctaSubheading": "立即开始，几秒钟内创建你的第一个项目。",
-      "startEditing": "开始编辑",
-      "footer": "© {{year}} DroneClean · 基于 <freecut>FreeCut</freecut>（MIT）构建 · <licenses>许可证</licenses>"
+    "desktopNotice": {
+      "message": "桌面应用支持 10 位母版、AI 代理，并且没有浏览器限制。",
+      "link": "获取桌面应用",
+      "dismiss": "关闭"
     },
     "settings": {
       "localInference": {

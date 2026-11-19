@@ -5,10 +5,11 @@
 //
 // Serves dist-web/ under /studio/ the way the static server in web/ does (cross-origin isolation headers, a
 // single-page fallback for unknown paths under /studio/), opens it in headless Chrome and checks that:
-//   - /studio/ loads, is cross-origin isolated, `window.studio` exists, the router matched the base;
+//   - /studio/ loads, is cross-origin isolated, `window.studio` exists, and lands on /studio/projects;
 //   - the deep link /studio/projects loads (the fallback answers index.html) and renders;
 //   - the stabilization worker (gyroflow/wasm/js/gyro-worker.js, under the base) answers `smoothingMethods`;
-//   - the service worker installs under /studio/ with the scope /studio/ and caches the shell files under it;
+//   - no manifest is linked and no service worker is registered; a worker and shell cache left by the earlier
+//     build are removed at startup;
 //   - not one request went to a path outside /studio/ (a root-absolute URL the build did not follow).
 // Exits non-zero on the first failure and names it.
 import { chromium } from 'playwright'
@@ -27,7 +28,6 @@ const TYPES = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.webmanifest': 'application/manifest+json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.wasm': 'application/wasm',
@@ -107,6 +107,10 @@ async function main() {
 
     await page.goto(`${origin}${BASE}`, { waitUntil: 'load' })
     await page.waitForFunction(() => 'studio' in window, null, { timeout: 30_000 })
+    await page.waitForURL(`${origin}${BASE}projects`, { timeout: 30_000 }).catch(() => {})
+    await page
+      .waitForFunction(() => document.body.innerText.trim().length > 0, null, { timeout: 30_000 })
+      .catch(() => {})
     const root = await page.evaluate(() => ({
       isolated: window.crossOriginIsolated,
       studio: typeof window.studio,
@@ -115,7 +119,7 @@ async function main() {
     }))
     if (!root.isolated) fail('/studio/ is not cross-origin isolated')
     if (root.studio !== 'object') fail('window.studio is missing')
-    if (root.path !== BASE) fail(`the router moved / to ${root.path}`)
+    if (root.path !== `${BASE}projects`) fail(`/studio/ landed on ${root.path}, not ${BASE}projects`)
     if (root.text === 0) fail('/studio/ rendered no text')
     console.log(`/studio/: isolated=${root.isolated} window.studio=${root.studio} text=${root.text} chars`)
 
@@ -155,23 +159,52 @@ async function main() {
     if (names.length === 0) fail(`the gyro worker's smoothingMethods answer: ${JSON.stringify(methods).slice(0, 200)}`)
     else console.log(`gyro worker under the base: ${names.length} smoothing methods`)
 
-    // The app registers its worker from a `load` listener that its lazily imported entry may add after `load`
-    // has fired (as in the root build), so the check registers the same way main.tsx does and proves the worker
-    // itself: it installs under the base, and its shell cache holds the pages under the base.
-    const sw = await page.evaluate(async (base) => {
-      const registration = await navigator.serviceWorker.register(`${base}sw.js`, { scope: base })
-      await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise((resolve) => setTimeout(resolve, 20_000)),
-      ])
-      const names = (await caches.keys()).filter((n) => n.startsWith('freecut-app-shell-'))
-      const keys = names.length ? (await (await caches.open(names[0])).keys()).map((r) => new URL(r.url).pathname) : []
-      return { scope: new URL(registration.scope).pathname, keys }
-    }, BASE)
-    if (sw.scope !== BASE) fail(`the service worker scope is ${sw.scope}, not ${BASE}`)
-    else if (!sw.keys.includes(`${BASE}index.html`) || !sw.keys.includes(`${BASE}icons/icon-192.png`)) {
-      fail(`the service worker's shell cache is ${JSON.stringify(sw.keys)}`)
-    } else console.log(`service worker scope ${sw.scope}, ${sw.keys.length} shell files cached under it`)
+    // The editor is not a web app: no manifest is linked and no service worker is registered.
+    const noPwa = await page.evaluate(async () => ({
+      manifestLinks: document.querySelectorAll('link[rel="manifest"]').length,
+      registrations: (await navigator.serviceWorker.getRegistrations()).length,
+    }))
+    if (noPwa.manifestLinks !== 0) fail(`the page links a web manifest (${noPwa.manifestLinks})`)
+    else if (noPwa.registrations !== 0) fail(`${noPwa.registrations} service worker(s) registered by the app`)
+    else console.log('no manifest linked, no service worker registered')
+    for (const file of ['sw.js', 'manifest.webmanifest']) {
+      if (fs.existsSync(path.join(dist, file))) fail(`${distArg}/${file} is still built`)
+    }
+
+    // A visitor of the earlier build still has its worker and shell cache: the app removes both at startup.
+    const staleWorker = path.join(dist, 'sw.js')
+    fs.writeFileSync(
+      staleWorker,
+      "self.addEventListener('install', (e) => e.waitUntil(caches.open('freecut-app-shell-stale').then(() => self.skipWaiting())))\n",
+    )
+    try {
+      const seeded = await page.evaluate(async (base) => {
+        await navigator.serviceWorker.register(`${base}sw.js`, { scope: base })
+        await navigator.serviceWorker.ready
+        return {
+          registrations: (await navigator.serviceWorker.getRegistrations()).length,
+          caches: (await caches.keys()).filter((n) => n.startsWith('freecut-app-shell-')),
+        }
+      }, BASE)
+      if (seeded.registrations !== 1 || seeded.caches.length !== 1) {
+        fail(`the stale worker was not seeded: ${JSON.stringify(seeded)}`)
+      }
+      await page.goto(`${origin}${BASE}projects`, { waitUntil: 'load' })
+      await page.waitForFunction(() => 'studio' in window, null, { timeout: 30_000 })
+      const left = await page.waitForFunction(
+        async () => {
+          const registrations = (await navigator.serviceWorker.getRegistrations()).length
+          const names = (await caches.keys()).filter((n) => n.startsWith('freecut-app-shell-'))
+          return registrations === 0 && names.length === 0 ? { registrations, names } : false
+        },
+        null,
+        { timeout: 20_000 },
+      ).then(() => true, () => false)
+      if (!left) fail('the app left the earlier build\'s service worker or shell cache in place')
+      else console.log('earlier build\'s service worker and shell cache removed at startup')
+    } finally {
+      fs.rmSync(staleWorker, { force: true })
+    }
 
     const outside = [...new Set(requested.filter((p) => !p.startsWith(BASE)))]
     if (outside.length > 0) fail(`requests outside ${BASE}: ${outside.join(', ')}`)

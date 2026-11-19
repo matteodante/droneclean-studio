@@ -11,7 +11,7 @@ import {
 } from '@/shared/projects/last-editor-project'
 import './index.css'
 import './studio/fonts/ui-fonts'
-import { BASE_URL, withBase } from '@/studio/web/base-path'
+import { BASE_URL } from '@/studio/web/base-path'
 import { installStudio } from '@/studio/sdk/install'
 import { installAgentBridges } from '@/studio/agent/install'
 import { installDesktopShadowSession } from '@/studio/shadow/install-desktop'
@@ -197,46 +197,6 @@ async function checkForAppShellUpdate() {
   }
 }
 
-function activateWaitingServiceWorker(registration: ServiceWorkerRegistration) {
-  if (!registration.waiting) {
-    window.location.reload()
-    return
-  }
-
-  let reloadTriggered = false
-  const reloadOnce = () => {
-    if (reloadTriggered) {
-      return
-    }
-    reloadTriggered = true
-    window.location.reload()
-  }
-
-  navigator.serviceWorker.addEventListener('controllerchange', reloadOnce, { once: true })
-  registration.waiting.postMessage({ type: 'SKIP_WAITING' })
-  window.setTimeout(reloadOnce, 4000)
-}
-
-function watchForServiceWorkerUpdate(registration: ServiceWorkerRegistration) {
-  if (registration.waiting && navigator.serviceWorker.controller) {
-    void showUpdateAvailableToast(() => activateWaitingServiceWorker(registration))
-  }
-
-  registration.addEventListener('updatefound', () => {
-    const installingWorker = registration.installing
-
-    if (!installingWorker) {
-      return
-    }
-
-    installingWorker.addEventListener('statechange', () => {
-      if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-        void showUpdateAvailableToast(() => activateWaitingServiceWorker(registration))
-      }
-    })
-  })
-}
-
 // Global error handlers
 window.addEventListener('unhandledrejection', (event) => {
   log.error('Unhandled promise rejection:', event.reason)
@@ -278,20 +238,8 @@ window.addEventListener('vite:preloadError', (event) => {
 // should survive refresh/reload.
 // The browser tears down workers/resources on navigation anyway.
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register(withBase('sw.js'), { scope: BASE_URL })
-      .then((registration) => {
-        watchForServiceWorkerUpdate(registration)
-        registration.update().catch((error: unknown) => {
-          log.warn('Service worker update check failed:', error)
-        })
-      })
-      .catch((error: unknown) => {
-        log.warn('Service worker registration failed:', error)
-      })
-
     window.setInterval(checkForAppShellUpdate, UPDATE_CHECK_INTERVAL_MS)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {

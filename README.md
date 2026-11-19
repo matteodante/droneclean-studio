@@ -5,7 +5,7 @@ engine, compiled to WebAssembly), DJI D-Log M to Rec.709, speed ramps with motio
 HEVC Main 10) with the Mac's hardware encoders, and an MCP server so an AI agent can edit with you. Removing the
 drone's own shadow is its one paid effect, done through the DroneClean cloud service.
 
-This is the source of release 0.1.0. Downloads are on the [releases page](../../releases).
+This is the source of release 0.1.1. Downloads are on the [releases page](../../releases).
 
 ## Layout
 

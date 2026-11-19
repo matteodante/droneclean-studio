@@ -5,7 +5,7 @@ create, import, edit, duplicate and delete one, and the workspace folder itself.
 
 ### DroneClean Studio logo
 - Where: Projects page › header
-- Does: Goes back to the landing page.
+- Does: Reloads the projects page.
 - SDK: `none`
 - Code: `src/routes/projects/index.lazy.tsx`
 
@@ -393,20 +393,14 @@ create, import, edit, duplicate and delete one, and the workspace folder itself.
 - SDK: `none`
 - Code: `src/features/projects/components/legacy-migration-banner.tsx`
 
-### Install
-- Where: Projects page › install prompt
-- Does: Installs the editor as a desktop app or a home-screen app.
-- SDK: `none`
-- Code: `src/app/pwa-install-prompt.tsx`
+### Get the desktop app
+- Where: Projects page › desktop app notice (web editor only)
+- Does: Opens the download options for the desktop app in a new tab.
+- SDK: none (view only)
+- Code: `src/studio/web/desktop-app-notice.tsx`
 
-### Dismiss install prompt
-- Where: Projects page › install prompt
-- Does: Closes the install prompt until the next visit.
-- SDK: `none`
-- Code: `src/app/pwa-install-prompt.tsx`
-
-### Not now
-- Where: Projects page › install prompt
-- Does: Hides the install prompt without installing.
-- SDK: `none`
-- Code: `src/app/pwa-install-prompt.tsx`
+### Dismiss desktop app notice
+- Where: Projects page › desktop app notice (web editor only)
+- Does: Hides the notice and remembers it in this browser.
+- SDK: none (view only)
+- Code: `src/studio/web/desktop-app-notice.tsx`

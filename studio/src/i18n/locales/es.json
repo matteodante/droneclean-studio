@@ -3,15 +3,7 @@
     "newVersionAvailable": "Hay una nueva versión disponible. Guarda tu trabajo y vuelve a cargar.",
     "saveAndReload": "Guardar y recargar",
     "reloadWithoutSaving": "Recargar sin guardar",
-    "dockPanel": "Acoplar panel",
-    "installPrompt": {
-      "label": "Instalar DroneClean Studio",
-      "title": "Instalar DroneClean Studio",
-      "description": "Ábrelo desde tu escritorio o pantalla de inicio.",
-      "install": "Instalar",
-      "notNow": "Ahora no",
-      "dismiss": "Descartar aviso de instalación"
-    }
+    "dockPanel": "Acoplar panel"
   },
   "common": {
     "save": "Guardar",

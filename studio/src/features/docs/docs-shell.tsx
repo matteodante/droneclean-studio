@@ -52,7 +52,7 @@ export function DocsShell({ children, currentSlug }: DocsShellProps) {
     <div className="min-h-screen bg-background text-foreground select-text">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/projects" className="flex items-center gap-3">
             <FreeCutLogo size="md" />
             <span className="hidden text-sm text-muted-foreground sm:inline">Docs</span>
           </Link>
@@ -61,7 +61,7 @@ export function DocsShell({ children, currentSlug }: DocsShellProps) {
               <Link to="/projects">Open DroneClean Studio</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link to="/">Home</Link>
+              <Link to="/projects">Home</Link>
             </Button>
           </nav>
         </div>

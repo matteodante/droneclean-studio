@@ -77,7 +77,7 @@ describe('LicensesPage', () => {
 
     expect(hrefsOf('SIL Open Font License 1.1')).toEqual([OFL_LICENSE_URL])
     expect(hrefsOf('Apache License 2.0')).toEqual([APACHE_LICENSE_URL])
-    const homeLinks = links.filter((link) => link.getAttribute('href') === '/')
+    const homeLinks = links.filter((link) => link.getAttribute('href') === '/projects')
     expect(homeLinks).toHaveLength(2)
     for (const link of homeLinks) {
       expect(link.getAttribute('aria-label') ?? link.textContent).toBe('Back to home')

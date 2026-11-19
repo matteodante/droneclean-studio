@@ -264,67 +264,10 @@
       "mediaWillBeSavedTo": "Medien werden gespeichert in:",
       "startImport": "Import starten"
     },
-    "landing": {
-      "beta": "Beta",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "Der kostenlose Videoeditor für Drohnen- und FPV-Piloten. Schneide, grade und exportiere deine Flüge auf deinem eigenen Computer.",
-      "disclaimer": "Dein Material bleibt auf deinem Computer: Nichts wird hochgeladen, außer du fragst danach.",
-      "openEditor": "Editor öffnen",
-      "removeShadow": "Den Schatten deiner Drohne entfernen",
-      "features": {
-        "timeline": {
-          "title": "Timeline-Schnitt",
-          "description": "Schneide, trimme, teile und ordne Clips auf mehreren Spuren an."
-        },
-        "colour": {
-          "title": "Farbe",
-          "description": "Grade mit den Farbwerkzeugen und deinen eigenen .cube-LUTs."
-        },
-        "keyframes": {
-          "title": "Keyframes und Effekte",
-          "description": "Animiere jede Eigenschaft; kombiniere Effekte, Übergänge und Mischmodi."
-        },
-        "titlesAudio": {
-          "title": "Titel und Audio",
-          "description": "Füge Text, Musik und Voice-over hinzu."
-        },
-        "export": {
-          "title": "Export",
-          "description": "H.265 mit hoher Bitrate direkt aus dem Browser."
-        },
-        "private": {
-          "title": "Privat by Design",
-          "description": "Deine Projekte und Medien bleiben in einem Ordner auf deiner Festplatte."
-        }
-      },
-      "faqHeading": "Häufig gestellte Fragen",
-      "faqSubheading": "Alles, was du über DroneClean Studio wissen musst.",
-      "faq": {
-        "free": {
-          "question": "Ist DroneClean Studio kostenlos?",
-          "answer": "Ja. Der Editor ist kostenlos und läuft auf deinem Computer. Das Entfernen des Drohnenschattens ist ein eigener DroneClean-Dienst auf droneclean.app."
-        },
-        "upload": {
-          "question": "Werden meine Videos hochgeladen?",
-          "answer": "Nein. Deine Projekte und Medien bleiben in einem Ordner, den du auf deiner Festplatte auswählst, und der Editor funktioniert ohne Konto."
-        },
-        "browsers": {
-          "question": "In welchen Browsern läuft es?",
-          "answer": "Chrome und Edge auf einem Desktop-Computer."
-        },
-        "builtOn": {
-          "question": "Worauf basiert es?",
-          "answer": "DroneClean Studio basiert auf FreeCut, einem Open-Source-Videoeditor unter der MIT-Lizenz, und auf mediabunny zum Lesen und Schreiben von Videodateien. Siehe die <licenses>Lizenzen</licenses>."
-        },
-        "drones": {
-          "question": "Mit welchen Drohnen funktioniert es?",
-          "answer": "Material von jeder Drohne oder Actioncam, das in Chrome abgespielt wird: DJI-Avata-, Mavic-, Air- und Mini-Clips in H.264 oder H.265 (HEVC)."
-        }
-      },
-      "ctaHeading": "Bereit, mit dem Bearbeiten zu beginnen?",
-      "ctaSubheading": "Leg los und erstelle dein erstes Projekt in Sekunden.",
-      "startEditing": "Mit dem Bearbeiten beginnen",
-      "footer": "© {{year}} DroneClean · Basiert auf <freecut>FreeCut</freecut> (MIT) · <licenses>Lizenzen</licenses>"
+    "desktopNotice": {
+      "message": "Die Desktop-App bietet 10-Bit-Master, den KI-Agenten und keine Browser-Grenzen.",
+      "link": "Desktop-App holen",
+      "dismiss": "Schließen"
     },
     "settings": {
       "localInference": {

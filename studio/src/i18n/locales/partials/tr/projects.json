@@ -177,67 +177,10 @@
       "failedCount_other": "{{count}} öğe taşınamadı",
       "retryHint": "Eski veritabanında hâlâ eksik kalanları kopyalamak için yeniden deneyin."
     },
-    "landing": {
-      "beta": "Beta",
-      "heroTitle": "DroneClean Studio",
-      "heroSubtitle": "Drone ve FPV pilotları için ücretsiz video editörü. Uçuşlarınızı kendi bilgisayarınızda kesin, renklendirin ve dışa aktarın.",
-      "disclaimer": "Görüntüleriniz bilgisayarınızda kalır: siz istemedikçe hiçbir şey yüklenmez.",
-      "openEditor": "Editörü aç",
-      "removeShadow": "Dronunuzun gölgesini kaldırın",
-      "features": {
-        "timeline": {
-          "title": "Zaman çizelgesi düzenleme",
-          "description": "Klipleri birkaç kanalda kesin, kırpın, bölün ve düzenleyin."
-        },
-        "colour": {
-          "title": "Renk",
-          "description": "Renk araçlarıyla ve kendi .cube LUT'larınızla renk düzenleyin."
-        },
-        "keyframes": {
-          "title": "Anahtar kareler ve efektler",
-          "description": "Her özelliği canlandırın; efektleri, geçişleri ve karışım modlarını üst üste koyun."
-        },
-        "titlesAudio": {
-          "title": "Başlıklar ve ses",
-          "description": "Metin, müzik ve dış ses ekleyin."
-        },
-        "export": {
-          "title": "Dışa aktarma",
-          "description": "Yüksek bit hızında H.265, doğrudan tarayıcıdan."
-        },
-        "private": {
-          "title": "Tasarımı gereği gizli",
-          "description": "Projeleriniz ve medyanız diskinizdeki bir klasörde kalır."
-        }
-      },
-      "faqHeading": "Sık Sorulan Sorular",
-      "faqSubheading": "DroneClean Studio hakkında bilmeniz gereken her şey.",
-      "faq": {
-        "free": {
-          "question": "DroneClean Studio ücretsiz mi?",
-          "answer": "Evet. Editör ücretsizdir ve bilgisayarınızda çalışır. Dronun gölgesini kaldırmak, droneclean.app'teki ayrı bir DroneClean hizmetidir."
-        },
-        "upload": {
-          "question": "Videolarım yükleniyor mu?",
-          "answer": "Hayır. Projeleriniz ve medyanız diskinizde seçtiğiniz bir klasörde kalır ve editör hesap olmadan çalışır."
-        },
-        "browsers": {
-          "question": "Hangi tarayıcılarda çalışır?",
-          "answer": "Masaüstü bilgisayarda Chrome ve Edge."
-        },
-        "builtOn": {
-          "question": "Ne üzerine inşa edildi?",
-          "answer": "DroneClean Studio, MIT lisansı altındaki açık kaynak bir video editörü olan FreeCut ve video dosyalarını okumak ve yazmak için mediabunny üzerine inşa edilmiştir. <licenses>Lisanslara</licenses> bakın."
-        },
-        "drones": {
-          "question": "Hangi dronlarla çalışır?",
-          "answer": "Chrome'da oynatılabilen her dron veya aksiyon kamerası görüntüsüyle: H.264 veya H.265 (HEVC) formatındaki DJI Avata, Mavic, Air ve Mini klipleri."
-        }
-      },
-      "ctaHeading": "Düzenlemeye başlamaya hazır mısınız?",
-      "ctaSubheading": "Hemen girin ve ilk projenizi saniyeler içinde oluşturun.",
-      "startEditing": "Düzenlemeye Başla",
-      "footer": "© {{year}} DroneClean · <freecut>FreeCut</freecut> (MIT) üzerine inşa edildi · <licenses>Lisanslar</licenses>"
+    "desktopNotice": {
+      "message": "Masaüstü uygulaması 10 bit master dosyaları, yapay zekâ ajanı ve tarayıcı sınırı olmayan bir deneyim sunar.",
+      "link": "Masaüstü uygulamasını edin",
+      "dismiss": "Kapat"
     },
     "workspaceGate": {
       "unsupportedBrowser": "Desteklenmeyen tarayıcı",

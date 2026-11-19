@@ -3,15 +3,7 @@
     "newVersionAvailable": "Yeni bir sürüm mevcut. Çalışmanızı kaydedip yeniden yükleyin.",
     "saveAndReload": "Kaydet ve Yeniden Yükle",
     "reloadWithoutSaving": "Kaydetmeden Yeniden Yükle",
-    "dockPanel": "Paneli sabitle",
-    "installPrompt": {
-      "label": "DroneClean Studio’yu yükle",
-      "title": "DroneClean Studio’yu yükle",
-      "description": "Masaüstünden veya ana ekrandan aç.",
-      "install": "Yükle",
-      "notNow": "Şimdi değil",
-      "dismiss": "Yükleme istemini kapat"
-    }
+    "dockPanel": "Paneli sabitle"
   },
   "common": {
     "save": "Kaydet",

@@ -1,15 +1,22 @@
+import { BASE_URL } from '@/studio/web/base-path'
+
 const APP_SHELL_CACHE_PREFIX = 'freecut-app-shell-'
 
-async function removeProductionAppShellFromDevelopment(): Promise<boolean> {
-  if (!import.meta.env.DEV) return false
-
+/**
+ * The editor ships no service worker. Visitors who opened an earlier web build (or a dev server) still have
+ * the worker it registered, which keeps serving stale files: unregister the registrations of this app's own
+ * scope and delete the shell caches that worker created. Returns whether a worker was controlling the page,
+ * which then has to reload to get fresh files.
+ */
+async function removeServiceWorkerAppShell(): Promise<boolean> {
   const wasControlled = 'serviceWorker' in navigator && navigator.serviceWorker.controller !== null
+  const ownScope = `${window.location.origin}${BASE_URL}`
 
   if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations()
     await Promise.all(
       registrations
-        .filter((registration) => registration.scope.startsWith(window.location.origin))
+        .filter((registration) => registration.scope === ownScope)
         .map((registration) => registration.unregister()),
     )
   }
@@ -26,7 +33,7 @@ async function removeProductionAppShellFromDevelopment(): Promise<boolean> {
   return wasControlled
 }
 
-void removeProductionAppShellFromDevelopment()
+void removeServiceWorkerAppShell()
   .then((requiresReload) => {
     if (requiresReload) {
       window.location.reload()

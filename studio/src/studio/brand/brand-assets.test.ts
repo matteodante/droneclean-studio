@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vite-plus/test'
 
 const AMBER = '#FFB938'
@@ -32,22 +32,14 @@ describe('DroneClean brand assets', () => {
     expect(headless).not.toContain('FreeCut')
   })
 
-  it('describes the installable app and keeps the three icon files', () => {
-    const source = read('public/manifest.webmanifest')
-    const manifest = JSON.parse(source)
-
-    expect(manifest.name).toBe('DroneClean Studio')
-    expect(manifest.short_name).toBe('DC Studio')
-    expect(manifest.description).toBe('The free video editor for drone and FPV pilots.')
-    expect(source).not.toContain('FreeCut')
-    // Relative to the manifest, so the icons resolve under the web editor's base path (/studio/) as at the root
-    expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual(
-      ICONS.map(([path]) => path.replace('public/', '')),
-    )
+  it('is not a web app: no manifest, no service worker', () => {
+    expect(existsSync('public/manifest.webmanifest')).toBe(false)
+    expect(existsSync('public/sw.js')).toBe(false)
+    expect(read('index.html')).not.toContain('rel="manifest"')
     for (const [path] of ICONS) expect(readFileSync(path).length).toBeGreaterThan(0)
   })
 
-  it('ships the DroneClean favicon and icon PNGs at the manifest sizes', () => {
+  it('ships the DroneClean favicon and icon PNGs at their sizes', () => {
     const favicon = read('public/favicon.svg')
     expect(favicon).toContain(AMBER)
     expect(favicon).toContain(INK)

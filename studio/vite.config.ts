@@ -1,56 +1,10 @@
 import { defineConfig, lazyPlugins } from 'vite-plus'
-import type { Plugin } from 'vite-plus'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { fontsourceWoff2Only } from './src/studio/build/fontsource-woff2-only'
 import { gyroWasm } from './src/studio/build/gyro-wasm'
-
-// Stamps public/sw.js with the hashed entry-chunk filename at build time so the service
-// worker's CACHE_VERSION — and the sw.js bytes — change on every deploy. Without this the
-// SW file is byte-identical across deploys, so registration.update() never detects a new
-// version and old cached chunks are never purged. Uses the content hash (not a timestamp)
-// so identical builds produce an identical SW and avoid needless update churn.
-function serviceWorkerVersionPlugin(): Plugin {
-  const placeholder = '__FREECUT_BUILD_ID__'
-  let buildId = ''
-  // Folder of the build that ran: writeBundle reports where it wrote, so a build with
-  // --outDir is stamped there rather than in dist/.
-  let outDir = ''
-
-  return {
-    name: 'freecut-sw-version',
-    apply: 'build',
-    writeBundle(options, bundle) {
-      if (options.dir) {
-        outDir = options.dir
-      }
-      const mainEntry = Object.values(bundle).find(
-        (output) => output.type === 'chunk' && output.isEntry && output.name === 'main',
-      )
-      buildId =
-        mainEntry && mainEntry.type === 'chunk'
-          ? mainEntry.fileName.replace(/[^a-zA-Z0-9]/g, '-')
-          : buildId
-    },
-    // closeBundle runs after Vite has copied publicDir into the out dir, so <outDir>/sw.js
-    // exists here with the placeholder intact.
-    closeBundle() {
-      if (!buildId || !outDir) {
-        this.warn('serviceWorkerVersionPlugin: no main entry chunk found; sw.js not stamped')
-        return
-      }
-      const swPath = join(outDir, 'sw.js')
-      const source = readFileSync(swPath, 'utf8')
-      if (!source.includes(placeholder)) {
-        return
-      }
-      writeFileSync(swPath, source.replaceAll(placeholder, buildId))
-    },
-  }
-}
 
 const oxlintConfig = JSON.parse(readFileSync(new URL('./.oxlintrc.json', import.meta.url), 'utf8'))
 const oxfmtConfig = JSON.parse(readFileSync(new URL('./.oxfmtrc.json', import.meta.url), 'utf8'))
@@ -124,7 +78,6 @@ export default defineConfig({
     fontsourceWoff2Only(),
     react(),
     tailwindcss(),
-    serviceWorkerVersionPlugin(),
     // Gyroflow's engine (the stabilization worker and its wasm), built from `gyroflow/wasm` and served from the app
     gyroWasm(),
   ]),
@@ -199,7 +152,6 @@ export default defineConfig({
             isAppShellComponent ||
             (normalizedId.includes('/src/routes/') && !normalizedId.includes('.lazy.')) ||
             normalizedId.includes('/src/app/error-boundary') ||
-            normalizedId.includes('/src/app/pwa-install-prompt') ||
             isWorkspaceGateShell ||
             (normalizedId.includes('/src/i18n/') && !normalizedId.includes('/src/i18n/locales/'))
           ) {
