@@ -1,0 +1,16 @@
+{
+  "gpu": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": ""
+  },
+  "chrome": "158.0.8127.36",
+  "os": "macOS 27.2 (26B123)",
+  "arch": "arm64",
+  "cpu": "Apple M4",
+  "model": "Mac16,10",
+  "angleBackend": "--use-angle=metal",
+  "frames": 44,
+  "note": "Machine that produced the stored frames. See golden/README.md."
+}

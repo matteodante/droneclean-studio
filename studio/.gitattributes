@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+# DroneClean Studio: every task appends a row to this table; keep both sides instead of conflicting
+UPSTREAM_CHANGES.md merge=union

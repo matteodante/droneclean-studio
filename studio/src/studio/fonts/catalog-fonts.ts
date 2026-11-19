@@ -1,0 +1,1343 @@
+/**
+ * Every text font the catalogue offers, resolved to Fontsource stylesheets that
+ * Vite bundles into the app's own assets. Each `import()` becomes its own
+ * chunk, fetched when a picker preview, a text clip or an export needs that
+ * family and weight. No entry points at a third-party host.
+ *
+ * Derived from `FONT_CATALOG` and the `@fontsource/*` packages' metadata
+ * (120 families, 714 weight stylesheets);
+ * `catalog-fonts.test.ts` fails when this map drifts from the catalogue.
+ */
+
+type FontWeightLoader = () => Promise<unknown>
+
+interface BundledCatalogFont {
+  /** CSS font-family the package's stylesheet declares. */
+  cssFamily: string
+  /** Catalogue weight -> the stylesheet that provides it. */
+  weights: ReadonlyMap<number, FontWeightLoader>
+}
+
+function bundled(cssFamily: string, weights: Record<number, FontWeightLoader>): BundledCatalogFont {
+  return {
+    cssFamily,
+    weights: new Map(Object.entries(weights).map(([weight, load]) => [Number(weight), load])),
+  }
+}
+
+export const CATALOG_FONT_SOURCES: ReadonlyMap<string, BundledCatalogFont> = new Map([
+  [
+    'Roboto',
+    bundled('Roboto', {
+      100: () => import('@fontsource/roboto/100.css'),
+      200: () => import('@fontsource/roboto/200.css'),
+      300: () => import('@fontsource/roboto/300.css'),
+      400: () => import('@fontsource/roboto/400.css'),
+      500: () => import('@fontsource/roboto/500.css'),
+      600: () => import('@fontsource/roboto/600.css'),
+      700: () => import('@fontsource/roboto/700.css'),
+      800: () => import('@fontsource/roboto/800.css'),
+      900: () => import('@fontsource/roboto/900.css'),
+    }),
+  ],
+  [
+    'Open Sans',
+    bundled('Open Sans', {
+      300: () => import('@fontsource/open-sans/300.css'),
+      400: () => import('@fontsource/open-sans/400.css'),
+      500: () => import('@fontsource/open-sans/500.css'),
+      600: () => import('@fontsource/open-sans/600.css'),
+      700: () => import('@fontsource/open-sans/700.css'),
+      800: () => import('@fontsource/open-sans/800.css'),
+    }),
+  ],
+  [
+    'Google Sans',
+    bundled('Google Sans', {
+      400: () => import('@fontsource/google-sans/400.css'),
+      500: () => import('@fontsource/google-sans/500.css'),
+      600: () => import('@fontsource/google-sans/600.css'),
+      700: () => import('@fontsource/google-sans/700.css'),
+    }),
+  ],
+  [
+    'Noto Sans JP',
+    bundled('Noto Sans JP', {
+      100: () => import('@fontsource/noto-sans-jp/100.css'),
+      200: () => import('@fontsource/noto-sans-jp/200.css'),
+      300: () => import('@fontsource/noto-sans-jp/300.css'),
+      400: () => import('@fontsource/noto-sans-jp/400.css'),
+      500: () => import('@fontsource/noto-sans-jp/500.css'),
+      600: () => import('@fontsource/noto-sans-jp/600.css'),
+      700: () => import('@fontsource/noto-sans-jp/700.css'),
+      800: () => import('@fontsource/noto-sans-jp/800.css'),
+      900: () => import('@fontsource/noto-sans-jp/900.css'),
+    }),
+  ],
+  [
+    'Inter',
+    bundled('Inter', {
+      100: () => import('@fontsource/inter/100.css'),
+      200: () => import('@fontsource/inter/200.css'),
+      300: () => import('@fontsource/inter/300.css'),
+      400: () => import('@fontsource/inter/400.css'),
+      500: () => import('@fontsource/inter/500.css'),
+      600: () => import('@fontsource/inter/600.css'),
+      700: () => import('@fontsource/inter/700.css'),
+      800: () => import('@fontsource/inter/800.css'),
+      900: () => import('@fontsource/inter/900.css'),
+    }),
+  ],
+  [
+    'Montserrat',
+    bundled('Montserrat', {
+      100: () => import('@fontsource/montserrat/100.css'),
+      200: () => import('@fontsource/montserrat/200.css'),
+      300: () => import('@fontsource/montserrat/300.css'),
+      400: () => import('@fontsource/montserrat/400.css'),
+      500: () => import('@fontsource/montserrat/500.css'),
+      600: () => import('@fontsource/montserrat/600.css'),
+      700: () => import('@fontsource/montserrat/700.css'),
+      800: () => import('@fontsource/montserrat/800.css'),
+      900: () => import('@fontsource/montserrat/900.css'),
+    }),
+  ],
+  [
+    'Poppins',
+    bundled('Poppins', {
+      100: () => import('@fontsource/poppins/100.css'),
+      200: () => import('@fontsource/poppins/200.css'),
+      300: () => import('@fontsource/poppins/300.css'),
+      400: () => import('@fontsource/poppins/400.css'),
+      500: () => import('@fontsource/poppins/500.css'),
+      600: () => import('@fontsource/poppins/600.css'),
+      700: () => import('@fontsource/poppins/700.css'),
+      800: () => import('@fontsource/poppins/800.css'),
+      900: () => import('@fontsource/poppins/900.css'),
+    }),
+  ],
+  [
+    'Lato',
+    bundled('Lato', {
+      100: () => import('@fontsource/lato/100.css'),
+      300: () => import('@fontsource/lato/300.css'),
+      400: () => import('@fontsource/lato/400.css'),
+      700: () => import('@fontsource/lato/700.css'),
+      900: () => import('@fontsource/lato/900.css'),
+    }),
+  ],
+  [
+    'Roboto Condensed',
+    bundled('Roboto Condensed', {
+      100: () => import('@fontsource/roboto-condensed/100.css'),
+      200: () => import('@fontsource/roboto-condensed/200.css'),
+      300: () => import('@fontsource/roboto-condensed/300.css'),
+      400: () => import('@fontsource/roboto-condensed/400.css'),
+      500: () => import('@fontsource/roboto-condensed/500.css'),
+      600: () => import('@fontsource/roboto-condensed/600.css'),
+      700: () => import('@fontsource/roboto-condensed/700.css'),
+      800: () => import('@fontsource/roboto-condensed/800.css'),
+      900: () => import('@fontsource/roboto-condensed/900.css'),
+    }),
+  ],
+  [
+    'Roboto Mono',
+    bundled('Roboto Mono', {
+      100: () => import('@fontsource/roboto-mono/100.css'),
+      200: () => import('@fontsource/roboto-mono/200.css'),
+      300: () => import('@fontsource/roboto-mono/300.css'),
+      400: () => import('@fontsource/roboto-mono/400.css'),
+      500: () => import('@fontsource/roboto-mono/500.css'),
+      600: () => import('@fontsource/roboto-mono/600.css'),
+      700: () => import('@fontsource/roboto-mono/700.css'),
+    }),
+  ],
+  [
+    'Arimo',
+    bundled('Arimo', {
+      400: () => import('@fontsource/arimo/400.css'),
+      500: () => import('@fontsource/arimo/500.css'),
+      600: () => import('@fontsource/arimo/600.css'),
+      700: () => import('@fontsource/arimo/700.css'),
+    }),
+  ],
+  [
+    'Oswald',
+    bundled('Oswald', {
+      200: () => import('@fontsource/oswald/200.css'),
+      300: () => import('@fontsource/oswald/300.css'),
+      400: () => import('@fontsource/oswald/400.css'),
+      500: () => import('@fontsource/oswald/500.css'),
+      600: () => import('@fontsource/oswald/600.css'),
+      700: () => import('@fontsource/oswald/700.css'),
+    }),
+  ],
+  [
+    'Noto Sans',
+    bundled('Noto Sans', {
+      100: () => import('@fontsource/noto-sans/100.css'),
+      200: () => import('@fontsource/noto-sans/200.css'),
+      300: () => import('@fontsource/noto-sans/300.css'),
+      400: () => import('@fontsource/noto-sans/400.css'),
+      500: () => import('@fontsource/noto-sans/500.css'),
+      600: () => import('@fontsource/noto-sans/600.css'),
+      700: () => import('@fontsource/noto-sans/700.css'),
+      800: () => import('@fontsource/noto-sans/800.css'),
+      900: () => import('@fontsource/noto-sans/900.css'),
+    }),
+  ],
+  [
+    'Raleway',
+    bundled('Raleway', {
+      100: () => import('@fontsource/raleway/100.css'),
+      200: () => import('@fontsource/raleway/200.css'),
+      300: () => import('@fontsource/raleway/300.css'),
+      400: () => import('@fontsource/raleway/400.css'),
+      500: () => import('@fontsource/raleway/500.css'),
+      600: () => import('@fontsource/raleway/600.css'),
+      700: () => import('@fontsource/raleway/700.css'),
+      800: () => import('@fontsource/raleway/800.css'),
+      900: () => import('@fontsource/raleway/900.css'),
+    }),
+  ],
+  [
+    'Nunito',
+    bundled('Nunito', {
+      200: () => import('@fontsource/nunito/200.css'),
+      300: () => import('@fontsource/nunito/300.css'),
+      400: () => import('@fontsource/nunito/400.css'),
+      500: () => import('@fontsource/nunito/500.css'),
+      600: () => import('@fontsource/nunito/600.css'),
+      700: () => import('@fontsource/nunito/700.css'),
+      800: () => import('@fontsource/nunito/800.css'),
+      900: () => import('@fontsource/nunito/900.css'),
+    }),
+  ],
+  [
+    'Nunito Sans',
+    bundled('Nunito Sans', {
+      200: () => import('@fontsource/nunito-sans/200.css'),
+      300: () => import('@fontsource/nunito-sans/300.css'),
+      400: () => import('@fontsource/nunito-sans/400.css'),
+      500: () => import('@fontsource/nunito-sans/500.css'),
+      600: () => import('@fontsource/nunito-sans/600.css'),
+      700: () => import('@fontsource/nunito-sans/700.css'),
+      800: () => import('@fontsource/nunito-sans/800.css'),
+      900: () => import('@fontsource/nunito-sans/900.css'),
+    }),
+  ],
+  [
+    'Playfair Display',
+    bundled('Playfair Display', {
+      400: () => import('@fontsource/playfair-display/400.css'),
+      500: () => import('@fontsource/playfair-display/500.css'),
+      600: () => import('@fontsource/playfair-display/600.css'),
+      700: () => import('@fontsource/playfair-display/700.css'),
+      800: () => import('@fontsource/playfair-display/800.css'),
+      900: () => import('@fontsource/playfair-display/900.css'),
+    }),
+  ],
+  [
+    'Rubik',
+    bundled('Rubik', {
+      300: () => import('@fontsource/rubik/300.css'),
+      400: () => import('@fontsource/rubik/400.css'),
+      500: () => import('@fontsource/rubik/500.css'),
+      600: () => import('@fontsource/rubik/600.css'),
+      700: () => import('@fontsource/rubik/700.css'),
+      800: () => import('@fontsource/rubik/800.css'),
+      900: () => import('@fontsource/rubik/900.css'),
+    }),
+  ],
+  [
+    'Ubuntu',
+    bundled('Ubuntu', {
+      300: () => import('@fontsource/ubuntu/300.css'),
+      400: () => import('@fontsource/ubuntu/400.css'),
+      500: () => import('@fontsource/ubuntu/500.css'),
+      700: () => import('@fontsource/ubuntu/700.css'),
+    }),
+  ],
+  [
+    'Roboto Slab',
+    bundled('Roboto Slab', {
+      100: () => import('@fontsource/roboto-slab/100.css'),
+      200: () => import('@fontsource/roboto-slab/200.css'),
+      300: () => import('@fontsource/roboto-slab/300.css'),
+      400: () => import('@fontsource/roboto-slab/400.css'),
+      500: () => import('@fontsource/roboto-slab/500.css'),
+      600: () => import('@fontsource/roboto-slab/600.css'),
+      700: () => import('@fontsource/roboto-slab/700.css'),
+      800: () => import('@fontsource/roboto-slab/800.css'),
+      900: () => import('@fontsource/roboto-slab/900.css'),
+    }),
+  ],
+  [
+    'DM Sans',
+    bundled('DM Sans', {
+      100: () => import('@fontsource/dm-sans/100.css'),
+      200: () => import('@fontsource/dm-sans/200.css'),
+      300: () => import('@fontsource/dm-sans/300.css'),
+      400: () => import('@fontsource/dm-sans/400.css'),
+      500: () => import('@fontsource/dm-sans/500.css'),
+      600: () => import('@fontsource/dm-sans/600.css'),
+      700: () => import('@fontsource/dm-sans/700.css'),
+      800: () => import('@fontsource/dm-sans/800.css'),
+      900: () => import('@fontsource/dm-sans/900.css'),
+    }),
+  ],
+  [
+    'Merriweather',
+    bundled('Merriweather', {
+      300: () => import('@fontsource/merriweather/300.css'),
+      400: () => import('@fontsource/merriweather/400.css'),
+      700: () => import('@fontsource/merriweather/700.css'),
+      900: () => import('@fontsource/merriweather/900.css'),
+    }),
+  ],
+  [
+    'Noto Sans KR',
+    bundled('Noto Sans KR', {
+      100: () => import('@fontsource/noto-sans-kr/100.css'),
+      200: () => import('@fontsource/noto-sans-kr/200.css'),
+      300: () => import('@fontsource/noto-sans-kr/300.css'),
+      400: () => import('@fontsource/noto-sans-kr/400.css'),
+      500: () => import('@fontsource/noto-sans-kr/500.css'),
+      600: () => import('@fontsource/noto-sans-kr/600.css'),
+      700: () => import('@fontsource/noto-sans-kr/700.css'),
+      800: () => import('@fontsource/noto-sans-kr/800.css'),
+      900: () => import('@fontsource/noto-sans-kr/900.css'),
+    }),
+  ],
+  [
+    'Work Sans',
+    bundled('Work Sans', {
+      100: () => import('@fontsource/work-sans/100.css'),
+      200: () => import('@fontsource/work-sans/200.css'),
+      300: () => import('@fontsource/work-sans/300.css'),
+      400: () => import('@fontsource/work-sans/400.css'),
+      500: () => import('@fontsource/work-sans/500.css'),
+      600: () => import('@fontsource/work-sans/600.css'),
+      700: () => import('@fontsource/work-sans/700.css'),
+      800: () => import('@fontsource/work-sans/800.css'),
+      900: () => import('@fontsource/work-sans/900.css'),
+    }),
+  ],
+  [
+    'PT Sans',
+    bundled('PT Sans', {
+      400: () => import('@fontsource/pt-sans/400.css'),
+      700: () => import('@fontsource/pt-sans/700.css'),
+    }),
+  ],
+  [
+    'Kanit',
+    bundled('Kanit', {
+      100: () => import('@fontsource/kanit/100.css'),
+      200: () => import('@fontsource/kanit/200.css'),
+      300: () => import('@fontsource/kanit/300.css'),
+      400: () => import('@fontsource/kanit/400.css'),
+      500: () => import('@fontsource/kanit/500.css'),
+      600: () => import('@fontsource/kanit/600.css'),
+      700: () => import('@fontsource/kanit/700.css'),
+      800: () => import('@fontsource/kanit/800.css'),
+      900: () => import('@fontsource/kanit/900.css'),
+    }),
+  ],
+  [
+    'Lora',
+    bundled('Lora', {
+      400: () => import('@fontsource/lora/400.css'),
+      500: () => import('@fontsource/lora/500.css'),
+      600: () => import('@fontsource/lora/600.css'),
+      700: () => import('@fontsource/lora/700.css'),
+    }),
+  ],
+  [
+    'Mulish',
+    bundled('Mulish', {
+      200: () => import('@fontsource/mulish/200.css'),
+      300: () => import('@fontsource/mulish/300.css'),
+      400: () => import('@fontsource/mulish/400.css'),
+      500: () => import('@fontsource/mulish/500.css'),
+      600: () => import('@fontsource/mulish/600.css'),
+      700: () => import('@fontsource/mulish/700.css'),
+      800: () => import('@fontsource/mulish/800.css'),
+      900: () => import('@fontsource/mulish/900.css'),
+    }),
+  ],
+  [
+    'Fjalla One',
+    bundled('Fjalla One', {
+      400: () => import('@fontsource/fjalla-one/400.css'),
+    }),
+  ],
+  [
+    'Manrope',
+    bundled('Manrope', {
+      200: () => import('@fontsource/manrope/200.css'),
+      300: () => import('@fontsource/manrope/300.css'),
+      400: () => import('@fontsource/manrope/400.css'),
+      500: () => import('@fontsource/manrope/500.css'),
+      600: () => import('@fontsource/manrope/600.css'),
+      700: () => import('@fontsource/manrope/700.css'),
+      800: () => import('@fontsource/manrope/800.css'),
+    }),
+  ],
+  [
+    'Archivo',
+    bundled('Archivo', {
+      100: () => import('@fontsource/archivo/100.css'),
+      200: () => import('@fontsource/archivo/200.css'),
+      300: () => import('@fontsource/archivo/300.css'),
+      400: () => import('@fontsource/archivo/400.css'),
+      500: () => import('@fontsource/archivo/500.css'),
+      600: () => import('@fontsource/archivo/600.css'),
+      700: () => import('@fontsource/archivo/700.css'),
+      800: () => import('@fontsource/archivo/800.css'),
+      900: () => import('@fontsource/archivo/900.css'),
+    }),
+  ],
+  [
+    'Quicksand',
+    bundled('Quicksand', {
+      300: () => import('@fontsource/quicksand/300.css'),
+      400: () => import('@fontsource/quicksand/400.css'),
+      500: () => import('@fontsource/quicksand/500.css'),
+      600: () => import('@fontsource/quicksand/600.css'),
+      700: () => import('@fontsource/quicksand/700.css'),
+    }),
+  ],
+  [
+    'Outfit',
+    bundled('Outfit', {
+      100: () => import('@fontsource/outfit/100.css'),
+      200: () => import('@fontsource/outfit/200.css'),
+      300: () => import('@fontsource/outfit/300.css'),
+      400: () => import('@fontsource/outfit/400.css'),
+      500: () => import('@fontsource/outfit/500.css'),
+      600: () => import('@fontsource/outfit/600.css'),
+      700: () => import('@fontsource/outfit/700.css'),
+      800: () => import('@fontsource/outfit/800.css'),
+      900: () => import('@fontsource/outfit/900.css'),
+    }),
+  ],
+  [
+    'Figtree',
+    bundled('Figtree', {
+      300: () => import('@fontsource/figtree/300.css'),
+      400: () => import('@fontsource/figtree/400.css'),
+      500: () => import('@fontsource/figtree/500.css'),
+      600: () => import('@fontsource/figtree/600.css'),
+      700: () => import('@fontsource/figtree/700.css'),
+      800: () => import('@fontsource/figtree/800.css'),
+      900: () => import('@fontsource/figtree/900.css'),
+    }),
+  ],
+  [
+    'Fira Sans',
+    bundled('Fira Sans', {
+      100: () => import('@fontsource/fira-sans/100.css'),
+      200: () => import('@fontsource/fira-sans/200.css'),
+      300: () => import('@fontsource/fira-sans/300.css'),
+      400: () => import('@fontsource/fira-sans/400.css'),
+      500: () => import('@fontsource/fira-sans/500.css'),
+      600: () => import('@fontsource/fira-sans/600.css'),
+      700: () => import('@fontsource/fira-sans/700.css'),
+      800: () => import('@fontsource/fira-sans/800.css'),
+      900: () => import('@fontsource/fira-sans/900.css'),
+    }),
+  ],
+  [
+    'Inconsolata',
+    bundled('Inconsolata', {
+      200: () => import('@fontsource/inconsolata/200.css'),
+      300: () => import('@fontsource/inconsolata/300.css'),
+      400: () => import('@fontsource/inconsolata/400.css'),
+      500: () => import('@fontsource/inconsolata/500.css'),
+      600: () => import('@fontsource/inconsolata/600.css'),
+      700: () => import('@fontsource/inconsolata/700.css'),
+      800: () => import('@fontsource/inconsolata/800.css'),
+      900: () => import('@fontsource/inconsolata/900.css'),
+    }),
+  ],
+  [
+    'Barlow',
+    bundled('Barlow', {
+      100: () => import('@fontsource/barlow/100.css'),
+      200: () => import('@fontsource/barlow/200.css'),
+      300: () => import('@fontsource/barlow/300.css'),
+      400: () => import('@fontsource/barlow/400.css'),
+      500: () => import('@fontsource/barlow/500.css'),
+      600: () => import('@fontsource/barlow/600.css'),
+      700: () => import('@fontsource/barlow/700.css'),
+      800: () => import('@fontsource/barlow/800.css'),
+      900: () => import('@fontsource/barlow/900.css'),
+    }),
+  ],
+  [
+    'Bebas Neue',
+    bundled('Bebas Neue', {
+      400: () => import('@fontsource/bebas-neue/400.css'),
+    }),
+  ],
+  [
+    'Noto Sans TC',
+    bundled('Noto Sans TC', {
+      100: () => import('@fontsource/noto-sans-tc/100.css'),
+      200: () => import('@fontsource/noto-sans-tc/200.css'),
+      300: () => import('@fontsource/noto-sans-tc/300.css'),
+      400: () => import('@fontsource/noto-sans-tc/400.css'),
+      500: () => import('@fontsource/noto-sans-tc/500.css'),
+      600: () => import('@fontsource/noto-sans-tc/600.css'),
+      700: () => import('@fontsource/noto-sans-tc/700.css'),
+      800: () => import('@fontsource/noto-sans-tc/800.css'),
+      900: () => import('@fontsource/noto-sans-tc/900.css'),
+    }),
+  ],
+  [
+    'Archivo Black',
+    bundled('Archivo Black', {
+      400: () => import('@fontsource/archivo-black/400.css'),
+    }),
+  ],
+  [
+    'Source Sans 3',
+    bundled('Source Sans 3', {
+      200: () => import('@fontsource/source-sans-3/200.css'),
+      300: () => import('@fontsource/source-sans-3/300.css'),
+      400: () => import('@fontsource/source-sans-3/400.css'),
+      500: () => import('@fontsource/source-sans-3/500.css'),
+      600: () => import('@fontsource/source-sans-3/600.css'),
+      700: () => import('@fontsource/source-sans-3/700.css'),
+      800: () => import('@fontsource/source-sans-3/800.css'),
+      900: () => import('@fontsource/source-sans-3/900.css'),
+    }),
+  ],
+  [
+    'Hind Siliguri',
+    bundled('Hind Siliguri', {
+      300: () => import('@fontsource/hind-siliguri/300.css'),
+      400: () => import('@fontsource/hind-siliguri/400.css'),
+      500: () => import('@fontsource/hind-siliguri/500.css'),
+      600: () => import('@fontsource/hind-siliguri/600.css'),
+      700: () => import('@fontsource/hind-siliguri/700.css'),
+    }),
+  ],
+  [
+    'IBM Plex Sans',
+    bundled('IBM Plex Sans', {
+      100: () => import('@fontsource/ibm-plex-sans/100.css'),
+      200: () => import('@fontsource/ibm-plex-sans/200.css'),
+      300: () => import('@fontsource/ibm-plex-sans/300.css'),
+      400: () => import('@fontsource/ibm-plex-sans/400.css'),
+      500: () => import('@fontsource/ibm-plex-sans/500.css'),
+      600: () => import('@fontsource/ibm-plex-sans/600.css'),
+      700: () => import('@fontsource/ibm-plex-sans/700.css'),
+    }),
+  ],
+  [
+    'Prompt',
+    bundled('Prompt', {
+      100: () => import('@fontsource/prompt/100.css'),
+      200: () => import('@fontsource/prompt/200.css'),
+      300: () => import('@fontsource/prompt/300.css'),
+      400: () => import('@fontsource/prompt/400.css'),
+      500: () => import('@fontsource/prompt/500.css'),
+      600: () => import('@fontsource/prompt/600.css'),
+      700: () => import('@fontsource/prompt/700.css'),
+      800: () => import('@fontsource/prompt/800.css'),
+      900: () => import('@fontsource/prompt/900.css'),
+    }),
+  ],
+  [
+    'Bungee',
+    bundled('Bungee', {
+      400: () => import('@fontsource/bungee/400.css'),
+    }),
+  ],
+  [
+    'Titillium Web',
+    bundled('Titillium Web', {
+      200: () => import('@fontsource/titillium-web/200.css'),
+      300: () => import('@fontsource/titillium-web/300.css'),
+      400: () => import('@fontsource/titillium-web/400.css'),
+      600: () => import('@fontsource/titillium-web/600.css'),
+      700: () => import('@fontsource/titillium-web/700.css'),
+      900: () => import('@fontsource/titillium-web/900.css'),
+    }),
+  ],
+  [
+    'Karla',
+    bundled('Karla', {
+      200: () => import('@fontsource/karla/200.css'),
+      300: () => import('@fontsource/karla/300.css'),
+      400: () => import('@fontsource/karla/400.css'),
+      500: () => import('@fontsource/karla/500.css'),
+      600: () => import('@fontsource/karla/600.css'),
+      700: () => import('@fontsource/karla/700.css'),
+      800: () => import('@fontsource/karla/800.css'),
+    }),
+  ],
+  [
+    'Heebo',
+    bundled('Heebo', {
+      100: () => import('@fontsource/heebo/100.css'),
+      200: () => import('@fontsource/heebo/200.css'),
+      300: () => import('@fontsource/heebo/300.css'),
+      400: () => import('@fontsource/heebo/400.css'),
+      500: () => import('@fontsource/heebo/500.css'),
+      600: () => import('@fontsource/heebo/600.css'),
+      700: () => import('@fontsource/heebo/700.css'),
+      800: () => import('@fontsource/heebo/800.css'),
+      900: () => import('@fontsource/heebo/900.css'),
+    }),
+  ],
+  [
+    'Saira',
+    bundled('Saira', {
+      100: () => import('@fontsource/saira/100.css'),
+      200: () => import('@fontsource/saira/200.css'),
+      300: () => import('@fontsource/saira/300.css'),
+      400: () => import('@fontsource/saira/400.css'),
+      500: () => import('@fontsource/saira/500.css'),
+      600: () => import('@fontsource/saira/600.css'),
+      700: () => import('@fontsource/saira/700.css'),
+      800: () => import('@fontsource/saira/800.css'),
+      900: () => import('@fontsource/saira/900.css'),
+    }),
+  ],
+  [
+    'Noto Serif',
+    bundled('Noto Serif', {
+      100: () => import('@fontsource/noto-serif/100.css'),
+      200: () => import('@fontsource/noto-serif/200.css'),
+      300: () => import('@fontsource/noto-serif/300.css'),
+      400: () => import('@fontsource/noto-serif/400.css'),
+      500: () => import('@fontsource/noto-serif/500.css'),
+      600: () => import('@fontsource/noto-serif/600.css'),
+      700: () => import('@fontsource/noto-serif/700.css'),
+      800: () => import('@fontsource/noto-serif/800.css'),
+      900: () => import('@fontsource/noto-serif/900.css'),
+    }),
+  ],
+  [
+    'PT Serif',
+    bundled('PT Serif', {
+      400: () => import('@fontsource/pt-serif/400.css'),
+      700: () => import('@fontsource/pt-serif/700.css'),
+    }),
+  ],
+  [
+    'Jost',
+    bundled('Jost', {
+      100: () => import('@fontsource/jost/100.css'),
+      200: () => import('@fontsource/jost/200.css'),
+      300: () => import('@fontsource/jost/300.css'),
+      400: () => import('@fontsource/jost/400.css'),
+      500: () => import('@fontsource/jost/500.css'),
+      600: () => import('@fontsource/jost/600.css'),
+      700: () => import('@fontsource/jost/700.css'),
+      800: () => import('@fontsource/jost/800.css'),
+      900: () => import('@fontsource/jost/900.css'),
+    }),
+  ],
+  [
+    'Plus Jakarta Sans',
+    bundled('Plus Jakarta Sans', {
+      200: () => import('@fontsource/plus-jakarta-sans/200.css'),
+      300: () => import('@fontsource/plus-jakarta-sans/300.css'),
+      400: () => import('@fontsource/plus-jakarta-sans/400.css'),
+      500: () => import('@fontsource/plus-jakarta-sans/500.css'),
+      600: () => import('@fontsource/plus-jakarta-sans/600.css'),
+      700: () => import('@fontsource/plus-jakarta-sans/700.css'),
+      800: () => import('@fontsource/plus-jakarta-sans/800.css'),
+    }),
+  ],
+  [
+    'Bricolage Grotesque',
+    bundled('Bricolage Grotesque', {
+      200: () => import('@fontsource/bricolage-grotesque/200.css'),
+      300: () => import('@fontsource/bricolage-grotesque/300.css'),
+      400: () => import('@fontsource/bricolage-grotesque/400.css'),
+      500: () => import('@fontsource/bricolage-grotesque/500.css'),
+      600: () => import('@fontsource/bricolage-grotesque/600.css'),
+      700: () => import('@fontsource/bricolage-grotesque/700.css'),
+      800: () => import('@fontsource/bricolage-grotesque/800.css'),
+    }),
+  ],
+  [
+    'Noto Color Emoji',
+    bundled('Noto Color Emoji', {
+      400: () => import('@fontsource/noto-color-emoji/400.css'),
+    }),
+  ],
+  [
+    'Share Tech',
+    bundled('Share Tech', {
+      400: () => import('@fontsource/share-tech/400.css'),
+    }),
+  ],
+  [
+    'Smooch Sans',
+    bundled('Smooch Sans', {
+      100: () => import('@fontsource/smooch-sans/100.css'),
+      200: () => import('@fontsource/smooch-sans/200.css'),
+      300: () => import('@fontsource/smooch-sans/300.css'),
+      400: () => import('@fontsource/smooch-sans/400.css'),
+      500: () => import('@fontsource/smooch-sans/500.css'),
+      600: () => import('@fontsource/smooch-sans/600.css'),
+      700: () => import('@fontsource/smooch-sans/700.css'),
+      800: () => import('@fontsource/smooch-sans/800.css'),
+      900: () => import('@fontsource/smooch-sans/900.css'),
+    }),
+  ],
+  [
+    'Source Code Pro',
+    bundled('Source Code Pro', {
+      200: () => import('@fontsource/source-code-pro/200.css'),
+      300: () => import('@fontsource/source-code-pro/300.css'),
+      400: () => import('@fontsource/source-code-pro/400.css'),
+      500: () => import('@fontsource/source-code-pro/500.css'),
+      600: () => import('@fontsource/source-code-pro/600.css'),
+      700: () => import('@fontsource/source-code-pro/700.css'),
+      800: () => import('@fontsource/source-code-pro/800.css'),
+      900: () => import('@fontsource/source-code-pro/900.css'),
+    }),
+  ],
+  [
+    'Libre Baskerville',
+    bundled('Libre Baskerville', {
+      400: () => import('@fontsource/libre-baskerville/400.css'),
+      700: () => import('@fontsource/libre-baskerville/700.css'),
+    }),
+  ],
+  [
+    'Dancing Script',
+    bundled('Dancing Script', {
+      400: () => import('@fontsource/dancing-script/400.css'),
+      500: () => import('@fontsource/dancing-script/500.css'),
+      600: () => import('@fontsource/dancing-script/600.css'),
+      700: () => import('@fontsource/dancing-script/700.css'),
+    }),
+  ],
+  [
+    'Lobster Two',
+    bundled('Lobster Two', {
+      400: () => import('@fontsource/lobster-two/400.css'),
+      700: () => import('@fontsource/lobster-two/700.css'),
+    }),
+  ],
+  [
+    'EB Garamond',
+    bundled('EB Garamond', {
+      400: () => import('@fontsource/eb-garamond/400.css'),
+      500: () => import('@fontsource/eb-garamond/500.css'),
+      600: () => import('@fontsource/eb-garamond/600.css'),
+      700: () => import('@fontsource/eb-garamond/700.css'),
+      800: () => import('@fontsource/eb-garamond/800.css'),
+    }),
+  ],
+  [
+    'Josefin Sans',
+    bundled('Josefin Sans', {
+      100: () => import('@fontsource/josefin-sans/100.css'),
+      200: () => import('@fontsource/josefin-sans/200.css'),
+      300: () => import('@fontsource/josefin-sans/300.css'),
+      400: () => import('@fontsource/josefin-sans/400.css'),
+      500: () => import('@fontsource/josefin-sans/500.css'),
+      600: () => import('@fontsource/josefin-sans/600.css'),
+      700: () => import('@fontsource/josefin-sans/700.css'),
+    }),
+  ],
+  [
+    'Cairo',
+    bundled('Cairo', {
+      200: () => import('@fontsource/cairo/200.css'),
+      300: () => import('@fontsource/cairo/300.css'),
+      400: () => import('@fontsource/cairo/400.css'),
+      500: () => import('@fontsource/cairo/500.css'),
+      600: () => import('@fontsource/cairo/600.css'),
+      700: () => import('@fontsource/cairo/700.css'),
+      800: () => import('@fontsource/cairo/800.css'),
+      900: () => import('@fontsource/cairo/900.css'),
+    }),
+  ],
+  [
+    'Libre Franklin',
+    bundled('Libre Franklin', {
+      100: () => import('@fontsource/libre-franklin/100.css'),
+      200: () => import('@fontsource/libre-franklin/200.css'),
+      300: () => import('@fontsource/libre-franklin/300.css'),
+      400: () => import('@fontsource/libre-franklin/400.css'),
+      500: () => import('@fontsource/libre-franklin/500.css'),
+      600: () => import('@fontsource/libre-franklin/600.css'),
+      700: () => import('@fontsource/libre-franklin/700.css'),
+      800: () => import('@fontsource/libre-franklin/800.css'),
+      900: () => import('@fontsource/libre-franklin/900.css'),
+    }),
+  ],
+  [
+    'Gravitas One',
+    bundled('Gravitas One', {
+      400: () => import('@fontsource/gravitas-one/400.css'),
+    }),
+  ],
+  [
+    'Noto Serif JP',
+    bundled('Noto Serif JP', {
+      200: () => import('@fontsource/noto-serif-jp/200.css'),
+      300: () => import('@fontsource/noto-serif-jp/300.css'),
+      400: () => import('@fontsource/noto-serif-jp/400.css'),
+      500: () => import('@fontsource/noto-serif-jp/500.css'),
+      600: () => import('@fontsource/noto-serif-jp/600.css'),
+      700: () => import('@fontsource/noto-serif-jp/700.css'),
+      800: () => import('@fontsource/noto-serif-jp/800.css'),
+      900: () => import('@fontsource/noto-serif-jp/900.css'),
+    }),
+  ],
+  [
+    'Public Sans',
+    bundled('Public Sans', {
+      100: () => import('@fontsource/public-sans/100.css'),
+      200: () => import('@fontsource/public-sans/200.css'),
+      300: () => import('@fontsource/public-sans/300.css'),
+      400: () => import('@fontsource/public-sans/400.css'),
+      500: () => import('@fontsource/public-sans/500.css'),
+      600: () => import('@fontsource/public-sans/600.css'),
+      700: () => import('@fontsource/public-sans/700.css'),
+      800: () => import('@fontsource/public-sans/800.css'),
+      900: () => import('@fontsource/public-sans/900.css'),
+    }),
+  ],
+  [
+    'Anton',
+    bundled('Anton', {
+      400: () => import('@fontsource/anton/400.css'),
+    }),
+  ],
+  [
+    'Mukta',
+    bundled('Mukta', {
+      200: () => import('@fontsource/mukta/200.css'),
+      300: () => import('@fontsource/mukta/300.css'),
+      400: () => import('@fontsource/mukta/400.css'),
+      500: () => import('@fontsource/mukta/500.css'),
+      600: () => import('@fontsource/mukta/600.css'),
+      700: () => import('@fontsource/mukta/700.css'),
+      800: () => import('@fontsource/mukta/800.css'),
+    }),
+  ],
+  [
+    'Schibsted Grotesk',
+    bundled('Schibsted Grotesk', {
+      400: () => import('@fontsource/schibsted-grotesk/400.css'),
+      500: () => import('@fontsource/schibsted-grotesk/500.css'),
+      600: () => import('@fontsource/schibsted-grotesk/600.css'),
+      700: () => import('@fontsource/schibsted-grotesk/700.css'),
+      800: () => import('@fontsource/schibsted-grotesk/800.css'),
+      900: () => import('@fontsource/schibsted-grotesk/900.css'),
+    }),
+  ],
+  [
+    'Dosis',
+    bundled('Dosis', {
+      200: () => import('@fontsource/dosis/200.css'),
+      300: () => import('@fontsource/dosis/300.css'),
+      400: () => import('@fontsource/dosis/400.css'),
+      500: () => import('@fontsource/dosis/500.css'),
+      600: () => import('@fontsource/dosis/600.css'),
+      700: () => import('@fontsource/dosis/700.css'),
+      800: () => import('@fontsource/dosis/800.css'),
+    }),
+  ],
+  [
+    'Barlow Condensed',
+    bundled('Barlow Condensed', {
+      100: () => import('@fontsource/barlow-condensed/100.css'),
+      200: () => import('@fontsource/barlow-condensed/200.css'),
+      300: () => import('@fontsource/barlow-condensed/300.css'),
+      400: () => import('@fontsource/barlow-condensed/400.css'),
+      500: () => import('@fontsource/barlow-condensed/500.css'),
+      600: () => import('@fontsource/barlow-condensed/600.css'),
+      700: () => import('@fontsource/barlow-condensed/700.css'),
+      800: () => import('@fontsource/barlow-condensed/800.css'),
+      900: () => import('@fontsource/barlow-condensed/900.css'),
+    }),
+  ],
+  [
+    'Bitter',
+    bundled('Bitter', {
+      100: () => import('@fontsource/bitter/100.css'),
+      200: () => import('@fontsource/bitter/200.css'),
+      300: () => import('@fontsource/bitter/300.css'),
+      400: () => import('@fontsource/bitter/400.css'),
+      500: () => import('@fontsource/bitter/500.css'),
+      600: () => import('@fontsource/bitter/600.css'),
+      700: () => import('@fontsource/bitter/700.css'),
+      800: () => import('@fontsource/bitter/800.css'),
+      900: () => import('@fontsource/bitter/900.css'),
+    }),
+  ],
+  [
+    'Roboto Flex',
+    bundled('Roboto Flex', {
+      400: () => import('@fontsource/roboto-flex/400.css'),
+    }),
+  ],
+  [
+    'Cabin',
+    bundled('Cabin', {
+      400: () => import('@fontsource/cabin/400.css'),
+      500: () => import('@fontsource/cabin/500.css'),
+      600: () => import('@fontsource/cabin/600.css'),
+      700: () => import('@fontsource/cabin/700.css'),
+    }),
+  ],
+  [
+    'Noto Sans SC',
+    bundled('Noto Sans SC', {
+      100: () => import('@fontsource/noto-sans-sc/100.css'),
+      200: () => import('@fontsource/noto-sans-sc/200.css'),
+      300: () => import('@fontsource/noto-sans-sc/300.css'),
+      400: () => import('@fontsource/noto-sans-sc/400.css'),
+      500: () => import('@fontsource/noto-sans-sc/500.css'),
+      600: () => import('@fontsource/noto-sans-sc/600.css'),
+      700: () => import('@fontsource/noto-sans-sc/700.css'),
+      800: () => import('@fontsource/noto-sans-sc/800.css'),
+      900: () => import('@fontsource/noto-sans-sc/900.css'),
+    }),
+  ],
+  [
+    'Ramabhadra',
+    bundled('Ramabhadra', {
+      400: () => import('@fontsource/ramabhadra/400.css'),
+    }),
+  ],
+  [
+    'Noto Sans Telugu',
+    bundled('Noto Sans Telugu', {
+      100: () => import('@fontsource/noto-sans-telugu/100.css'),
+      200: () => import('@fontsource/noto-sans-telugu/200.css'),
+      300: () => import('@fontsource/noto-sans-telugu/300.css'),
+      400: () => import('@fontsource/noto-sans-telugu/400.css'),
+      500: () => import('@fontsource/noto-sans-telugu/500.css'),
+      600: () => import('@fontsource/noto-sans-telugu/600.css'),
+      700: () => import('@fontsource/noto-sans-telugu/700.css'),
+      800: () => import('@fontsource/noto-sans-telugu/800.css'),
+      900: () => import('@fontsource/noto-sans-telugu/900.css'),
+    }),
+  ],
+  [
+    'Nanum Gothic',
+    bundled('Nanum Gothic', {
+      400: () => import('@fontsource/nanum-gothic/400.css'),
+      700: () => import('@fontsource/nanum-gothic/700.css'),
+      800: () => import('@fontsource/nanum-gothic/800.css'),
+    }),
+  ],
+  [
+    'Space Grotesk',
+    bundled('Space Grotesk', {
+      300: () => import('@fontsource/space-grotesk/300.css'),
+      400: () => import('@fontsource/space-grotesk/400.css'),
+      500: () => import('@fontsource/space-grotesk/500.css'),
+      600: () => import('@fontsource/space-grotesk/600.css'),
+      700: () => import('@fontsource/space-grotesk/700.css'),
+    }),
+  ],
+  [
+    'Changa One',
+    bundled('Changa One', {
+      400: () => import('@fontsource/changa-one/400.css'),
+    }),
+  ],
+  [
+    'Anek Telugu',
+    bundled('Anek Telugu', {
+      100: () => import('@fontsource/anek-telugu/100.css'),
+      200: () => import('@fontsource/anek-telugu/200.css'),
+      300: () => import('@fontsource/anek-telugu/300.css'),
+      400: () => import('@fontsource/anek-telugu/400.css'),
+      500: () => import('@fontsource/anek-telugu/500.css'),
+      600: () => import('@fontsource/anek-telugu/600.css'),
+      700: () => import('@fontsource/anek-telugu/700.css'),
+      800: () => import('@fontsource/anek-telugu/800.css'),
+    }),
+  ],
+  [
+    'Assistant',
+    bundled('Assistant', {
+      200: () => import('@fontsource/assistant/200.css'),
+      300: () => import('@fontsource/assistant/300.css'),
+      400: () => import('@fontsource/assistant/400.css'),
+      500: () => import('@fontsource/assistant/500.css'),
+      600: () => import('@fontsource/assistant/600.css'),
+      700: () => import('@fontsource/assistant/700.css'),
+      800: () => import('@fontsource/assistant/800.css'),
+    }),
+  ],
+  [
+    'Oxygen',
+    bundled('Oxygen', {
+      300: () => import('@fontsource/oxygen/300.css'),
+      400: () => import('@fontsource/oxygen/400.css'),
+      700: () => import('@fontsource/oxygen/700.css'),
+    }),
+  ],
+  [
+    'Pacifico',
+    bundled('Pacifico', {
+      400: () => import('@fontsource/pacifico/400.css'),
+    }),
+  ],
+  [
+    'Alfa Slab One',
+    bundled('Alfa Slab One', {
+      400: () => import('@fontsource/alfa-slab-one/400.css'),
+    }),
+  ],
+  [
+    'Lexend',
+    bundled('Lexend', {
+      100: () => import('@fontsource/lexend/100.css'),
+      200: () => import('@fontsource/lexend/200.css'),
+      300: () => import('@fontsource/lexend/300.css'),
+      400: () => import('@fontsource/lexend/400.css'),
+      500: () => import('@fontsource/lexend/500.css'),
+      600: () => import('@fontsource/lexend/600.css'),
+      700: () => import('@fontsource/lexend/700.css'),
+      800: () => import('@fontsource/lexend/800.css'),
+      900: () => import('@fontsource/lexend/900.css'),
+    }),
+  ],
+  [
+    'Hind',
+    bundled('Hind', {
+      300: () => import('@fontsource/hind/300.css'),
+      400: () => import('@fontsource/hind/400.css'),
+      500: () => import('@fontsource/hind/500.css'),
+      600: () => import('@fontsource/hind/600.css'),
+      700: () => import('@fontsource/hind/700.css'),
+    }),
+  ],
+  [
+    'M PLUS Rounded 1c',
+    bundled('M PLUS Rounded 1c', {
+      100: () => import('@fontsource/m-plus-rounded-1c/100.css'),
+      300: () => import('@fontsource/m-plus-rounded-1c/300.css'),
+      400: () => import('@fontsource/m-plus-rounded-1c/400.css'),
+      500: () => import('@fontsource/m-plus-rounded-1c/500.css'),
+      700: () => import('@fontsource/m-plus-rounded-1c/700.css'),
+      800: () => import('@fontsource/m-plus-rounded-1c/800.css'),
+      900: () => import('@fontsource/m-plus-rounded-1c/900.css'),
+    }),
+  ],
+  [
+    'Red Hat Display',
+    bundled('Red Hat Display', {
+      300: () => import('@fontsource/red-hat-display/300.css'),
+      400: () => import('@fontsource/red-hat-display/400.css'),
+      500: () => import('@fontsource/red-hat-display/500.css'),
+      600: () => import('@fontsource/red-hat-display/600.css'),
+      700: () => import('@fontsource/red-hat-display/700.css'),
+      800: () => import('@fontsource/red-hat-display/800.css'),
+      900: () => import('@fontsource/red-hat-display/900.css'),
+    }),
+  ],
+  [
+    'Exo 2',
+    bundled('Exo 2', {
+      100: () => import('@fontsource/exo-2/100.css'),
+      200: () => import('@fontsource/exo-2/200.css'),
+      300: () => import('@fontsource/exo-2/300.css'),
+      400: () => import('@fontsource/exo-2/400.css'),
+      500: () => import('@fontsource/exo-2/500.css'),
+      600: () => import('@fontsource/exo-2/600.css'),
+      700: () => import('@fontsource/exo-2/700.css'),
+      800: () => import('@fontsource/exo-2/800.css'),
+      900: () => import('@fontsource/exo-2/900.css'),
+    }),
+  ],
+  [
+    'Slabo 27px',
+    bundled('Slabo 27px', {
+      400: () => import('@fontsource/slabo-27px/400.css'),
+    }),
+  ],
+  [
+    'Lobster',
+    bundled('Lobster', {
+      400: () => import('@fontsource/lobster/400.css'),
+    }),
+  ],
+  [
+    'Cormorant Garamond',
+    bundled('Cormorant Garamond', {
+      300: () => import('@fontsource/cormorant-garamond/300.css'),
+      400: () => import('@fontsource/cormorant-garamond/400.css'),
+      500: () => import('@fontsource/cormorant-garamond/500.css'),
+      600: () => import('@fontsource/cormorant-garamond/600.css'),
+      700: () => import('@fontsource/cormorant-garamond/700.css'),
+    }),
+  ],
+  [
+    'Sora',
+    bundled('Sora', {
+      100: () => import('@fontsource/sora/100.css'),
+      200: () => import('@fontsource/sora/200.css'),
+      300: () => import('@fontsource/sora/300.css'),
+      400: () => import('@fontsource/sora/400.css'),
+      500: () => import('@fontsource/sora/500.css'),
+      600: () => import('@fontsource/sora/600.css'),
+      700: () => import('@fontsource/sora/700.css'),
+      800: () => import('@fontsource/sora/800.css'),
+    }),
+  ],
+  [
+    'Crimson Text',
+    bundled('Crimson Text', {
+      400: () => import('@fontsource/crimson-text/400.css'),
+      600: () => import('@fontsource/crimson-text/600.css'),
+      700: () => import('@fontsource/crimson-text/700.css'),
+    }),
+  ],
+  [
+    'Inter Tight',
+    bundled('Inter Tight', {
+      100: () => import('@fontsource/inter-tight/100.css'),
+      200: () => import('@fontsource/inter-tight/200.css'),
+      300: () => import('@fontsource/inter-tight/300.css'),
+      400: () => import('@fontsource/inter-tight/400.css'),
+      500: () => import('@fontsource/inter-tight/500.css'),
+      600: () => import('@fontsource/inter-tight/600.css'),
+      700: () => import('@fontsource/inter-tight/700.css'),
+      800: () => import('@fontsource/inter-tight/800.css'),
+      900: () => import('@fontsource/inter-tight/900.css'),
+    }),
+  ],
+  [
+    'Overpass',
+    bundled('Overpass', {
+      100: () => import('@fontsource/overpass/100.css'),
+      200: () => import('@fontsource/overpass/200.css'),
+      300: () => import('@fontsource/overpass/300.css'),
+      400: () => import('@fontsource/overpass/400.css'),
+      500: () => import('@fontsource/overpass/500.css'),
+      600: () => import('@fontsource/overpass/600.css'),
+      700: () => import('@fontsource/overpass/700.css'),
+      800: () => import('@fontsource/overpass/800.css'),
+      900: () => import('@fontsource/overpass/900.css'),
+    }),
+  ],
+  [
+    'Caveat',
+    bundled('Caveat', {
+      400: () => import('@fontsource/caveat/400.css'),
+      500: () => import('@fontsource/caveat/500.css'),
+      600: () => import('@fontsource/caveat/600.css'),
+      700: () => import('@fontsource/caveat/700.css'),
+    }),
+  ],
+  [
+    'Urbanist',
+    bundled('Urbanist', {
+      100: () => import('@fontsource/urbanist/100.css'),
+      200: () => import('@fontsource/urbanist/200.css'),
+      300: () => import('@fontsource/urbanist/300.css'),
+      400: () => import('@fontsource/urbanist/400.css'),
+      500: () => import('@fontsource/urbanist/500.css'),
+      600: () => import('@fontsource/urbanist/600.css'),
+      700: () => import('@fontsource/urbanist/700.css'),
+      800: () => import('@fontsource/urbanist/800.css'),
+      900: () => import('@fontsource/urbanist/900.css'),
+    }),
+  ],
+  [
+    'Comfortaa',
+    bundled('Comfortaa', {
+      300: () => import('@fontsource/comfortaa/300.css'),
+      400: () => import('@fontsource/comfortaa/400.css'),
+      500: () => import('@fontsource/comfortaa/500.css'),
+      600: () => import('@fontsource/comfortaa/600.css'),
+      700: () => import('@fontsource/comfortaa/700.css'),
+    }),
+  ],
+  [
+    'Tajawal',
+    bundled('Tajawal', {
+      200: () => import('@fontsource/tajawal/200.css'),
+      300: () => import('@fontsource/tajawal/300.css'),
+      400: () => import('@fontsource/tajawal/400.css'),
+      500: () => import('@fontsource/tajawal/500.css'),
+      700: () => import('@fontsource/tajawal/700.css'),
+      800: () => import('@fontsource/tajawal/800.css'),
+      900: () => import('@fontsource/tajawal/900.css'),
+    }),
+  ],
+  [
+    'Arvo',
+    bundled('Arvo', {
+      400: () => import('@fontsource/arvo/400.css'),
+      700: () => import('@fontsource/arvo/700.css'),
+    }),
+  ],
+  [
+    'PT Sans Narrow',
+    bundled('PT Sans Narrow', {
+      400: () => import('@fontsource/pt-sans-narrow/400.css'),
+      700: () => import('@fontsource/pt-sans-narrow/700.css'),
+    }),
+  ],
+  [
+    'Rajdhani',
+    bundled('Rajdhani', {
+      300: () => import('@fontsource/rajdhani/300.css'),
+      400: () => import('@fontsource/rajdhani/400.css'),
+      500: () => import('@fontsource/rajdhani/500.css'),
+      600: () => import('@fontsource/rajdhani/600.css'),
+      700: () => import('@fontsource/rajdhani/700.css'),
+    }),
+  ],
+  [
+    'DM Serif Display',
+    bundled('DM Serif Display', {
+      400: () => import('@fontsource/dm-serif-display/400.css'),
+    }),
+  ],
+  [
+    'Abel',
+    bundled('Abel', {
+      400: () => import('@fontsource/abel/400.css'),
+    }),
+  ],
+  [
+    'Teko',
+    bundled('Teko', {
+      300: () => import('@fontsource/teko/300.css'),
+      400: () => import('@fontsource/teko/400.css'),
+      500: () => import('@fontsource/teko/500.css'),
+      600: () => import('@fontsource/teko/600.css'),
+      700: () => import('@fontsource/teko/700.css'),
+    }),
+  ],
+  [
+    'Source Serif 4',
+    bundled('Source Serif 4', {
+      200: () => import('@fontsource/source-serif-4/200.css'),
+      300: () => import('@fontsource/source-serif-4/300.css'),
+      400: () => import('@fontsource/source-serif-4/400.css'),
+      500: () => import('@fontsource/source-serif-4/500.css'),
+      600: () => import('@fontsource/source-serif-4/600.css'),
+      700: () => import('@fontsource/source-serif-4/700.css'),
+      800: () => import('@fontsource/source-serif-4/800.css'),
+      900: () => import('@fontsource/source-serif-4/900.css'),
+    }),
+  ],
+  [
+    'Noto Sans Arabic',
+    bundled('Noto Sans Arabic', {
+      100: () => import('@fontsource/noto-sans-arabic/100.css'),
+      200: () => import('@fontsource/noto-sans-arabic/200.css'),
+      300: () => import('@fontsource/noto-sans-arabic/300.css'),
+      400: () => import('@fontsource/noto-sans-arabic/400.css'),
+      500: () => import('@fontsource/noto-sans-arabic/500.css'),
+      600: () => import('@fontsource/noto-sans-arabic/600.css'),
+      700: () => import('@fontsource/noto-sans-arabic/700.css'),
+      800: () => import('@fontsource/noto-sans-arabic/800.css'),
+      900: () => import('@fontsource/noto-sans-arabic/900.css'),
+    }),
+  ],
+  [
+    'Almarai',
+    bundled('Almarai', {
+      300: () => import('@fontsource/almarai/300.css'),
+      400: () => import('@fontsource/almarai/400.css'),
+      700: () => import('@fontsource/almarai/700.css'),
+      800: () => import('@fontsource/almarai/800.css'),
+    }),
+  ],
+  [
+    'Merriweather Sans',
+    bundled('Merriweather Sans', {
+      300: () => import('@fontsource/merriweather-sans/300.css'),
+      400: () => import('@fontsource/merriweather-sans/400.css'),
+      500: () => import('@fontsource/merriweather-sans/500.css'),
+      600: () => import('@fontsource/merriweather-sans/600.css'),
+      700: () => import('@fontsource/merriweather-sans/700.css'),
+      800: () => import('@fontsource/merriweather-sans/800.css'),
+    }),
+  ],
+  [
+    'Lexend Deca',
+    bundled('Lexend Deca', {
+      100: () => import('@fontsource/lexend-deca/100.css'),
+      200: () => import('@fontsource/lexend-deca/200.css'),
+      300: () => import('@fontsource/lexend-deca/300.css'),
+      400: () => import('@fontsource/lexend-deca/400.css'),
+      500: () => import('@fontsource/lexend-deca/500.css'),
+      600: () => import('@fontsource/lexend-deca/600.css'),
+      700: () => import('@fontsource/lexend-deca/700.css'),
+      800: () => import('@fontsource/lexend-deca/800.css'),
+      900: () => import('@fontsource/lexend-deca/900.css'),
+    }),
+  ],
+  [
+    'Satisfy',
+    bundled('Satisfy', {
+      400: () => import('@fontsource/satisfy/400.css'),
+    }),
+  ],
+  [
+    'Orbitron',
+    bundled('Orbitron', {
+      400: () => import('@fontsource/orbitron/400.css'),
+      500: () => import('@fontsource/orbitron/500.css'),
+      600: () => import('@fontsource/orbitron/600.css'),
+      700: () => import('@fontsource/orbitron/700.css'),
+      800: () => import('@fontsource/orbitron/800.css'),
+      900: () => import('@fontsource/orbitron/900.css'),
+    }),
+  ],
+  [
+    'Barlow Semi Condensed',
+    bundled('Barlow Semi Condensed', {
+      100: () => import('@fontsource/barlow-semi-condensed/100.css'),
+      200: () => import('@fontsource/barlow-semi-condensed/200.css'),
+      300: () => import('@fontsource/barlow-semi-condensed/300.css'),
+      400: () => import('@fontsource/barlow-semi-condensed/400.css'),
+      500: () => import('@fontsource/barlow-semi-condensed/500.css'),
+      600: () => import('@fontsource/barlow-semi-condensed/600.css'),
+      700: () => import('@fontsource/barlow-semi-condensed/700.css'),
+      800: () => import('@fontsource/barlow-semi-condensed/800.css'),
+      900: () => import('@fontsource/barlow-semi-condensed/900.css'),
+    }),
+  ],
+  [
+    'Domine',
+    bundled('Domine', {
+      400: () => import('@fontsource/domine/400.css'),
+      500: () => import('@fontsource/domine/500.css'),
+      600: () => import('@fontsource/domine/600.css'),
+      700: () => import('@fontsource/domine/700.css'),
+    }),
+  ],
+  [
+    'Shadows Into Light',
+    bundled('Shadows Into Light', {
+      400: () => import('@fontsource/shadows-into-light/400.css'),
+    }),
+  ],
+  [
+    'M PLUS 1p',
+    bundled('M PLUS 1p', {
+      100: () => import('@fontsource/m-plus-1p/100.css'),
+      300: () => import('@fontsource/m-plus-1p/300.css'),
+      400: () => import('@fontsource/m-plus-1p/400.css'),
+      500: () => import('@fontsource/m-plus-1p/500.css'),
+      700: () => import('@fontsource/m-plus-1p/700.css'),
+      800: () => import('@fontsource/m-plus-1p/800.css'),
+      900: () => import('@fontsource/m-plus-1p/900.css'),
+    }),
+  ],
+])

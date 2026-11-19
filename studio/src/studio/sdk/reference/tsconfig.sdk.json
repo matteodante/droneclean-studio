@@ -1,0 +1,27 @@
+{
+  // Declaration emit for the reference (design §4.9). The generator runs this
+  // with `--outDir <a folder under the OS temp dir>`; `emit/` here only keeps a
+  // bare `tsc -p` from writing .d.ts files next to the sources.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client", "vite-plus/test/globals", "@webgpu/types"],
+    "paths": {
+      "@/*": ["../../../*"]
+    },
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "../../..",
+    "outDir": "emit"
+  },
+  "include": ["../index.ts", "../../../types/file-system-access.d.ts"]
+}

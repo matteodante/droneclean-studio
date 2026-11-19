@@ -1,0 +1,1687 @@
+{
+  "contract": 4,
+  "contractHeader": "x-droneclean-contract",
+  "cloudCommit": "62800488972dcc9f53513aafe03c9ff0a88264a4",
+  "generator": {
+    "zod": "4.6.5",
+    "jsonSchema": "draft 2020-12, zod toJSONSchema (patterns of date-time and uuid left out)"
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/v1/me",
+      "request": null,
+      "response": "Account"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/config",
+      "request": null,
+      "response": "ServiceConfig"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/uploads",
+      "request": "VideoMeta",
+      "response": "UploadTicket"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/uploads/parts",
+      "request": "VideoMeta",
+      "response": "PartsTicket"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/uploads/{id}/parts",
+      "request": "SignPartsRequest",
+      "response": "SignedParts"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/uploads/{id}/complete",
+      "request": null,
+      "response": "Upload"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/uploads/{id}",
+      "request": null,
+      "response": "DeleteUploadResult"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/jobs",
+      "request": "CreateJobRequest",
+      "response": "Job"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/jobs/quote",
+      "request": "JobQuoteRequest",
+      "response": "JobQuote"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/jobs/{id}",
+      "request": null,
+      "response": "Job"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/jobs/{id}/track",
+      "request": null,
+      "response": "TrackData"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/jobs/{id}/cancel",
+      "request": null,
+      "response": "Job"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/jobs/{id}",
+      "request": null,
+      "response": "DeleteJobResult"
+    }
+  ],
+  "schemas": {
+    "VideoMeta": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "contentType": {
+          "type": "string",
+          "pattern": "^video\\/"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 4294967296
+        },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        },
+        "width": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 6144
+        },
+        "height": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 6144
+        },
+        "frameRate": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "fileName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "startSeconds": {
+              "type": "number",
+              "minimum": -60
+            },
+            "durationSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 3600
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["fileName", "startSeconds", "durationSeconds", "sizeBytes"],
+          "additionalProperties": false
+        },
+        "entryGapSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "required": ["fileName", "contentType", "sizeBytes", "durationSeconds", "width", "height"],
+      "additionalProperties": false
+    },
+    "PieceSource": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "startSeconds": {
+          "type": "number",
+          "minimum": -60
+        },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["fileName", "startSeconds", "durationSeconds", "sizeBytes"],
+      "additionalProperties": false
+    },
+    "ShadowClick": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0
+        },
+        "timeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 2048
+        }
+      },
+      "required": ["x", "y", "timeSeconds", "radius"],
+      "additionalProperties": false
+    },
+    "Segment": {
+      "type": "object",
+      "properties": {
+        "startSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "endSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "anchor": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0
+            },
+            "timeSeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 2048
+            }
+          },
+          "required": ["x", "y", "timeSeconds", "radius"],
+          "additionalProperties": false
+        },
+        "trackJobIds": {
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "required": ["startSeconds", "endSeconds", "anchor"],
+      "additionalProperties": false
+    },
+    "JobOptions": {
+      "type": "object",
+      "properties": {
+        "harmonize": {
+          "default": true,
+          "type": "boolean"
+        },
+        "motion": {
+          "default": 30,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 400
+        },
+        "quality": {
+          "default": "standard",
+          "type": "string",
+          "enum": ["standard", "maximum"]
+        },
+        "outputStep": {
+          "type": "number",
+          "enum": [1, 2, 4, 8]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CreateJobRequest": {
+      "type": "object",
+      "properties": {
+        "uploadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "click": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0
+            },
+            "timeSeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 2048
+            }
+          },
+          "required": ["x", "y", "timeSeconds", "radius"],
+          "additionalProperties": false
+        },
+        "segments": {
+          "minItems": 1,
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "endSeconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "timeSeconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "radius": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 2048
+                  }
+                },
+                "required": ["x", "y", "timeSeconds", "radius"],
+                "additionalProperties": false
+              },
+              "trackJobIds": {
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "required": ["startSeconds", "endSeconds", "anchor"],
+            "additionalProperties": false
+          }
+        },
+        "options": {
+          "default": {
+            "harmonize": true,
+            "motion": 30,
+            "quality": "standard"
+          },
+          "type": "object",
+          "properties": {
+            "harmonize": {
+              "default": true,
+              "type": "boolean"
+            },
+            "motion": {
+              "default": 30,
+              "type": "number",
+              "minimum": 1,
+              "maximum": 400
+            },
+            "quality": {
+              "default": "standard",
+              "type": "string",
+              "enum": ["standard", "maximum"]
+            },
+            "outputStep": {
+              "type": "number",
+              "enum": [1, 2, 4, 8]
+            }
+          },
+          "additionalProperties": false
+        },
+        "kind": {
+          "default": "full",
+          "type": "string",
+          "enum": ["full", "preview", "track"]
+        },
+        "trackJobIds": {
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "attemptId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": ["uploadId"],
+      "additionalProperties": false
+    },
+    "JobQuoteRequest": {
+      "type": "object",
+      "properties": {
+        "uploadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "segments": {
+          "minItems": 1,
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "endSeconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "timeSeconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "radius": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 2048
+                  }
+                },
+                "required": ["x", "y", "timeSeconds", "radius"],
+                "additionalProperties": false
+              },
+              "trackJobIds": {
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "required": ["startSeconds", "endSeconds", "anchor"],
+            "additionalProperties": false
+          }
+        },
+        "options": {
+          "default": {
+            "quality": "standard"
+          },
+          "type": "object",
+          "properties": {
+            "quality": {
+              "default": "standard",
+              "type": "string",
+              "enum": ["standard", "maximum"]
+            },
+            "outputStep": {
+              "type": "number",
+              "enum": [1, 2, 4, 8]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "JobQuoteOptions": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "default": "standard",
+          "type": "string",
+          "enum": ["standard", "maximum"]
+        },
+        "outputStep": {
+          "type": "number",
+          "enum": [1, 2, 4, 8]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SignPartsRequest": {
+      "type": "object",
+      "properties": {
+        "partNumbers": {
+          "minItems": 1,
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          }
+        }
+      },
+      "required": ["partNumbers"],
+      "additionalProperties": false
+    },
+    "JobSettings": {
+      "type": "object",
+      "properties": {
+        "harmonize": {
+          "default": true,
+          "type": "boolean"
+        },
+        "motion": {
+          "default": 30,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 400
+        },
+        "quality": {
+          "default": "standard",
+          "type": "string",
+          "enum": ["standard", "maximum"]
+        },
+        "outputStep": {
+          "type": "number",
+          "enum": [1, 2, 4, 8]
+        }
+      },
+      "required": ["harmonize", "motion", "quality"],
+      "additionalProperties": false
+    },
+    "UploadTicket": {
+      "type": "object",
+      "properties": {
+        "uploadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "const": "PUT"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uploadId", "method", "url", "headers", "expiresAt"],
+      "additionalProperties": false
+    },
+    "PartsTicket": {
+      "type": "object",
+      "properties": {
+        "uploadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "partSizeBytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "partCount": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        }
+      },
+      "required": ["uploadId", "partSizeBytes", "partCount"],
+      "additionalProperties": false
+    },
+    "SignedParts": {
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "partNumber": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["partNumber", "url", "headers"],
+            "additionalProperties": false
+          }
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["parts", "expiresAt"],
+      "additionalProperties": false
+    },
+    "DeleteUploadResult": {
+      "type": "object",
+      "properties": {
+        "deleted": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": ["deleted"],
+      "additionalProperties": false
+    },
+    "Upload": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "uploaded"]
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "fileName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "contentType": {
+              "type": "string",
+              "pattern": "^video\\/"
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 4294967296
+            },
+            "durationSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 3600
+            },
+            "width": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 6144
+            },
+            "height": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 6144
+            },
+            "frameRate": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "source": {
+              "type": "object",
+              "properties": {
+                "fileName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "startSeconds": {
+                  "type": "number",
+                  "minimum": -60
+                },
+                "durationSeconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 3600
+                },
+                "sizeBytes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["fileName", "startSeconds", "durationSeconds", "sizeBytes"],
+              "additionalProperties": false
+            },
+            "entryGapSeconds": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "fileName",
+            "contentType",
+            "sizeBytes",
+            "durationSeconds",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "status", "video", "createdAt"],
+      "additionalProperties": false
+    },
+    "Job": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["full", "preview", "track"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["queued", "running", "succeeded", "failed", "canceled"]
+        },
+        "stage": {
+          "type": "string",
+          "enum": ["waiting", "tracking", "removing", "blending", "encoding", "done"]
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uploadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "fileName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "contentType": {
+              "type": "string",
+              "pattern": "^video\\/"
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 4294967296
+            },
+            "durationSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 3600
+            },
+            "width": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 6144
+            },
+            "height": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 6144
+            },
+            "frameRate": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "source": {
+              "type": "object",
+              "properties": {
+                "fileName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "startSeconds": {
+                  "type": "number",
+                  "minimum": -60
+                },
+                "durationSeconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 3600
+                },
+                "sizeBytes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["fileName", "startSeconds", "durationSeconds", "sizeBytes"],
+              "additionalProperties": false
+            },
+            "entryGapSeconds": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "fileName",
+            "contentType",
+            "sizeBytes",
+            "durationSeconds",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        "click": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0
+            },
+            "timeSeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 2048
+            }
+          },
+          "required": ["x", "y", "timeSeconds", "radius"],
+          "additionalProperties": false
+        },
+        "segments": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "startSeconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "endSeconds": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "anchor": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "timeSeconds": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "radius": {
+                        "type": "number",
+                        "minimum": 5,
+                        "maximum": 2048
+                      }
+                    },
+                    "required": ["x", "y", "timeSeconds", "radius"],
+                    "additionalProperties": false
+                  },
+                  "trackJobIds": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "required": ["startSeconds", "endSeconds", "anchor"],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "harmonize": {
+              "default": true,
+              "type": "boolean"
+            },
+            "motion": {
+              "default": 30,
+              "type": "number",
+              "minimum": 1,
+              "maximum": 400
+            },
+            "quality": {
+              "default": "standard",
+              "type": "string",
+              "enum": ["standard", "maximum"]
+            },
+            "outputStep": {
+              "type": "number",
+              "enum": [1, 2, 4, 8]
+            }
+          },
+          "required": ["harmonize", "motion", "quality"],
+          "additionalProperties": false
+        },
+        "cost": {
+          "type": "object",
+          "properties": {
+            "reservedCredits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "chargedCredits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["reservedCredits", "chargedCredits"],
+          "additionalProperties": false
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "expiresAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "availableUntil": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["url", "expiresAt", "availableUntil"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "expiresAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "availableUntil": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["url", "expiresAt", "availableUntil"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preview": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "startSeconds": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "durationSeconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": ["startSeconds", "durationSeconds"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "track": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "fps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "frames": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "ranges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "startSeconds": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "endSeconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": ["startSeconds", "endSeconds"],
+                    "additionalProperties": false
+                  }
+                },
+                "continues": {
+                  "type": "object",
+                  "properties": {
+                    "before": {
+                      "type": "boolean"
+                    },
+                    "after": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["before", "after"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["fps", "frames", "ranges"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spliced": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "stage",
+        "progress",
+        "createdAt",
+        "updatedAt",
+        "uploadId",
+        "video",
+        "click",
+        "segments",
+        "options",
+        "cost",
+        "result",
+        "input",
+        "error",
+        "preview",
+        "track",
+        "spliced"
+      ],
+      "additionalProperties": false
+    },
+    "JobResult": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expiresAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "availableUntil": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["url", "expiresAt", "availableUntil"],
+      "additionalProperties": false
+    },
+    "JobError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    },
+    "TimeRange": {
+      "type": "object",
+      "properties": {
+        "startSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "endSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": ["startSeconds", "endSeconds"],
+      "additionalProperties": false
+    },
+    "TrackSummary": {
+      "type": "object",
+      "properties": {
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "frames": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "endSeconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": ["startSeconds", "endSeconds"],
+            "additionalProperties": false
+          }
+        },
+        "continues": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": ["before", "after"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["fps", "frames", "ranges"],
+      "additionalProperties": false
+    },
+    "Keyframe": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number",
+          "minimum": 0
+        }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "TrackData": {
+      "type": "object",
+      "properties": {
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "frames": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "width": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number",
+                "minimum": 0
+              }
+            ],
+            "items": false,
+            "minItems": 4,
+            "maxItems": 4
+          }
+        }
+      },
+      "required": ["fps", "frames", "width", "height", "keyframes"],
+      "additionalProperties": false
+    },
+    "PreviewWindow": {
+      "type": "object",
+      "properties": {
+        "startSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": ["startSeconds", "durationSeconds"],
+      "additionalProperties": false
+    },
+    "DeleteJobResult": {
+      "type": "object",
+      "properties": {
+        "deleted": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": ["deleted"],
+      "additionalProperties": false
+    },
+    "JobQuote": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "creditsPerSecond": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "costCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "minimumCredits": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "availableCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "enough": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seconds",
+        "creditsPerSecond",
+        "costCredits",
+        "minimumCredits",
+        "availableCredits",
+        "enough"
+      ],
+      "additionalProperties": false
+    },
+    "CreditBalance": {
+      "type": "object",
+      "properties": {
+        "availableCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reservedCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["availableCredits", "reservedCredits"],
+      "additionalProperties": false
+    },
+    "Account": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "email": {
+              "type": ["string", "null"]
+            },
+            "name": {
+              "type": ["string", "null"]
+            },
+            "image": {
+              "type": ["string", "null"]
+            },
+            "admin": {
+              "type": "boolean"
+            },
+            "creator": {
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "email", "name", "image", "admin"],
+          "additionalProperties": false
+        },
+        "balance": {
+          "type": "object",
+          "properties": {
+            "availableCredits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "reservedCredits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["availableCredits", "reservedCredits"],
+          "additionalProperties": false
+        },
+        "welcomePaused": {
+          "type": "boolean"
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "trainingAllowed": {
+              "type": "boolean"
+            }
+          },
+          "required": ["trainingAllowed"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["user", "balance", "settings"],
+      "additionalProperties": false
+    },
+    "ServiceConfig": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "boolean"
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "google": {
+              "type": "boolean"
+            },
+            "apple": {
+              "type": "boolean"
+            },
+            "appleNative": {
+              "type": "boolean"
+            },
+            "devPassword": {
+              "type": "boolean"
+            }
+          },
+          "required": ["google", "apple", "appleNative", "devPassword"],
+          "additionalProperties": false
+        },
+        "payments": {
+          "type": "object",
+          "properties": {
+            "apple": {
+              "type": "boolean"
+            },
+            "stripe": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "publishableKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "managedPayments": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["publishableKey", "managedPayments"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["apple", "stripe"],
+          "additionalProperties": false
+        },
+        "preview": {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "perUpload": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "perDay": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["seconds", "perUpload", "perDay"],
+          "additionalProperties": false
+        },
+        "track": {
+          "type": "object",
+          "properties": {
+            "perUpload": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "perDay": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["perUpload", "perDay"],
+          "additionalProperties": false
+        },
+        "freeBeta": {
+          "default": false,
+          "type": "boolean"
+        },
+        "welcomeCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["engine", "auth", "payments", "preview", "track", "freeBeta"],
+      "additionalProperties": false
+    },
+    "ApiErrorBody": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": ["code", "message"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    }
+  }
+}

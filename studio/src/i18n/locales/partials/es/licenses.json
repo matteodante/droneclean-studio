@@ -1,0 +1,11 @@
+{
+  "licenses": {
+    "title": "Licencias",
+    "backToHome": "Volver al inicio",
+    "intro": "© 2026 DroneClean. Construido sobre los proyectos de código abierto que aparecen a continuación.",
+    "projectTitle": "DroneClean Studio",
+    "freeCutTitle": "FreeCut",
+    "fontsTitle": "Fuentes",
+    "fontsLicense": "Las fuentes se usan bajo la <ofl>Licencia de fuentes abiertas SIL 1.1</ofl> o la <apache>Licencia Apache 2.0</apache>."
+  }
+}

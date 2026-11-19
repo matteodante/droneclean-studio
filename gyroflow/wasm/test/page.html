@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gyroflow's engine in a worker</title>
+</head>
+<body>
+<!-- The clip is chosen with setInputFiles; the page hands the File to the worker, which reads it in slices. -->
+<input id="clip" type="file">
+<script type="module">
+// Drives the worker and measures: the test (chrome-worker.test.mjs) compares what is returned here with
+// test/reference/clip-0020.json. Everything returned is plain JSON (hashes and scalars), so no big array crosses
+// back to Node.
+const worker = new Worker('../js/gyro-worker.js', { type: 'module' })
+let nextId = 1
+const pending = new Map()
+// The progress reports of the last `open` that asked for them: they arrive before that call's reply
+let progress = []
+
+worker.onmessage = (event) => {
+  const { type, id, result, error } = event.data
+  if (type === 'progress') {
+    progress.push(event.data.progress)
+    return
+  }
+  const p = pending.get(id)
+  if (!p) return
+  pending.delete(id)
+  if (error !== undefined) p.reject(new Error(error))
+  else p.resolve(result)
+}
+const failAll = (what) => {
+  for (const p of pending.values()) p.reject(new Error(what))
+  pending.clear()
+}
+worker.onerror = (event) => failAll(`the worker failed: ${event.message || 'no message'}`)
+
+const call = (type, payload = {}, transfer = []) => new Promise((resolve, reject) => {
+  if (type === 'open' && payload.progress) progress = []
+  const id = nextId++
+  pending.set(id, { resolve, reject })
+  worker.postMessage({ id, type, ...payload }, transfer)
+})
+
+const sha256 = async (bytes) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('')
+
+window.gyroTest = {
+  async open() {
+    const file = document.querySelector('#clip').files[0]
+    if (!file) throw new Error('no clip chosen')
+    const result = await call('open', { file, progress: true })
+    return { info: result.info, ms: result.ms, fileBytes: file.size, progress }
+  },
+  // `open` with the motion trace of the last open that recorded one (`useTrace`), or without: for test/motion-trace.test.mjs
+  async openTraced(useTrace) {
+    const file = document.querySelector('#clip').files[0]
+    if (!file) throw new Error('no clip chosen')
+    const payload = { file, progress: true }
+    const transfer = []
+    if (useTrace) {
+      if (!window.lastTrace) throw new Error('no trace was recorded yet')
+      // A copy: the page keeps its trace for the next open, the worker gets the copy transferred
+      payload.motionTrace = window.lastTrace.slice(0)
+      transfer.push(payload.motionTrace)
+    }
+    const t = performance.now()
+    const result = await call('open', payload, transfer)
+    const roundTripMs = performance.now() - t
+    if (result.motionTrace) window.lastTrace = result.motionTrace
+    return { info: result.info, ms: result.ms, roundTripMs, fileBytes: file.size, traceBytes: result.motionTrace?.byteLength ?? null }
+  },
+  info: () => call('info'),
+  lensProfile: () => call('lensProfile'),
+  async shaderAssets(model, digitalLens) {
+    const assets = await call('shaderAssets', { model, digitalLens })
+    return {
+      lensModel: assets.lensModel,
+      kernelWgslLength: assets.kernelWgsl.length,
+      kernelHasPlaceholders: ['LENS_MODEL_FUNCTIONS;', '{buffer_input}', '{/buffer_input}', 'SCALAR'].every(placeholder => assets.kernelWgsl.includes(placeholder)),
+      lensWgslLength: assets.lensWgsl.length,
+      digitalLensWgslLength: assets.digitalLensWgsl.length,
+      coeffsLength: assets.coeffs.length,
+      coeffsSha256: await sha256(assets.coeffs),
+      interpolation: assets.interpolation,
+    }
+  },
+  memory: () => call('memory'),
+  setSmoothing: (method, params) => call('setSmoothing', { method, params }),
+  setFov: (fov) => call('setFov', { fov }),
+  setAdaptiveZoom: (windowSeconds) => call('setAdaptiveZoom', { windowSeconds }),
+  setHorizonLock: (lockPercent, rollDegrees) => call('setHorizonLock', { lockPercent, rollDegrees }),
+  setLensProfile: (json) => call('setLensProfile', { json }),
+  recompute: () => call('recompute'),
+  async frameData(timestampsUs) {
+    const t = performance.now()
+    const result = await call('frameData', { timestampsUs })
+    const roundTripMs = performance.now() - t
+    const frames = []
+    for (const f of result.frames) {
+      frames.push({
+        frame: f.frame,
+        fov: f.fov,
+        minimalFov: f.minimalFov,
+        matrixStride: f.matrixStride,
+        matrixCount: f.matrices.length / f.matrixStride,
+        firstMatrix: Array.from(f.matrices.subarray(0, f.matrixStride)),
+        lastMatrix: Array.from(f.matrices.subarray(f.matrices.length - f.matrixStride)),
+        matricesSha256: await sha256(f.matrices),
+        paramsLength: f.params.length,
+        paramsSha256: await sha256(f.params),
+        meshLength: f.mesh.length,
+        ms: f.ms,
+      })
+    }
+    return { ms: result.ms, roundTripMs, frames }
+  },
+  async processRgba8(timestampUs, url) {
+    const bytes = await (await fetch(url)).arrayBuffer()
+    const inputSha256 = await sha256(new Uint8Array(bytes))
+    const t = performance.now()
+    const result = await call('processRgba8', { timestampUs, input: bytes }, [bytes])
+    const roundTripMs = performance.now() - t
+    return {
+      inputSha256,
+      outputSha256: await sha256(new Uint8Array(result.output)),
+      outputLength: result.output.byteLength,
+      fov: result.fov,
+      minimal_fov: result.minimal_fov,
+      backend: result.backend,
+      ms: result.ms,
+      roundTripMs,
+    }
+  },
+  close: () => call('close'),
+}
+
+window.gyroTestReady = true
+</script>
+</body>
+</html>

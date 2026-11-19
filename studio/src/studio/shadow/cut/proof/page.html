@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DroneClean shadow cut proof</title>
+  </head>
+  <body>
+    <h1>Shadow cut proof</h1>
+    <p>
+      Pick the source clip, then cut the window from the page's query string
+      (<code>?startFrame=&amp;endFrame=&amp;num=&amp;den=</code>). The piece is posted back to the
+      proof's own server; nothing leaves this machine.
+    </p>
+    <input id="source" type="file" accept="video/*" />
+    <button id="cut" type="button" disabled>Cut</button>
+    <pre id="log"></pre>
+    <script type="module" src="/page.js"></script>
+  </body>
+</html>

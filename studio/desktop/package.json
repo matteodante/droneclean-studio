@@ -1,0 +1,34 @@
+{
+  "name": "droneclean-studio-desktop",
+  "productName": "DroneClean Studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop shell of DroneClean Studio: Electron main process, preload and packaging for the editor in ../",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  },
+  "main": "out/main/index.js",
+  "scripts": {
+    "build:studio": "cd .. && npx vp build",
+    "build:main": "tsc -p tsconfig.json",
+    "build": "npm run build:studio && npm run build:main",
+    "start": "electron .",
+    "dev": "DRONECLEAN_DEV_URL=http://localhost:5173/projects electron .",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build:main && node --test test/*.test.mjs",
+    "package": "npm run build && sh scripts/build-ffmpeg.sh && electron-builder --publish never",
+    "package:test": "npm run build && sh scripts/build-ffmpeg.sh && npm run package:electron:test",
+    "package:electron:test": "electron-builder --publish never -c.appId=com.droneclean.studio.test \"-c.productName=DroneClean Studio Test\" \"-c.extraMetadata.productName=DroneClean Studio Test\" -c.extraMetadata.droneCleanVariant=test -c.directories.output=dist/test-app",
+    "e2e": "node test/e2e.mjs",
+    "e2e:quick": "DRONECLEAN_E2E_MODE=main node test/e2e.mjs",
+    "release:mac": "node scripts/release-mac.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.9.0",
+    "electron": "45.3.4",
+    "electron-builder": "26.18.0",
+    "playwright-core": "1.60.0",
+    "typescript": "7.0.2"
+  }
+}

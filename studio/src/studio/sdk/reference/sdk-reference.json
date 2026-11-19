@@ -1,0 +1,1786 @@
+{
+  "version": 1,
+  "namespaces": [
+    {
+      "name": "project",
+      "summary": "`studio.project`: the open project and its metadata (design §4.2, §0.6). Implemented by `createProjectApi(): ProjectApi` in `namespaces/project.ts`.",
+      "methods": [
+        {
+          "name": "current",
+          "signature": "current(): ProjectInfo | null",
+          "summary": "The open project, or null when no project is open. Not an undo step.",
+          "mapsTo": "useProjectStore.currentProject",
+          "throws": [],
+          "example": "studio.project.current()"
+        },
+        {
+          "name": "list",
+          "signature": "list(): Promise<ProjectInfo[]>",
+          "summary": "Every project in the workspace storage. Not an undo step.",
+          "mapsTo": "getAllProjects + useProjectStore.projects",
+          "throws": [
+            "INTERNAL"
+          ],
+          "example": "await studio.project.list()"
+        },
+        {
+          "name": "create",
+          "signature": "create(input: ProjectCreateInput): Promise<ProjectInfo>",
+          "summary": "Create a new empty project in workspace storage and open it: it becomes the current project with its empty timeline and its own media library, so media can be imported right away (no `project.open` needed). Not an undo step.",
+          "mapsTo": "useProjectStore.createProject + createProjectObject",
+          "throws": [
+            "INVALID_ARGUMENT",
+            "INTERNAL"
+          ],
+          "example": "const { id } = await studio.project.create({ name: 'Flight', width: 3840, height: 2160, fps: { num: 60000, den: 1001 } })"
+        },
+        {
+          "name": "rate",
+          "signature": "rate(): Rate",
+          "summary": "The project frame rate as an exact fraction. Not an undo step.",
+          "mapsTo": "useTimelineSettingsStore.fps",
+          "throws": [],
+          "example": "studio.project.rate()"
+        },
+        {
+          "name": "context",
+          "signature": "context(): TimelineContext",
+          "summary": "The editing context the SDK is working in. Not an undo step.",
+          "mapsTo": "useCompositionNavigationStore.activeCompositionId",
+          "throws": [],
+          "example": "studio.project.context()"
+        },
+        {
+          "name": "duration",
+          "signature": "duration(): Frame",
+          "summary": "Length of the active timeline in frames. Not an undo step.",
+          "mapsTo": "computeCompositionDuration (actions/shared.ts:173)",
+          "throws": [],
+          "example": "studio.project.duration()"
+        },
+        {
+          "name": "set",
+          "signature": "set(patch: ProjectPatch): Promise<ProjectInfo>",
+          "summary": "Change the project's canvas size, rate or background. One undo step.",
+          "mapsTo": "UPDATE_PROJECT_METADATA via commitProjectMetadataChange (project-metadata-history.ts:39) + useTimelineSettingsStore.setFps",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "INTERNAL"
+          ],
+          "example": "await studio.project.set({ backgroundColor: '#101014' })"
+        },
+        {
+          "name": "save",
+          "signature": "save(): Promise<void>",
+          "summary": "Write the active timeline to workspace storage. Not an undo step.",
+          "mapsTo": "saveTimeline",
+          "throws": [
+            "NOT_FOUND",
+            "INTERNAL"
+          ],
+          "example": "await studio.project.save()"
+        },
+        {
+          "name": "open",
+          "signature": "open(id: string): Promise<void>",
+          "summary": "Open a stored project, replacing the editor's timeline, clearing its undo history and loading the project's media library. Not an undo step.",
+          "mapsTo": "loadTimeline",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INTERNAL"
+          ],
+          "example": "await studio.project.open('p-8f21')"
+        }
+      ]
+    },
+    {
+      "name": "media",
+      "summary": "`studio.media`: the media library (design §4.2). Implemented by `createMediaApi(): MediaApi` in `namespaces/media.ts`.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(filter?: MediaFilter): MediaInfo[]",
+          "summary": "Media library items, optionally filtered by kind. Not an undo step.",
+          "mapsTo": "useMediaLibraryStore.mediaItems",
+          "throws": [],
+          "example": "studio.media.list({ type: 'video' })"
+        },
+        {
+          "name": "get",
+          "signature": "get(id: MediaId): MediaInfo | null",
+          "summary": "One media library item, or null when it does not exist. Not an undo step.",
+          "mapsTo": "useMediaLibraryStore.mediaById",
+          "throws": [],
+          "example": "studio.media.get('m-1')"
+        },
+        {
+          "name": "import",
+          "signature": "import(handles: FileSystemFileHandle[], options?: MediaImportOptions): Promise<MediaInfo[]>",
+          "summary": "Import files through their handles. Library state. Not an undo step. In the desktop app a media file can be named by absolute path instead: an array of paths is accepted, and each file is served through the app's own allow-listed media route; a browser has only handles.",
+          "mapsTo": "importHandles (media-import-actions.ts:287)",
+          "throws": [
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT",
+            "MEDIA_UNAVAILABLE",
+            "INTERNAL"
+          ],
+          "example": "await studio.media.import([handle], { storageMode: 'link' })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(ids: MediaId[]): Promise<void>",
+          "summary": "Remove items from the library. Library state. Not an undo step.",
+          "mapsTo": "deleteMediaBatch (media-delete-actions.ts)",
+          "throws": [
+            "INVALID_ARGUMENT",
+            "NOT_FOUND",
+            "INTERNAL"
+          ],
+          "example": "await studio.media.remove(['m-1'])"
+        },
+        {
+          "name": "url",
+          "signature": "url(id: MediaId): Promise<string | null>",
+          "summary": "A URL the browser can play or decode the media from, or null when the bytes are unavailable. Not an undo step.",
+          "mapsTo": "resolveMediaUrl",
+          "throws": [
+            "NOT_FOUND",
+            "INTERNAL"
+          ],
+          "example": "await studio.media.url('m-1')"
+        }
+      ]
+    },
+    {
+      "name": "subclips",
+      "summary": "`studio.subclips`: named ranges of library files (design 1.6, D7). Implemented by `createSubclipsApi(): SubclipsApi` in `namespaces/subclips.ts`. Subclips are library state like media: no call here is an undo step, and a clip placed from a subclip is a clip of the file (`clips.add` with the range).",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(filter?: SubclipFilter): SubclipInfo[]",
+          "summary": "Subclips in the order they were made, optionally those of one file. Not an undo step.",
+          "mapsTo": "useSubclipsStore.subclips",
+          "throws": [],
+          "example": "studio.subclips.list({ mediaId: 'm-1' })"
+        },
+        {
+          "name": "get",
+          "signature": "get(id: SubclipId): SubclipInfo | null",
+          "summary": "One subclip, or null when it does not exist. Not an undo step.",
+          "mapsTo": "useSubclipsStore.subclips",
+          "throws": [],
+          "example": "studio.subclips.get('s-1')"
+        },
+        {
+          "name": "create",
+          "signature": "create(input: SubclipCreateInput): SubclipInfo",
+          "summary": "Cut a named range out of a library file. Library state. Not an undo step. Place it with `clips.add({ mediaId, trackId, from, sourceStart: startFrame, sourceEnd: endFrame })`.",
+          "mapsTo": "useSubclipsStore.create",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "const s = studio.subclips.create({ mediaId: 'm-1', startFrame: 90, endFrame: 210, name: 'Gap' })"
+        },
+        {
+          "name": "rename",
+          "signature": "rename(id: SubclipId, name: string): void",
+          "summary": "Change a subclip's name. Library state. Not an undo step.",
+          "mapsTo": "useSubclipsStore.rename",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.subclips.rename('s-1', 'Gap, second pass')"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(ids: SubclipId[]): void",
+          "summary": "Delete subclips. Clips already placed from them stay: they are clips of the file. A call that names one missing id deletes nothing. Library state. Not an undo step.",
+          "mapsTo": "useSubclipsStore.remove",
+          "throws": [
+            "INVALID_ARGUMENT",
+            "NOT_FOUND"
+          ],
+          "example": "studio.subclips.remove(['s-1'])"
+        }
+      ]
+    },
+    {
+      "name": "tracks",
+      "summary": "`studio.tracks`: the track stack of the active context (design §4.2). Implemented by `createTracksApi(): TracksApi` in `namespaces/tracks.ts`. Classic `V#`/`A#` names are re-derived from a track's position on every write, exactly as in the app.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(): TrackInfo[]",
+          "summary": "Tracks from top to bottom. Not an undo step.",
+          "mapsTo": "useItemsStore.tracks",
+          "throws": [],
+          "example": "studio.tracks.list()"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: TrackAddInput): TrackId",
+          "summary": "Add a track at `position` (0 = top). One undo step.",
+          "mapsTo": "SET_TRACKS (track-actions.ts:10)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.tracks.add({ kind: 'audio', name: 'Music' })"
+        },
+        {
+          "name": "update",
+          "signature": "update(id: TrackId, patch: TrackPatch): void",
+          "summary": "Change a track's name and controls. One undo step.",
+          "mapsTo": "SET_TRACKS (track-actions.ts:10)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.tracks.update('a1', { muted: true })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(id: TrackId): void",
+          "summary": "Delete a track and every clip on it. One undo step.",
+          "mapsTo": "SET_TRACKS + REMOVE_ITEMS (design §0.2)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.tracks.remove('a1')"
+        },
+        {
+          "name": "reorder",
+          "signature": "reorder(ids: TrackId[]): void",
+          "summary": "Set the stack order from an array of track ids, top first. One undo step.",
+          "mapsTo": "SET_TRACKS (track-actions.ts:10)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.tracks.reorder(['v2', 'v1', 'a2', 'a1'])"
+        }
+      ]
+    },
+    {
+      "name": "clips",
+      "summary": "`studio.clips`: the clips of the active context (design §4.2, §4.3). Implemented by `createClipsApi(): ClipsApi` in `namespaces/clips.ts`.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(filter?: ClipFilter): ClipInfo[]",
+          "summary": "Clips, optionally filtered by track or kind. Not an undo step.",
+          "mapsTo": "useItemsStore.items",
+          "throws": [],
+          "example": "studio.clips.list({ trackId: 'v1' })"
+        },
+        {
+          "name": "get",
+          "signature": "get(id: ClipId): ClipInfo | null",
+          "summary": "One clip, or null when it does not exist. Not an undo step.",
+          "mapsTo": "useItemsStore.itemById",
+          "throws": [],
+          "example": "studio.clips.get('c1')"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: ClipAddInput): ClipId",
+          "summary": "Place a media library item on a track. One undo step.",
+          "mapsTo": "ADD_ITEM (item-actions.ts:610)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "UNSUPPORTED"
+          ],
+          "example": "const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0, sourceStart: 90, sourceEnd: 210 })"
+        },
+        {
+          "name": "addMany",
+          "signature": "addMany(inputs: ClipAddInput[]): ClipId[]",
+          "summary": "Place several media items in one step. One undo step.",
+          "mapsTo": "ADD_ITEM (item-actions.ts:610), once per input",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.addMany([{ mediaId: 'm-1', trackId: 'v1', from: 0 }])"
+        },
+        {
+          "name": "update",
+          "signature": "update(id: ClipId, patch: ClipPatch): void",
+          "summary": "Change a clip's label, gain, fades or transform. One undo step.",
+          "mapsTo": "UPDATE_ITEM (item-actions.ts:717)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.update('c1', { volume: -6 })"
+        },
+        {
+          "name": "move",
+          "signature": "move(id: ClipId, to: Frame, trackId?: TrackId): void",
+          "summary": "Move a clip to `to`, optionally onto another track. One undo step.",
+          "mapsTo": "MOVE_ITEM (item-actions.ts:1205)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.move('c1', 120, 'v2')"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(ids: ClipId[], options?: ClipRemoveOptions): void",
+          "summary": "Delete clips, optionally closing the gap. One undo step.",
+          "mapsTo": "REMOVE_ITEMS (item-actions.ts:915) / RIPPLE_DELETE_ITEMS (:945)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.remove(['c1'], { ripple: true })"
+        },
+        {
+          "name": "duplicate",
+          "signature": "duplicate(ids: ClipId[], options?: ClipDuplicateOptions): ClipId[]",
+          "summary": "Copy clips after themselves. One undo step.",
+          "mapsTo": "DUPLICATE_ITEMS (item-actions.ts:1297)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.duplicate(['c1'], { count: 2 })"
+        },
+        {
+          "name": "split",
+          "signature": "split(id: ClipId, frame: Frame): [ClipId, ClipId]",
+          "summary": "Split a clip at a timeline frame. One undo step.",
+          "mapsTo": "SPLIT_ITEM (edit/split-actions.ts:13)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "const [left, right] = studio.clips.split('c1', 240)"
+        },
+        {
+          "name": "trimStart",
+          "signature": "trimStart(id: ClipId, frames: number): void",
+          "summary": "Trim a clip's start by `frames`; positive shortens, negative extends. One undo step.",
+          "mapsTo": "TRIM_ITEM_START (edit/trim-actions.ts:253)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.trimStart('c1', 30)"
+        },
+        {
+          "name": "trimEnd",
+          "signature": "trimEnd(id: ClipId, frames: number): void",
+          "summary": "Trim a clip's end by `frames`; positive shortens, negative extends. One undo step.",
+          "mapsTo": "TRIM_ITEM_END (edit/trim-actions.ts:267)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.trimEnd('c1', 30)"
+        },
+        {
+          "name": "setSpeed",
+          "signature": "setSpeed(id: ClipId, speed: number): void",
+          "summary": "Change a clip's playback speed, keeping its source range, and clear any speed curve: a constant speed is the no-curve case. One undo step.",
+          "mapsTo": "RATE_STRETCH_ITEM (edit/rate-stretch-actions.ts:425)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.setSpeed('c1', 0.5)"
+        },
+        {
+          "name": "getSpeedCurve",
+          "signature": "getSpeedCurve(id: ClipId): ClipSpeedCurve | null",
+          "summary": "A clip's speed curve, or null when it plays at one speed. Not an undo step. Keys are clip-relative frames, like keyframes: frame 0 is the clip's first frame, and the last key sits at the clip's current length.",
+          "mapsTo": "useItemsStore.itemById.speedCurve + averageSpeed (src/studio/speed/curve.ts:300)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.getSpeedCurve('c1')?.keys"
+        },
+        {
+          "name": "setSpeedCurve",
+          "signature": "setSpeedCurve(id: ClipId, keys: SpeedKey[] | null): void",
+          "summary": "Set a clip's speed curve, or remove it with null (the clip keeps playing at the curve's average speed). The shape keeps the clip's source span and takes the length it needs, moving the clips after it. One undo step.",
+          "mapsTo": "SET_SPEED_CURVE (src/studio/speed/actions.ts:77)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.setSpeedCurve('c1', [{ frame: 0, speed: 1 }, { frame: 120, speed: 4 }, { frame: 300, speed: 1 }])"
+        },
+        {
+          "name": "getMotionBlur",
+          "signature": "getMotionBlur(id: ClipId): MotionBlurSettings | null",
+          "summary": "A clip's motion blur settings, or null when it has none (blur off). Not an undo step.",
+          "mapsTo": "useItemsStore.itemById.motionBlur (src/types/timeline.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.getMotionBlur('c1')?.shutterDegrees"
+        },
+        {
+          "name": "setMotionBlur",
+          "signature": "setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void",
+          "summary": "Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x, and changes nothing at and below 1x. One undo step.",
+          "mapsTo": "SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.setMotionBlur('c1', { shutterDegrees: 360 })"
+        },
+        {
+          "name": "setSpeedPreset",
+          "signature": "setSpeedPreset(id: ClipId, preset: SpeedPreset, options?: SpeedPresetOptions): void",
+          "summary": "Give a clip one of the three ramp presets: ramp in from 1x, ramp out to 1x, or both with a hold at the peak. The shape keeps the clip's source span and takes the length it needs, moving the clips after it. One undo step.",
+          "mapsTo": "SET_SPEED_CURVE (src/studio/speed/actions.ts:77) with speedPresetCurve (src/studio/speed/presets.ts:86)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.setSpeedPreset('c1', 'ramp-in-out', { peak: 4, rampFrames: 15 })"
+        },
+        {
+          "name": "speedAt",
+          "signature": "speedAt(id: ClipId, frame: Frame): number",
+          "summary": "The speed a clip holds at a timeline frame, in x: the curve's value there, or the clip's constant speed when it has no curve. `frame` is an absolute timeline frame, like `clips.split` and `playback.seek`; the keys a curve carries stay clip-relative. Not an undo step.",
+          "mapsTo": "speedAt (src/studio/speed/curve.ts:271)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.speedAt('c1', 90)"
+        },
+        {
+          "name": "getColorProfile",
+          "signature": "getColorProfile(id: ClipId): ColorProfile | null",
+          "summary": "A clip's colour profile, or null when it is unset (nothing was answered for it). `none` is an answer: \"this file needs no input transform\". Not an undo step.",
+          "mapsTo": "useItemsStore.itemById.inputColor (src/types/timeline.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.getColorProfile('c1')"
+        },
+        {
+          "name": "setColorProfile",
+          "signature": "setColorProfile(id: ClipId, profile: ColorProfile | null): void",
+          "summary": "Set a clip's colour profile: `dlog-m` (DJI D-Log M, the Avata 2's profile), `dlog`, or `none`; null clears the answer. One undo step.",
+          "mapsTo": "SET_COLOR_PROFILE (src/studio/presets/ColorPresetSection.tsx:134, updateClipsTogether)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.clips.setColorProfile('c1', 'dlog-m')"
+        },
+        {
+          "name": "getLook",
+          "signature": "getLook(id: ClipId): ClipLookInfo | null",
+          "summary": "A clip's creative look, or null when it has none. Not an undo step.",
+          "mapsTo": "useItemsStore.itemById.look (src/types/timeline.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.getLook('c1')?.intensity"
+        },
+        {
+          "name": "setLook",
+          "signature": "setLook(id: ClipId, look: ClipLookRequest | null): void",
+          "summary": "Apply a look of the looks library to a clip, with a blend (default 1), or remove it with null. Ids come from `looks.list()`, which must have been called once in the session. One undo step.",
+          "mapsTo": "SET_LOOK (src/studio/looks/LooksSection.tsx:100, updateClipsTogether)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "studio.clips.setLook('c1', { id: 'look-1', intensity: 0.8 })"
+        },
+        {
+          "name": "getStabilization",
+          "signature": "getStabilization(id: ClipId): ClipStabilization | null",
+          "summary": "A clip's stored stabilization settings, or null when it was never stabilized. A clip switched off keeps its settings with `enabled: false`. Not an undo step.",
+          "mapsTo": "useItemsStore.itemById.stabilization (src/types/timeline.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.clips.getStabilization('c1')?.params.smoothness"
+        },
+        {
+          "name": "setStabilization",
+          "signature": "setStabilization(id: ClipId, patch: StabilizationPatch | null): Promise<void>",
+          "summary": "Switch a clip's stabilization on with the changes in `patch` (the others keep the clip's value, or the engine's defaults), or off with null (the settings are kept). Switching on opens the clip on the engine first, which can take seconds, so the call is async and each awaited call is its own undo step. A clip that is already on only stores the changes.",
+          "mapsTo": "setEnabled / switchOn (src/studio/stabilization/ui/use-stabilization-controls.ts:131) with openStabilization and storeStabilization (src/studio/stabilization/ui/switch.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT",
+            "INTERNAL"
+          ],
+          "example": "await studio.clips.setStabilization('c1', { smoothness: 0.6, horizonLockPercent: 100 })"
+        }
+      ]
+    },
+    {
+      "name": "titles",
+      "summary": "`studio.titles`: text clips of the active context (design §4.2). Implemented by `createTitlesApi(): TitlesApi` in `namespaces/titles.ts`.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(): ClipInfo[]",
+          "summary": "Text clips, top of the stack first. Not an undo step.",
+          "mapsTo": "useItemsStore.items filtered by type 'text'",
+          "throws": [],
+          "example": "studio.titles.list()"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: TitleAddInput): ClipId",
+          "summary": "Add a text clip with the editor's default style. One undo step.",
+          "mapsTo": "createDefaultTextItem + ADD_ITEM (item-actions.ts:610)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.titles.add({ trackId: 'v1', from: 0, durationInFrames: 90, text: 'Cinque Terre' })"
+        },
+        {
+          "name": "update",
+          "signature": "update(id: ClipId, patch: TitlePatch): void",
+          "summary": "Change a title's text or style. One undo step.",
+          "mapsTo": "UPDATE_ITEM (item-actions.ts:717)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.titles.update('t1', { text: 'Riomaggiore' })"
+        }
+      ]
+    },
+    {
+      "name": "effects",
+      "summary": "`studio.effects`: GPU effects on clips (design §4.2). Implemented by `createEffectsApi(): EffectsApi` in `namespaces/effects.ts`.",
+      "methods": [
+        {
+          "name": "types",
+          "signature": "types(): EffectTypeInfo[]",
+          "summary": "Every effect type the editor can apply. Not an undo step.",
+          "mapsTo": "GPU_EFFECT_REGISTRY (registry.ts:10)",
+          "throws": [],
+          "example": "studio.effects.types()"
+        },
+        {
+          "name": "list",
+          "signature": "list(clip: ClipId): EffectInfo[]",
+          "summary": "Effects on a clip, in application order. Not an undo step.",
+          "mapsTo": "useItemsStore.itemById.items[].effects",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.effects.list('c1')"
+        },
+        {
+          "name": "add",
+          "signature": "add(clip: ClipId, type: string, params?: Record<string, EffectParamValue>): EffectId",
+          "summary": "Add an effect with the type's defaults, plus any `params`. One undo step.",
+          "mapsTo": "ADD_EFFECT (effect-actions.ts:11)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "const id = studio.effects.add('c1', 'gpu-brightness', { amount: 0.1 })"
+        },
+        {
+          "name": "update",
+          "signature": "update(clip: ClipId, effect: EffectId, patch: EffectPatch): void",
+          "summary": "Change an effect's parameters or enabled flag. One undo step.",
+          "mapsTo": "UPDATE_EFFECT (effect-actions.ts:33)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.effects.update('c1', 'e1', { enabled: false })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(clip: ClipId, effect: EffectId): void",
+          "summary": "Remove an effect from a clip. One undo step.",
+          "mapsTo": "REMOVE_EFFECT (effect-actions.ts:48)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.effects.remove('c1', 'e1')"
+        }
+      ]
+    },
+    {
+      "name": "keyframes",
+      "summary": "`studio.keyframes`: scalar animation lanes of a clip (design §4.2). Implemented by `createKeyframesApi(): KeyframesApi` in `namespaces/keyframes.ts`. An update that writes nothing adds no undo entry, and `removeAll` clears the clip's vector lanes too.",
+      "methods": [
+        {
+          "name": "properties",
+          "signature": "properties(clip: ClipId): KeyframeProperty[]",
+          "summary": "Properties of a clip that can be animated. Not an undo step.",
+          "mapsTo": "getAnimatablePropertiesForItem (animatable-properties.ts:41)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.keyframes.properties('c1')"
+        },
+        {
+          "name": "list",
+          "signature": "list(clip: ClipId, property?: KeyframeProperty): KeyframeInfo[]",
+          "summary": "Keyframes of a clip, optionally of one property, in frame order. Not an undo step.",
+          "mapsTo": "useKeyframesStore.keyframesByItemId",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.keyframes.list('c1', 'opacity')"
+        },
+        {
+          "name": "add",
+          "signature": "add(clip: ClipId, property: KeyframeProperty, frame: Frame, value: number, easing?: Easing): KeyframeId",
+          "summary": "Add a keyframe at a clip-relative frame. One undo step.",
+          "mapsTo": "ADD_KEYFRAME (keyframe-actions.ts:36)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "const id = studio.keyframes.add('c1', 'opacity', 0, 1, 'ease-in-out')"
+        },
+        {
+          "name": "update",
+          "signature": "update(clip: ClipId, keyframe: KeyframeId, patch: KeyframePatch): void",
+          "summary": "Change a keyframe's value, easing or frame. One undo step.",
+          "mapsTo": "UPDATE_KEYFRAME (keyframe-actions.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "studio.keyframes.update('c1', 'k1', { value: 0.5 })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(clip: ClipId, keyframe: KeyframeId): void",
+          "summary": "Remove one keyframe. One undo step.",
+          "mapsTo": "REMOVE_KEYFRAME (keyframe-actions.ts)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.keyframes.remove('c1', 'k1')"
+        },
+        {
+          "name": "removeAll",
+          "signature": "removeAll(clip: ClipId, property?: KeyframeProperty): void",
+          "summary": "Remove every keyframe of a clip, or of one property. One undo step.",
+          "mapsTo": "REMOVE_KEYFRAMES (keyframe-actions.ts)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.keyframes.removeAll('c1', 'opacity')"
+        }
+      ]
+    },
+    {
+      "name": "transitions",
+      "summary": "`studio.transitions`: transitions at the cuts of the active context (design §4.2). Implemented by `createTransitionsApi(): TransitionsApi` in `namespaces/transitions.ts`.",
+      "methods": [
+        {
+          "name": "presentations",
+          "signature": "presentations(): string[]",
+          "summary": "Presentation ids a transition can use. Not an undo step.",
+          "mapsTo": "transitionRegistry.getIds() (registry.ts:119)",
+          "throws": [],
+          "example": "studio.transitions.presentations()"
+        },
+        {
+          "name": "list",
+          "signature": "list(): TransitionInfo[]",
+          "summary": "Transitions of the active context. Not an undo step.",
+          "mapsTo": "useTransitionsStore.transitions",
+          "throws": [],
+          "example": "studio.transitions.list()"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: TransitionAddInput): TransitionId",
+          "summary": "Add a transition at the cut between two adjacent clips. One undo step.",
+          "mapsTo": "canAddTransition + ADD_TRANSITION (transition-actions.ts:27)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "studio.transitions.add({ left: 'c1', right: 'c2', presentation: 'fade', durationInFrames: 30 })"
+        },
+        {
+          "name": "update",
+          "signature": "update(id: TransitionId, patch: TransitionPatch): void",
+          "summary": "Change a transition's presentation, length or timing. One undo step. A patch that names no field changes nothing and adds no undo entry.",
+          "mapsTo": "UPDATE_TRANSITION (transition-actions.ts:160)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "CONFLICT"
+          ],
+          "example": "studio.transitions.update('x1', { durationInFrames: 45 })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(id: TransitionId): void",
+          "summary": "Remove a transition, leaving the cut. One undo step.",
+          "mapsTo": "REMOVE_TRANSITION (transition-actions.ts:172)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.transitions.remove('x1')"
+        }
+      ]
+    },
+    {
+      "name": "markers",
+      "summary": "`studio.markers`: markers and the in/out range (design §4.2). Implemented by `createMarkersApi(): MarkersApi` in `namespaces/markers.ts`.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(): MarkerInfo[]",
+          "summary": "Markers in frame order. Not an undo step.",
+          "mapsTo": "useMarkersStore.markers",
+          "throws": [],
+          "example": "studio.markers.list()"
+        },
+        {
+          "name": "add",
+          "signature": "add(input: MarkerAddInput): MarkerId",
+          "summary": "Add a marker at a frame. One undo step.",
+          "mapsTo": "ADD_MARKER (marker-actions.ts:12)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "const id = studio.markers.add({ frame: 120, label: 'take off' })"
+        },
+        {
+          "name": "update",
+          "signature": "update(id: MarkerId, patch: MarkerPatch): void",
+          "summary": "Change a marker's frame, label or colour. One undo step.",
+          "mapsTo": "UPDATE_MARKER (marker-actions.ts:26)",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.markers.update('k1', { frame: 150 })"
+        },
+        {
+          "name": "remove",
+          "signature": "remove(id: MarkerId): void",
+          "summary": "Remove one marker. One undo step.",
+          "mapsTo": "REMOVE_MARKER (marker-actions.ts:38)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.markers.remove('k1')"
+        },
+        {
+          "name": "clear",
+          "signature": "clear(): void",
+          "summary": "Remove every marker of the active context. One undo step.",
+          "mapsTo": "CLEAR_MARKERS (marker-actions.ts:45)",
+          "throws": [],
+          "example": "studio.markers.clear()"
+        },
+        {
+          "name": "range",
+          "signature": "range(): RangeInfo",
+          "summary": "The in/out playback range. Not an undo step.",
+          "mapsTo": "useMarkersStore.inPoint + outPoint",
+          "throws": [],
+          "example": "studio.markers.range()"
+        },
+        {
+          "name": "setIn",
+          "signature": "setIn(frame: Frame | null): void",
+          "summary": "Set the in point, or clear it with null; a point past the end is clamped and one past the out point resets the out point. One undo step.",
+          "mapsTo": "SET_IN_POINT (marker-actions.ts:56)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.markers.setIn(0)"
+        },
+        {
+          "name": "setOut",
+          "signature": "setOut(frame: Frame | null): void",
+          "summary": "Set the out point, or clear it with null; a point past the end is clamped and one before the in point resets the in point. One undo step.",
+          "mapsTo": "SET_OUT_POINT (marker-actions.ts:83)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.markers.setOut(600)"
+        },
+        {
+          "name": "clearRange",
+          "signature": "clearRange(): void",
+          "summary": "Clear both in and out points. One undo step.",
+          "mapsTo": "CLEAR_IN_OUT_POINTS (marker-actions.ts:110)",
+          "throws": [],
+          "example": "studio.markers.clearRange()"
+        }
+      ]
+    },
+    {
+      "name": "selection",
+      "summary": "`studio.selection`: what the editor has selected. Not an undo step. Implemented by `createSelectionApi(): SelectionApi` in `namespaces/selection.ts`.",
+      "methods": [
+        {
+          "name": "get",
+          "signature": "get(): SelectionInfo",
+          "summary": "The current selection. Not an undo step.",
+          "mapsTo": "useSelectionStore (selection/store.ts:30)",
+          "throws": [],
+          "example": "studio.selection.get()"
+        },
+        {
+          "name": "set",
+          "signature": "set(patch: SelectionPatch): void",
+          "summary": "Select clips, tracks, a marker or a transition. Not an undo step.",
+          "mapsTo": "selectItems / selectTracks / selectMarker / selectTransition",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.selection.set({ clips: ['c1'] })"
+        },
+        {
+          "name": "clear",
+          "signature": "clear(): void",
+          "summary": "Clear the selection. Not an undo step.",
+          "mapsTo": "useSelectionStore.clearSelection",
+          "throws": [],
+          "example": "studio.selection.clear()"
+        }
+      ]
+    },
+    {
+      "name": "playback",
+      "summary": "`studio.playback`: the transport. Not an undo step. Implemented by `createPlaybackApi(): PlaybackApi` in `namespaces/playback.ts`.",
+      "methods": [
+        {
+          "name": "get",
+          "signature": "get(): PlaybackInfo",
+          "summary": "Playhead, playing state, rate and loop. Not an undo step.",
+          "mapsTo": "usePlaybackStore (playback/store.ts:104)",
+          "throws": [],
+          "example": "studio.playback.get()"
+        },
+        {
+          "name": "seek",
+          "signature": "seek(frame: Frame): void",
+          "summary": "Move the playhead to a frame. Not an undo step.",
+          "mapsTo": "usePlaybackStore.setCurrentFrame",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.playback.seek(120)"
+        },
+        {
+          "name": "play",
+          "signature": "play(): void",
+          "summary": "Start playback at the rate `setRate` chose. Not an undo step.",
+          "mapsTo": "usePlaybackStore.play, then setPlaybackRate with the previous rate",
+          "throws": [],
+          "example": "studio.playback.play()"
+        },
+        {
+          "name": "pause",
+          "signature": "pause(): void",
+          "summary": "Pause playback. Not an undo step.",
+          "mapsTo": "usePlaybackStore.pause",
+          "throws": [],
+          "example": "studio.playback.pause()"
+        },
+        {
+          "name": "setRate",
+          "signature": "setRate(rate: number): void",
+          "summary": "Set the playback rate multiplier. Not an undo step.",
+          "mapsTo": "usePlaybackStore.setPlaybackRate",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.playback.setRate(0.5)"
+        },
+        {
+          "name": "setLoop",
+          "signature": "setLoop(on: boolean): void",
+          "summary": "Turn looping on or off. Not an undo step.",
+          "mapsTo": "usePlaybackStore.toggleLoop (set semantics: toggles only when the value differs)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.playback.setLoop(true)"
+        }
+      ]
+    },
+    {
+      "name": "export",
+      "summary": "`studio.export`: the render queue (design §4.2, §0.5, §4.7). Implemented by `createExportApi(): ExportApi` in `namespaces/export.ts`; the settings half lives in `namespaces/export-settings.ts`.",
+      "methods": [
+        {
+          "name": "settings",
+          "signature": "settings(): ExportSettingsInfo",
+          "summary": "The SDK's export settings. Not an undo step.",
+          "mapsTo": "the SDK settings store (design §0.3); the export dialog does not read it yet",
+          "throws": [],
+          "example": "studio.export.settings()"
+        },
+        {
+          "name": "setSettings",
+          "signature": "setSettings(patch: ExportSettingsPatch): void",
+          "summary": "Change the SDK's export settings. Not an undo step.",
+          "mapsTo": "the SDK settings store (design §0.3); the export dialog does not read it yet",
+          "throws": [
+            "INVALID_ARGUMENT",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.export.setSettings({ quality: 'high' })"
+        },
+        {
+          "name": "start",
+          "signature": "start(options?: ExportStartInput): Promise<ExportJobInfo>",
+          "summary": "Queue an export and return its job. Not an undo step.",
+          "mapsTo": "buildRenderJob (build-render-job.ts:149) + enqueueJobs (render-queue-store.ts:104)",
+          "throws": [
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT",
+            "INTERNAL"
+          ],
+          "example": "const job = await studio.export.start({ name: 'Flight 01' })"
+        },
+        {
+          "name": "jobs",
+          "signature": "jobs(): ExportJobInfo[]",
+          "summary": "Every job in the queue, oldest first. Not an undo step.",
+          "mapsTo": "useRenderQueueStore.jobs",
+          "throws": [],
+          "example": "studio.export.jobs()"
+        },
+        {
+          "name": "status",
+          "signature": "status(id: string): ExportJobInfo | null",
+          "summary": "One job, or null when it does not exist. Not an undo step.",
+          "mapsTo": "useRenderQueueStore.jobs",
+          "throws": [],
+          "example": "studio.export.status('j1')"
+        },
+        {
+          "name": "wait",
+          "signature": "wait(id: string, options?: ExportWaitOptions): Promise<ExportJobInfo>",
+          "summary": "Wait for a job to finish and return it; when `timeoutMs` passes first, the job as it is then. Not an undo step.",
+          "mapsTo": "useRenderQueueStore.jobs, polled every 250 ms",
+          "throws": [
+            "NOT_FOUND",
+            "INVALID_ARGUMENT",
+            "EXPORT_FAILED"
+          ],
+          "example": "await studio.export.wait('j1', { timeoutMs: 60000 })"
+        },
+        {
+          "name": "cancel",
+          "signature": "cancel(id: string): void",
+          "summary": "Cancel a queued or running job. Not an undo step.",
+          "mapsTo": "useRenderQueueStore.cancelJob (render-queue-store.ts:121)",
+          "throws": [
+            "NOT_FOUND"
+          ],
+          "example": "studio.export.cancel('j1')"
+        }
+      ]
+    },
+    {
+      "name": "history",
+      "summary": "`studio.history`: the undo history of the active context (design §4.2, §4.4). Implemented by `createHistoryApi(): HistoryApi` in `namespaces/history.ts`.",
+      "methods": [
+        {
+          "name": "undo",
+          "signature": "undo(steps?: number): number",
+          "summary": "Undo up to `steps` entries and return how many were undone. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.undo (timeline-command-store.ts:154)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.history.undo(2)"
+        },
+        {
+          "name": "redo",
+          "signature": "redo(steps?: number): number",
+          "summary": "Redo up to `steps` entries and return how many were redone. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.redo (timeline-command-store.ts:178)",
+          "throws": [
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.history.redo()"
+        },
+        {
+          "name": "canUndo",
+          "signature": "canUndo(): boolean",
+          "summary": "Whether an entry can be undone. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.canUndo",
+          "throws": [],
+          "example": "studio.history.canUndo()"
+        },
+        {
+          "name": "canRedo",
+          "signature": "canRedo(): boolean",
+          "summary": "Whether an entry can be redone. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.canRedo",
+          "throws": [],
+          "example": "studio.history.canRedo()"
+        },
+        {
+          "name": "undoLabel",
+          "signature": "undoLabel(): string | null",
+          "summary": "Label of the next entry `undo` would revert, or null. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.getUndoLabel (timeline-command-store.ts:220)",
+          "throws": [],
+          "example": "studio.history.undoLabel()"
+        },
+        {
+          "name": "redoLabel",
+          "signature": "redoLabel(): string | null",
+          "summary": "Label of the next entry `redo` would restore, or null. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.getRedoLabel (timeline-command-store.ts:227)",
+          "throws": [],
+          "example": "studio.history.redoLabel()"
+        },
+        {
+          "name": "clear",
+          "signature": "clear(): void",
+          "summary": "Drop the history of every editing context. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.clearHistory (timeline-command-store.ts:202)",
+          "throws": [],
+          "example": "studio.history.clear()"
+        },
+        {
+          "name": "depth",
+          "signature": "depth(): number",
+          "summary": "Number of entries that can be undone. Not an undo step.",
+          "mapsTo": "useTimelineCommandStore.undoStack",
+          "throws": [],
+          "example": "studio.history.depth()"
+        }
+      ]
+    },
+    {
+      "name": "workspace",
+      "summary": "`studio.workspace`: whether the app has a workspace folder to work on. Implemented by `createWorkspaceApi(): WorkspaceApi` in `namespaces/workspace.ts`.",
+      "methods": [
+        {
+          "name": "isOpen",
+          "signature": "isOpen(): boolean",
+          "summary": "Whether a workspace folder is open. False while the editor shows its workspace gate, when every call that reads or writes the project would throw. Not an undo step.",
+          "mapsTo": "getWorkspaceRoot (workspace-fs/root.ts)",
+          "throws": [],
+          "example": "studio.workspace.isOpen()"
+        }
+      ]
+    },
+    {
+      "name": "looks",
+      "summary": "`studio.looks`: the workspace's looks library, the `.cube` files a clip can apply (`clips.setLook`). Implemented by `createLooksApi(): LooksApi` in `namespaces/looks.ts`.",
+      "methods": [
+        {
+          "name": "list",
+          "signature": "list(): Promise<LookInfo[]>",
+          "summary": "The looks of the library, newest last. Reads the library from the workspace when it has not been read yet. Not an undo step.",
+          "mapsTo": "useLooksStore.load (src/studio/looks/store.ts)",
+          "throws": [
+            "INTERNAL"
+          ],
+          "example": "await studio.looks.list()"
+        }
+      ]
+    },
+    {
+      "name": "shadow",
+      "summary": "`studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (free), read the price, clean at that price (spends credits). Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.",
+      "methods": [
+        {
+          "name": "get",
+          "signature": "get(id: ClipId): ShadowState",
+          "summary": "A clip's shadow session: the mark, the stage, the ranges found, the price and the last failure. Not an undo step.",
+          "mapsTo": "useShadowSessionStore (src/studio/shadow/ui/use-shadow-session.ts)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED"
+          ],
+          "example": "studio.shadow.get('c1').quote?.costCredits"
+        },
+        {
+          "name": "mark",
+          "signature": "mark(id: ClipId, mark: ShadowMarkInput): void",
+          "summary": "Mark the shadow on a clip: a point in source pixels on a source frame (default: the frame the playhead shows on the clip). Forgets a pass made for another mark. One undo step.",
+          "mapsTo": "setMark (src/studio/shadow/ui/use-shadow-session.ts:921)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT"
+          ],
+          "example": "studio.shadow.mark('c1', { x: 1440, y: 1200 })"
+        },
+        {
+          "name": "follow",
+          "signature": "follow(id: ClipId): Promise<ShadowFollowResult>",
+          "summary": "Follow the marked shadow with the free tracking pass and price cleaning what it found. Awaits the whole pass (cut, upload, track, quote) and costs no credits.",
+          "mapsTo": "track (src/studio/shadow/ui/use-shadow-session.ts:947)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "CONFLICT",
+            "MEDIA_UNAVAILABLE",
+            "INTERNAL"
+          ],
+          "example": "const { ranges, quote } = await studio.shadow.follow('c1')"
+        },
+        {
+          "name": "quote",
+          "signature": "quote(id: ClipId): Promise<ShadowQuote>",
+          "summary": "Ask the price of the found ranges again, which also reads the balance again (after credits were bought). Not an undo step and no credits are spent.",
+          "mapsTo": "refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1066)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "CONFLICT",
+            "INTERNAL"
+          ],
+          "example": "await studio.shadow.quote('c1')"
+        },
+        {
+          "name": "clean",
+          "signature": "clean(id: ClipId, expectedCredits: number): Promise<ShadowCleanResult>",
+          "summary": "Clean the followed ranges. This SPENDS the user's credits: pass the credits you expect to spend, and the call refuses unless that equals the current price (`costCredits` of `shadow.quote`), so a clean never costs more than the price you were shown. The cleaned file is kept in the project and recorded on the clip.",
+          "mapsTo": "clean (src/studio/shadow/ui/use-shadow-session.ts:967)",
+          "throws": [
+            "NOT_FOUND",
+            "UNSUPPORTED",
+            "INVALID_ARGUMENT",
+            "CONFLICT",
+            "INTERNAL"
+          ],
+          "example": "await studio.shadow.clean('c1', 12)"
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "ClipId",
+      "declaration": "export type ClipId = string;",
+      "summary": "Opaque id of a timeline clip (a `TimelineItem`). Never parse it."
+    },
+    {
+      "name": "TrackId",
+      "declaration": "export type TrackId = string;",
+      "summary": "Opaque id of a timeline track (a `TimelineTrack`). Never parse it."
+    },
+    {
+      "name": "MediaId",
+      "declaration": "export type MediaId = string;",
+      "summary": "Opaque id of a media library item (`MediaMetadata`). Never parse it."
+    },
+    {
+      "name": "EffectId",
+      "declaration": "export type EffectId = string;",
+      "summary": "Opaque id of one effect instance applied to a clip (`ItemEffect`). Never parse it."
+    },
+    {
+      "name": "MarkerId",
+      "declaration": "export type MarkerId = string;",
+      "summary": "Opaque id of a timeline marker (`ProjectMarker`). Never parse it."
+    },
+    {
+      "name": "TransitionId",
+      "declaration": "export type TransitionId = string;",
+      "summary": "Opaque id of a transition (`Transition`). Never parse it."
+    },
+    {
+      "name": "KeyframeId",
+      "declaration": "export type KeyframeId = string;",
+      "summary": "Opaque id of a keyframe (`Keyframe.id`). Never parse it."
+    },
+    {
+      "name": "Frame",
+      "declaration": "export type Frame = number;",
+      "summary": "Integer frame on the timeline, counted at the project rate."
+    },
+    {
+      "name": "SourceFrame",
+      "declaration": "export type SourceFrame = number;",
+      "summary": "Integer frame inside a source media file, counted at the source rate."
+    },
+    {
+      "name": "Seconds",
+      "declaration": "export type Seconds = number;",
+      "summary": "Seconds. Only for values the stores keep in seconds (audio fades, subtitle cues)."
+    },
+    {
+      "name": "Rate",
+      "declaration": "export interface Rate {\n    num: number;\n    den: number;\n}",
+      "summary": "A frame rate as an exact fraction of frames per second (design §4.3): 59.94 is `{ num: 60000, den: 1001 }`, never `{ num: 59.94, den: 1 }`. Both numbers are positive whole numbers; a rate is read back reduced, and `@/studio/time`'s `toRate` and `rateValue` are the only conversions."
+    },
+    {
+      "name": "TimelineContext",
+      "declaration": "export type TimelineContext = MainTimelineContext | CompositionTimelineContext;",
+      "summary": "The context the SDK reads and writes: the Main timeline, or the composition that is open for editing in the app (design §4.3). Ids and the undo history belong to one context; an id from another context is `NOT_FOUND`."
+    },
+    {
+      "name": "MainTimelineContext",
+      "declaration": "export interface MainTimelineContext {\n    kind: 'main';\n}",
+      "summary": "The Main timeline is the active context."
+    },
+    {
+      "name": "CompositionTimelineContext",
+      "declaration": "export interface CompositionTimelineContext {\n    kind: 'composition';\n    id: string;\n    name: string;\n}",
+      "summary": "An open sub-composition is the active context."
+    },
+    {
+      "name": "ProjectInfo",
+      "declaration": "export interface ProjectInfo {\n    id: string;\n    name: string;\n    description: string;\n    width: number;\n    height: number;\n    fps: Rate;\n    backgroundColor?: string;\n    createdAt: number;\n    updatedAt: number;\n}",
+      "summary": "A project as the SDK reads it (`useProjectStore.currentProject`)."
+    },
+    {
+      "name": "ProjectCreateInput",
+      "declaration": "export interface ProjectCreateInput {\n    name: string;\n    width: number;\n    height: number;\n    fps: Rate;\n}",
+      "summary": "Input of `project.create` (design §0.6)."
+    },
+    {
+      "name": "ProjectPatch",
+      "declaration": "export interface ProjectPatch {\n    width?: number;\n    height?: number;\n    fps?: Rate;\n    backgroundColor?: string;\n}",
+      "summary": "Fields `project.set` can change."
+    },
+    {
+      "name": "MediaType",
+      "declaration": "export type MediaType = 'video' | 'audio' | 'image' | 'lottie' | 'unknown';",
+      "summary": "Kind of a media library item, derived from its MIME type."
+    },
+    {
+      "name": "MediaInfo",
+      "declaration": "export interface MediaInfo {\n    id: MediaId;\n    fileName: string;\n    mimeType: string;\n    type: MediaType;\n    fileSize: number;\n    duration: Seconds;\n    width: number;\n    height: number;\n    fps: number;\n    codec: string;\n    bitrate: number;\n    createdAt: number;\n    updatedAt: number;\n}",
+      "summary": "A media library item as the SDK reads it (`MediaMetadata`, `@/types/storage`)."
+    },
+    {
+      "name": "MediaImportOptions",
+      "declaration": "export interface MediaImportOptions {\n    storageMode?: 'copy' | 'link';\n}",
+      "summary": "Options of `media.import` (design §2)."
+    },
+    {
+      "name": "MediaFilter",
+      "declaration": "export interface MediaFilter {\n    type?: MediaType;\n}",
+      "summary": "Filter of `media.list`."
+    },
+    {
+      "name": "SubclipId",
+      "declaration": "export type SubclipId = string;",
+      "summary": "Id of a subclip."
+    },
+    {
+      "name": "SubclipInvalidReason",
+      "declaration": "export type SubclipInvalidReason = 'parent-missing' | 'range-past-end' | 'rate-changed';",
+      "summary": "Why a subclip cannot be used any more: its file is gone from the library, the file has fewer frames than the range needs, or the file's frame rate changed after the range was cut."
+    },
+    {
+      "name": "SubclipInfo",
+      "declaration": "export interface SubclipInfo {\n    id: SubclipId;\n    mediaId: MediaId;\n    name: string;\n    startFrame: SourceFrame;\n    endFrame: SourceFrame;\n    sourceFps: number;\n    createdAt: number;\n    valid: boolean;\n    invalidReason?: SubclipInvalidReason;\n}",
+      "summary": "A subclip as the SDK reads it: a named range of one library file (`Subclip`, `@/studio/subclips`). The range is whole source frames of the file, `[startFrame, endFrame)`, the convention of a clip's `sourceStart` and `sourceEnd`, so it goes into `clips.add` unchanged."
+    },
+    {
+      "name": "SubclipCreateInput",
+      "declaration": "export interface SubclipCreateInput {\n    mediaId: MediaId;\n    startFrame: SourceFrame;\n    endFrame: SourceFrame;\n    name?: string;\n}",
+      "summary": "Input of `subclips.create`."
+    },
+    {
+      "name": "SubclipFilter",
+      "declaration": "export interface SubclipFilter {\n    mediaId?: MediaId;\n}",
+      "summary": "Filter of `subclips.list`."
+    },
+    {
+      "name": "TrackKind",
+      "declaration": "export type TrackKind = 'video' | 'audio';",
+      "summary": "A track is either a video or an audio track."
+    },
+    {
+      "name": "TrackInfo",
+      "declaration": "export interface TrackInfo {\n    id: TrackId;\n    name: string;\n    kind?: TrackKind;\n    height: number;\n    locked: boolean;\n    syncLock?: boolean;\n    visible: boolean;\n    muted: boolean;\n    solo: boolean;\n    volume?: number;\n    color?: string;\n    order: number;\n}",
+      "summary": "A track as the SDK reads it (`TimelineTrack` without its item list)."
+    },
+    {
+      "name": "TrackAddInput",
+      "declaration": "export interface TrackAddInput {\n    kind: TrackKind;\n    name?: string;\n    position?: number;\n}",
+      "summary": "Input of `tracks.add`."
+    },
+    {
+      "name": "TrackPatch",
+      "declaration": "export interface TrackPatch {\n    name?: string;\n    locked?: boolean;\n    syncLock?: boolean;\n    visible?: boolean;\n    muted?: boolean;\n    solo?: boolean;\n    volume?: number;\n    color?: string;\n}",
+      "summary": "Fields `tracks.update` can change."
+    },
+    {
+      "name": "ClipType",
+      "declaration": "export type ClipType = 'video' | 'audio' | 'text' | 'image' | 'lottie' | 'shape' | 'adjustment' | 'controller' | 'composition' | 'subtitle';",
+      "summary": "Kind of a timeline clip (the discriminator of `TimelineItem`)."
+    },
+    {
+      "name": "ClipTransform",
+      "declaration": "export interface ClipTransform {\n    x?: number;\n    y?: number;\n    width?: number;\n    height?: number;\n    anchorX?: number;\n    anchorY?: number;\n    rotation?: number;\n    flipHorizontal?: boolean;\n    flipVertical?: boolean;\n    opacity?: number;\n    cornerRadius?: number;\n}",
+      "summary": "Placement and scale of a clip on the canvas (`TransformProperties`)."
+    },
+    {
+      "name": "ClipInfo",
+      "declaration": "export interface ClipInfo {\n    id: ClipId;\n    trackId: TrackId;\n    type: ClipType;\n    from: Frame;\n    durationInFrames: Frame;\n    label: string;\n    mediaId?: MediaId;\n    compositionId?: string;\n    trimStart?: SourceFrame;\n    trimEnd?: SourceFrame;\n    sourceStart?: SourceFrame;\n    sourceEnd?: SourceFrame;\n    sourceDuration?: SourceFrame;\n    sourceFps?: number;\n    speed?: number;\n    isReversed?: boolean;\n    volume?: number;\n    audioFadeIn?: Seconds;\n    audioFadeOut?: Seconds;\n    fadeIn?: Seconds;\n    fadeOut?: Seconds;\n    transform?: ClipTransform;\n    text?: string;\n    color?: string;\n}",
+      "summary": "A clip as the SDK reads it. Positions and durations are timeline frames; `source*` and `trim*` are source frames (design §4.3). Effects and keyframes are read through `studio.effects` and `studio.keyframes`, not duplicated here."
+    },
+    {
+      "name": "ClipAddInput",
+      "declaration": "export interface ClipAddInput {\n    mediaId: MediaId;\n    trackId: TrackId;\n    from: Frame;\n    durationInFrames?: Frame;\n    label?: string;\n    sourceStart?: SourceFrame;\n    sourceEnd?: SourceFrame;\n}",
+      "summary": "Input of `clips.add` and one entry of `clips.addMany`."
+    },
+    {
+      "name": "ClipPatch",
+      "declaration": "export interface ClipPatch {\n    label?: string;\n    volume?: number;\n    audioFadeIn?: Seconds;\n    audioFadeOut?: Seconds;\n    fadeIn?: Seconds;\n    fadeOut?: Seconds;\n    muted?: boolean;\n    transform?: ClipTransform;\n}",
+      "summary": "Fields `clips.update` can change."
+    },
+    {
+      "name": "ClipFilter",
+      "declaration": "export interface ClipFilter {\n    trackId?: TrackId;\n    type?: ClipType;\n}",
+      "summary": "Filter of `clips.list`."
+    },
+    {
+      "name": "ClipRemoveOptions",
+      "declaration": "export interface ClipRemoveOptions {\n    ripple?: boolean;\n}",
+      "summary": "Options of `clips.remove`."
+    },
+    {
+      "name": "ClipDuplicateOptions",
+      "declaration": "export interface ClipDuplicateOptions {\n    count?: number;\n    offsetFrames?: Frame;\n}",
+      "summary": "Options of `clips.duplicate`."
+    },
+    {
+      "name": "SpeedKey",
+      "declaration": "export interface SpeedKey {\n    frame: Frame;\n    speed: number;\n}",
+      "summary": "One point of a clip's speed curve: a clip-relative timeline frame and the speed there. Frame 0 is the clip's first frame, the origin keyframes use; speeds are 0.1..10."
+    },
+    {
+      "name": "ClipSpeedCurve",
+      "declaration": "export interface ClipSpeedCurve {\n    keys: SpeedKey[];\n    averageSpeed: number;\n}",
+      "summary": "A clip's speed curve, as `clips.getSpeedCurve` reads it (design §4.9 of task 7.1)."
+    },
+    {
+      "name": "MotionBlurSettings",
+      "declaration": "export interface MotionBlurSettings {\n    shutterDegrees: 90 | 180 | 270 | 360;\n}",
+      "summary": "A clip's motion blur, as `clips.getMotionBlur` reads it and `clips.setMotionBlur` takes it (design 7.2, section 4.7)."
+    },
+    {
+      "name": "SpeedPreset",
+      "declaration": "export type SpeedPreset = 'ramp-in' | 'ramp-out' | 'ramp-in-out';",
+      "summary": "The ramp shapes `clips.setSpeedPreset` builds (design §4.9 of task 7.1)."
+    },
+    {
+      "name": "SpeedPresetOptions",
+      "declaration": "export interface SpeedPresetOptions {\n    peak?: number;\n    rampFrames?: number;\n}",
+      "summary": "Options of `clips.setSpeedPreset`."
+    },
+    {
+      "name": "ColorProfile",
+      "declaration": "export type ColorProfile = 'dlog-m' | 'dlog' | 'none';",
+      "summary": "A clip's colour profile, as `clips.getColorProfile` reads it and `clips.setColorProfile` takes it: DJI D-Log M, DJI D-Log, or `none` (an answered \"no transform\")."
+    },
+    {
+      "name": "ClipLookInfo",
+      "declaration": "export interface ClipLookInfo {\n    id: string;\n    intensity: number;\n}",
+      "summary": "A clip's creative look: a `.cube` file of the workspace's looks library and the blend it is applied with."
+    },
+    {
+      "name": "ClipLookRequest",
+      "declaration": "export interface ClipLookRequest {\n    id: string;\n    intensity?: number;\n}",
+      "summary": "What `clips.setLook` takes: the id of a look of the library and, optionally, the blend."
+    },
+    {
+      "name": "LookInfo",
+      "declaration": "export interface LookInfo {\n    id: string;\n    name: string;\n    fileName: string;\n    size: number;\n}",
+      "summary": "One look of the workspace's looks library, as `looks.list` reads it."
+    },
+    {
+      "name": "ClipStabilization",
+      "declaration": "export interface ClipStabilization {\n    enabled: boolean;\n    method: string;\n    params: Record<string, number>;\n    fov: number;\n    horizonLockPercent: number;\n    horizonLockRoll: number;\n    adaptiveZoomSeconds: number;\n}",
+      "summary": "A clip's stabilization as it is stored: what the pilot chose; the engine's matrices are not part of it."
+    },
+    {
+      "name": "StabilizationPatch",
+      "declaration": "export interface StabilizationPatch {\n    smoothness?: number;\n    fov?: number;\n    horizonLockPercent?: number;\n    horizonLockRoll?: number;\n    adaptiveZoomSeconds?: number;\n}",
+      "summary": "What `clips.setStabilization` changes: each field is optional, and the others keep their value (or the engine's default on a clip never stabilized)."
+    },
+    {
+      "name": "ShadowMarkInput",
+      "declaration": "export interface ShadowMarkInput {\n    x: number;\n    y: number;\n    sourceFrame?: number;\n    radius?: number;\n}",
+      "summary": "The mark of a clip's shadow, in source pixels, as `shadow.mark` takes it."
+    },
+    {
+      "name": "ShadowMarkInfo",
+      "declaration": "export interface ShadowMarkInfo {\n    x: number;\n    y: number;\n    sourceFrame: number;\n    radius: number;\n}",
+      "summary": "A mark as `shadow.get` reads it."
+    },
+    {
+      "name": "ShadowQuote",
+      "declaration": "export interface ShadowQuote {\n    seconds: number;\n    costCredits: number;\n    creditsPerSecond: number;\n    availableCredits: number;\n    enough: boolean;\n}",
+      "summary": "The price of cleaning the ranges the free pass found, from the service's quote."
+    },
+    {
+      "name": "ShadowRangeInfo",
+      "declaration": "export interface ShadowRangeInfo {\n    startFrame: number;\n    endFrame: number;\n}",
+      "summary": "A stretch of source frames where the shadow was found."
+    },
+    {
+      "name": "ShadowState",
+      "declaration": "export interface ShadowState {\n    mark: ShadowMarkInfo | null;\n    stage: string;\n    progress: number;\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n    error: string | null;\n    needsSignIn: boolean;\n    cleanedPieces: number;\n}",
+      "summary": "A clip's shadow session as `shadow.get` reads it."
+    },
+    {
+      "name": "ShadowFollowResult",
+      "declaration": "export interface ShadowFollowResult {\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n}",
+      "summary": "What `shadow.follow` found."
+    },
+    {
+      "name": "ShadowCleanResult",
+      "declaration": "export interface ShadowCleanResult {\n    creditsSpent: number;\n    ranges: ShadowRangeInfo[];\n    cleanedPieces: number;\n}",
+      "summary": "What `shadow.clean` did."
+    },
+    {
+      "name": "TitleShadow",
+      "declaration": "export interface TitleShadow {\n    offsetX: number;\n    offsetY: number;\n    blur: number;\n    color: string;\n}",
+      "summary": "Shadow of a title (`TextShadow`)."
+    },
+    {
+      "name": "TitleStroke",
+      "declaration": "export interface TitleStroke {\n    width: number;\n    color: string;\n}",
+      "summary": "Outline of a title (`TextStroke`)."
+    },
+    {
+      "name": "TitleStyle",
+      "declaration": "export interface TitleStyle {\n    fontSize?: number;\n    fontFamily?: string;\n    fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';\n    fontStyle?: 'normal' | 'italic';\n    underline?: boolean;\n    color?: string;\n    letterSpacing?: number;\n    backgroundColor?: string | null;\n    backgroundRadius?: number;\n    textAlign?: 'left' | 'center' | 'right';\n    verticalAlign?: 'top' | 'middle' | 'bottom';\n    lineHeight?: number;\n    textPadding?: number;\n    textShadow?: TitleShadow | null;\n    stroke?: TitleStroke | null;\n}",
+      "summary": "Style fields of a title, the subset of `TextStyleFields` a caller sets (`@/types/text`). Every field is optional; the defaults are `createDefaultTextItem`'s (`generated-layer-items.ts:99`)."
+    },
+    {
+      "name": "TitleAddInput",
+      "declaration": "export interface TitleAddInput {\n    trackId: TrackId;\n    from: Frame;\n    durationInFrames: Frame;\n    text: string;\n    style?: TitleStyle;\n}",
+      "summary": "Input of `titles.add`."
+    },
+    {
+      "name": "TitlePatch",
+      "declaration": "export interface TitlePatch {\n    text?: string;\n    style?: TitleStyle;\n}",
+      "summary": "Fields `titles.update` can change."
+    },
+    {
+      "name": "EffectParamValue",
+      "declaration": "export type EffectParamValue = number | boolean | string;",
+      "summary": "A value an effect parameter can hold (`GpuEffect.params`)."
+    },
+    {
+      "name": "EffectParamInfo",
+      "declaration": "export interface EffectParamInfo {\n    type: 'number' | 'boolean' | 'select' | 'color' | 'point' | 'json' | 'text';\n    label: string;\n    default: EffectParamValue;\n    min?: number;\n    max?: number;\n    step?: number;\n    options?: Array<{\n        value: string;\n        label: string;\n    }>;\n    animatable?: boolean;\n}",
+      "summary": "One parameter of an effect type (`EffectParam` in `gpu-effects/types.ts`)."
+    },
+    {
+      "name": "EffectTypeInfo",
+      "declaration": "export interface EffectTypeInfo {\n    id: string;\n    name: string;\n    category: 'color' | 'blur' | 'distort' | 'stylize' | 'keying';\n    params: Record<string, EffectParamInfo>;\n}",
+      "summary": "An available effect type (a `GpuEffectDefinition` without its shader plumbing)."
+    },
+    {
+      "name": "EffectInfo",
+      "declaration": "export interface EffectInfo {\n    id: EffectId;\n    type: string;\n    params: Record<string, EffectParamValue>;\n    enabled: boolean;\n}",
+      "summary": "One effect instance on a clip (`ItemEffect`)."
+    },
+    {
+      "name": "EffectPatch",
+      "declaration": "export interface EffectPatch {\n    params?: Record<string, EffectParamValue>;\n    enabled?: boolean;\n}",
+      "summary": "Fields `effects.update` can change."
+    },
+    {
+      "name": "Easing",
+      "declaration": "export type Easing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'hold' | 'cubic-bezier' | 'spring';",
+      "summary": "Easing between one keyframe and the next (`EasingType`)."
+    },
+    {
+      "name": "PathVertexComponent",
+      "declaration": "export type PathVertexComponent = 'positionX' | 'positionY' | 'inX' | 'inY' | 'outX' | 'outY';",
+      "summary": "Component of a path-vertex keyframe property."
+    },
+    {
+      "name": "KeyframeProperty",
+      "declaration": "export type KeyframeProperty = 'x' | 'y' | 'width' | 'height' | 'anchorX' | 'anchorY' | 'rotation' | 'opacity' | 'cornerRadius' | 'cropLeft' | 'cropRight' | 'cropTop' | 'cropBottom' | 'cropSoftness' | 'volume' | 'textStyleScale' | 'fontSize' | 'lineHeight' | 'textPadding' | 'backgroundRadius' | 'textShadowOffsetX' | 'textShadowOffsetY' | 'textShadowBlur' | 'strokeWidth' | 'trimPathStart' | 'trimPathEnd' | 'trimPathOffset' | 'taperStartWidth' | 'taperEndWidth' | 'taperStartLength' | 'taperEndLength' | `effect:${string}:${string}:${string}` | `pathVertex:${number}:${PathVertexComponent}`;",
+      "summary": "A scalar property that can be animated (`AnimatableProperty` in `@/types/keyframe`). `effect:<gpuEffectType>:<effectId>:<paramKey>` addresses an effect parameter (`buildEffectAnimatableProperty`), `pathVertex:<index>:<component>` one vertex of a path shape."
+    },
+    {
+      "name": "KeyframeInfo",
+      "declaration": "export interface KeyframeInfo {\n    id: KeyframeId;\n    property: KeyframeProperty;\n    frame: Frame;\n    value: number;\n    easing: Easing;\n}",
+      "summary": "One keyframe (`Keyframe`). `frame` is relative to the start of the clip."
+    },
+    {
+      "name": "KeyframePatch",
+      "declaration": "export interface KeyframePatch {\n    value?: number;\n    easing?: Easing;\n    frame?: Frame;\n}",
+      "summary": "Fields `keyframes.update` can change."
+    },
+    {
+      "name": "TransitionTiming",
+      "declaration": "export type TransitionTiming = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';",
+      "summary": "Timing function of a transition (`TransitionTiming`)."
+    },
+    {
+      "name": "TransitionDirection",
+      "declaration": "export type TransitionDirection = 'from-left' | 'from-right' | 'from-top' | 'from-bottom';",
+      "summary": "Direction of the directional presentations (`WipeDirection` and siblings)."
+    },
+    {
+      "name": "TransitionBezierPoints",
+      "declaration": "export interface TransitionBezierPoints {\n    x1: number;\n    y1: number;\n    x2: number;\n    y2: number;\n}",
+      "summary": "Control points for `cubic-bezier` timing (`BezierPoints`)."
+    },
+    {
+      "name": "TransitionInfo",
+      "declaration": "export interface TransitionInfo {\n    id: TransitionId;\n    type: 'crossfade';\n    presentation: string;\n    timing: TransitionTiming;\n    leftClipId: ClipId;\n    rightClipId: ClipId;\n    trackId: TrackId;\n    durationInFrames: Frame;\n    direction?: TransitionDirection;\n    alignment?: number;\n    bezierPoints?: TransitionBezierPoints;\n    presetId?: string;\n    properties?: Record<string, unknown>;\n}",
+      "summary": "A transition as the SDK reads it (`Transition`)."
+    },
+    {
+      "name": "TransitionAddInput",
+      "declaration": "export interface TransitionAddInput {\n    left: ClipId;\n    right: ClipId;\n    presentation?: string;\n    durationInFrames?: Frame;\n    timing?: TransitionTiming;\n    direction?: TransitionDirection;\n    alignment?: number;\n}",
+      "summary": "Input of `transitions.add`."
+    },
+    {
+      "name": "TransitionPatch",
+      "declaration": "export interface TransitionPatch {\n    presentation?: string;\n    durationInFrames?: Frame;\n    timing?: TransitionTiming;\n    direction?: TransitionDirection;\n    alignment?: number;\n}",
+      "summary": "Fields `transitions.update` can change."
+    },
+    {
+      "name": "MarkerInfo",
+      "declaration": "export interface MarkerInfo {\n    id: MarkerId;\n    frame: Frame;\n    label?: string;\n    color: string;\n}",
+      "summary": "A timeline marker (`ProjectMarker`)."
+    },
+    {
+      "name": "MarkerAddInput",
+      "declaration": "export interface MarkerAddInput {\n    frame: Frame;\n    label?: string;\n    color?: string;\n}",
+      "summary": "Input of `markers.add`."
+    },
+    {
+      "name": "MarkerPatch",
+      "declaration": "export interface MarkerPatch {\n    frame?: Frame;\n    label?: string;\n    color?: string;\n}",
+      "summary": "Fields `markers.update` can change."
+    },
+    {
+      "name": "RangeInfo",
+      "declaration": "export interface RangeInfo {\n    in: Frame | null;\n    out: Frame | null;\n}",
+      "summary": "The in/out playback range of the active context."
+    },
+    {
+      "name": "SelectionInfo",
+      "declaration": "export interface SelectionInfo {\n    clips: ClipId[];\n    tracks: TrackId[];\n    marker: MarkerId | null;\n    transition: TransitionId | null;\n}",
+      "summary": "What is selected in the editor."
+    },
+    {
+      "name": "SelectionPatch",
+      "declaration": "export interface SelectionPatch {\n    clips?: ClipId[];\n    tracks?: TrackId[];\n    marker?: MarkerId | null;\n    transition?: TransitionId | null;\n}",
+      "summary": "What `selection.set` changes; an absent field is left as it is."
+    },
+    {
+      "name": "PlaybackInfo",
+      "declaration": "export interface PlaybackInfo {\n    frame: Frame;\n    playing: boolean;\n    rate: number;\n    loop: boolean;\n}",
+      "summary": "State of the transport (`PlaybackState`)."
+    },
+    {
+      "name": "ExportCodec",
+      "declaration": "export type ExportCodec = 'h264' | 'h265' | 'vp8' | 'vp9' | 'av1';",
+      "summary": "Video codec of an export (`ExportSettings['codec']`)."
+    },
+    {
+      "name": "ExportQuality",
+      "declaration": "export type ExportQuality = 'low' | 'medium' | 'high' | 'ultra';",
+      "summary": "Encoder quality preset."
+    },
+    {
+      "name": "ExportRateControl",
+      "declaration": "export type ExportRateControl = 'auto' | 'variable' | 'constant';",
+      "summary": "Rate control of an export (`VideoRateControl`)."
+    },
+    {
+      "name": "ExportVideoContainer",
+      "declaration": "export type ExportVideoContainer = 'mp4' | 'mov' | 'webm' | 'mkv';",
+      "summary": "Video container of an export (`VideoContainer`)."
+    },
+    {
+      "name": "ExportAudioContainer",
+      "declaration": "export type ExportAudioContainer = 'mp3' | 'aac' | 'wav';",
+      "summary": "Audio container of an audio export (`AudioContainer`)."
+    },
+    {
+      "name": "ExportSubtitleMode",
+      "declaration": "export type ExportSubtitleMode = 'off' | 'burn' | 'sidecar' | 'embedded';",
+      "summary": "What happens to transcript subtitles on export (`SubtitleExportMode`)."
+    },
+    {
+      "name": "ExportMode",
+      "declaration": "export type ExportMode = 'video' | 'audio';",
+      "summary": "Whether an export renders the picture, the sound, or both."
+    },
+    {
+      "name": "ExportJobStatus",
+      "declaration": "export type ExportJobStatus = 'queued' | 'rendering' | 'completed' | 'failed' | 'cancelled';",
+      "summary": "Status of an export job (`RenderJobStatus`)."
+    },
+    {
+      "name": "ExportPhase",
+      "declaration": "export type ExportPhase = 'preparing' | 'rendering' | 'encoding' | 'finalizing';",
+      "summary": "Phase of a running export (`RenderProgress['phase']`)."
+    },
+    {
+      "name": "ExportSettingsInfo",
+      "declaration": "export interface ExportSettingsInfo {\n    codec: ExportCodec;\n    quality: ExportQuality;\n    resolution: {\n        width: number;\n        height: number;\n    };\n    rateControl?: ExportRateControl;\n    videoBitrate?: number;\n    smartCopy?: boolean;\n    mode: ExportMode;\n    videoContainer?: ExportVideoContainer;\n    audioContainer?: ExportAudioContainer;\n    subtitleMode?: ExportSubtitleMode;\n    renderWholeProject?: boolean;\n}",
+      "summary": "The export settings the SDK owns (design §0.3, §4.7). The export dialog does not read these yet; task 3.4 makes it use the same store."
+    },
+    {
+      "name": "ExportSettingsPatch",
+      "declaration": "export type ExportSettingsPatch = Partial<ExportSettingsInfo>;",
+      "summary": "Fields `export.setSettings` can change; an absent field is left as it is."
+    },
+    {
+      "name": "ExportStartInput",
+      "declaration": "export interface ExportStartInput {\n    settings?: ExportSettingsPatch;\n    inPoint?: Frame | null;\n    outPoint?: Frame | null;\n    name?: string;\n}",
+      "summary": "Input of `export.start`."
+    },
+    {
+      "name": "ExportWaitOptions",
+      "declaration": "export interface ExportWaitOptions {\n    timeoutMs?: number;\n}",
+      "summary": "Options of `export.wait`."
+    },
+    {
+      "name": "ExportJobInfo",
+      "declaration": "export interface ExportJobInfo {\n    id: string;\n    name: string;\n    projectId?: string;\n    status: ExportJobStatus;\n    progress: number;\n    phase?: ExportPhase;\n    progressMessage?: string;\n    renderedFrames?: number;\n    totalFrames?: number;\n    inPoint: Frame | null;\n    outPoint: Frame | null;\n    durationFrames: Frame;\n    exportMode: ExportMode;\n    fileName: string;\n    savedPath?: string;\n    fileSize?: number;\n    error?: string;\n    createdAt: number;\n    startedAt?: number;\n    finishedAt?: number;\n}",
+      "summary": "One export job as the SDK reads it (`RenderJob` without its frozen snapshot)."
+    },
+    {
+      "name": "EntityKind",
+      "declaration": "export type EntityKind = 'clip' | 'track' | 'transition' | 'keyframe' | 'marker' | 'effect' | 'media' | 'subclip' | 'project' | 'range';",
+      "summary": "Kind of an entity the SDK can name (design §4.5, §4.6)."
+    },
+    {
+      "name": "EntityRef",
+      "declaration": "export interface EntityRef {\n    kind: EntityKind;\n    id: string;\n    clip?: ClipId;\n}",
+      "summary": "Reference to one entity."
+    },
+    {
+      "name": "UpdatedEntityRef",
+      "declaration": "export interface UpdatedEntityRef extends EntityRef {\n    fields: string[];\n}",
+      "summary": "A changed entity and the top-level fields that changed."
+    },
+    {
+      "name": "CommandInfo",
+      "declaration": "export interface CommandInfo {\n    type: string;\n    payload?: Record<string, unknown>;\n}",
+      "summary": "A command that ran inside a transaction, as the undo stack records it (a trim's amount in the SDK's sign)."
+    },
+    {
+      "name": "Changes",
+      "declaration": "export interface Changes {\n    commands: CommandInfo[];\n    added: EntityRef[];\n    removed: EntityRef[];\n    updated: UpdatedEntityRef[];\n    undoSteps: number;\n}",
+      "summary": "What a call or a transaction changed (design §4.6)."
+    },
+    {
+      "name": "TransactionResult",
+      "declaration": "export interface TransactionResult<T> {\n    value: T;\n    changes: Changes;\n}",
+      "summary": "Value and changes of `Studio.transaction`."
+    },
+    {
+      "name": "SdkMethodReference",
+      "declaration": "export interface SdkMethodReference {\n    name: string;\n    signature: string;\n    summary: string;\n    mapsTo: string;\n    throws: string[];\n    example: string;\n}",
+      "summary": "One method of the generated reference (design §4.9)."
+    },
+    {
+      "name": "SdkNamespaceReference",
+      "declaration": "export interface SdkNamespaceReference {\n    name: string;\n    summary: string;\n    methods: SdkMethodReference[];\n}",
+      "summary": "One namespace of the generated reference."
+    },
+    {
+      "name": "SdkTypeReference",
+      "declaration": "export interface SdkTypeReference {\n    name: string;\n    declaration: string;\n    summary: string;\n}",
+      "summary": "One public type of the generated reference."
+    },
+    {
+      "name": "SdkErrorReference",
+      "declaration": "export interface SdkErrorReference {\n    code: StudioErrorCode;\n    summary: string;\n}",
+      "summary": "One error code of the generated reference."
+    },
+    {
+      "name": "SdkReference",
+      "declaration": "export interface SdkReference {\n    version: 1;\n    namespaces: SdkNamespaceReference[];\n    types: SdkTypeReference[];\n    errors: SdkErrorReference[];\n}",
+      "summary": "The whole generated reference, as `studio.reference()` returns it."
+    },
+    {
+      "name": "StudioErrorCode",
+      "declaration": "export type StudioErrorCode = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'CONFLICT' | 'UNSUPPORTED' | 'MEDIA_UNAVAILABLE' | 'EXPORT_FAILED' | 'INTERNAL';",
+      "summary": "Code of a `StudioError` (design §4.5)."
+    },
+    {
+      "name": "StudioErrorJson",
+      "declaration": "export interface StudioErrorJson {\n    name: 'StudioError';\n    code: StudioErrorCode;\n    message: string;\n    argument?: string;\n    valid?: readonly string[];\n    entity?: EntityRef;\n    hint?: string;\n}",
+      "summary": "JSON form of a `StudioError`, what the MCP passes to its caller (design §4.5)."
+    },
+    {
+      "name": "Studio",
+      "declaration": "export interface Studio {\n    readonly version: 1;\n    readonly project: ProjectApi;\n    readonly media: MediaApi;\n    readonly subclips: SubclipsApi;\n    readonly tracks: TracksApi;\n    readonly clips: ClipsApi;\n    readonly titles: TitlesApi;\n    readonly effects: EffectsApi;\n    readonly keyframes: KeyframesApi;\n    readonly transitions: TransitionsApi;\n    readonly markers: MarkersApi;\n    readonly selection: SelectionApi;\n    readonly playback: PlaybackApi;\n    readonly export: ExportApi;\n    readonly history: HistoryApi;\n    readonly workspace: WorkspaceApi;\n    readonly looks: LooksApi;\n    readonly shadow: ShadowApi;\n    transaction<T>(label: string, fn: (studio: Studio) => T): TransactionResult<T>;\n    reference(): SdkReference;\n}",
+      "summary": "The DroneClean Studio SDK: one typed object over the editor's command store and domain stores (design §4.2). Every call that changes the timeline is one undo step; a failed call leaves the project exactly as it was."
+    }
+  ],
+  "errors": [
+    {
+      "code": "INVALID_ARGUMENT",
+      "summary": "An argument has the wrong type, the wrong shape or a value outside its range; the message names the argument and lists the valid values when they are known."
+    },
+    {
+      "code": "NOT_FOUND",
+      "summary": "An id does not exist in the active editing context or in the media library; the message names the argument, the ids that do exist and `studio.project.context()`."
+    },
+    {
+      "code": "CONFLICT",
+      "summary": "The call is valid on its own but contradicts the project's state: a cut that cannot take a transition, a keyframe inside a transition, a split outside the clip."
+    },
+    {
+      "code": "UNSUPPORTED",
+      "summary": "The editor cannot do this yet or in this browser: import without file handles, export settings the pipeline does not read, a project stored with an older schema."
+    },
+    {
+      "code": "MEDIA_UNAVAILABLE",
+      "summary": "A media file's bytes cannot be read: permission denied, the file is gone, or nothing of an import could be read."
+    },
+    {
+      "code": "EXPORT_FAILED",
+      "summary": "An export job failed or was cancelled before it wrote its file."
+    },
+    {
+      "code": "INTERNAL",
+      "summary": "A store or storage operation failed unexpectedly; the message carries the underlying reason."
+    }
+  ]
+}

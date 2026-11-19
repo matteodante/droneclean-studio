@@ -1,0 +1,80 @@
+# Packaging of DroneClean Studio's desktop shell (task 1.1).
+#
+# `dir` for arm64 only: a runnable .app for this Mac, unsigned and not notarized,
+# no auto-update. The icon is generated from the brand SVG (scripts/make-icons.mjs).
+appId: com.droneclean.studio
+productName: DroneClean Studio
+# The release's file names (scripts/release-mac.mjs): DroneClean-Studio-arm64.dmg and .zip, with no version, so the
+# site's link to the latest release (`releases/latest/download/<name>`) never changes; the version is the release's tag
+artifactName: DroneClean-Studio-${arch}.${ext}
+
+directories:
+  # Generated; ignored by studio/.gitignore ("build", "out" and "dist" at any depth).
+  output: dist
+  # Icons and entitlements live here rather than in electron-builder's default
+  # "build/" folder, which studio/.gitignore would keep out of the repository.
+  buildResources: resources
+
+files:
+  - out/**/*
+  - package.json
+
+# The editor as built by `vp build`, inside Contents/Resources/dist, and what the
+# MCP server reads beside it (task 2.2): the stdio launcher with its client
+# snippets and wrappers (`studio/mcp`, committed with the wrappers mode 0755, so
+# they stay executable), and the three corpora `search` indexes (design §4.8).
+extraResources:
+  # The editor without its source maps: the source is public, and the maps are 91 MB of the app
+  - from: ../dist
+    to: dist
+    filter:
+      - '**/*'
+      - '!**/*.map'
+  # The licences the app is distributed under (docs/publish-audit.md, 19 Nov 2026): GPL-3.0-or-later, the third-party
+  # notices, and FreeCut's MIT notice
+  - from: ../src/studio/licenses/LICENSE-GPL-3.0.txt
+    to: LICENSE-GPL-3.0.txt
+  - from: ../src/studio/licenses/THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: ../LICENSE
+    to: LICENSE-FreeCut-MIT.txt
+  - from: ../mcp
+    to: mcp
+  - from: ../src/studio/sdk/reference/sdk-reference.json
+    to: corpus/sdk-reference.json
+  - from: ../src/features/docs/pages
+    to: corpus/guide
+  - from: ../docs/feature-map
+    to: corpus/feature-map
+
+mac:
+  category: public.app-category.video
+  icon: resources/icon.icns
+  target:
+    - target: dir
+      arch:
+        - arm64
+  # The app's own FFmpeg (scripts/build-ffmpeg.sh, run by `npm run package`): Resources/ffmpeg/ffmpeg and ffprobe,
+  # the first place src/main/media/ffmpeg.ts looks, with their licence and NOTICE.
+  extraResources:
+    - from: vendor/ffmpeg
+      to: ffmpeg
+      filter:
+        - ffmpeg
+        - ffprobe
+        - COPYING.LGPLv2.1
+        - NOTICE.txt
+  # No Developer ID, no notarization, no auto-update for now (signing is a later task in PLAN.md). The everyday
+  # package skips signing; the release signs the whole bundle ad hoc (`-c.mac.identity=-`), so a downloaded copy opens
+  # through System Settings › Privacy & Security › Open Anyway instead of reading as damaged.
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+# Windows (task 8.1); the icon is ready, no Windows target is built yet.
+win:
+  icon: resources/icon.ico
+
+# The release's disk image (scripts/release-mac.mjs): the app and a link to Applications, dragged across.
+dmg:
+  title: DroneClean Studio ${version}

@@ -1,0 +1,146 @@
+[package]
+name = "gyroflow-core"
+version = "1.7.0"
+authors = ["Adrian <adrian.eddy@gmail.com>", "Elvin Chen"]
+edition = "2024"
+build = "build.rs"
+
+[lib]
+name = "gyroflow_core"
+path = "lib.rs"
+
+[dependencies]
+#telemetry-parser = { path = "../../../telemetry-parser" }
+telemetry-parser = { git = "https://github.com/AdrianEddy/telemetry-parser.git", rev = "9350bc2" }
+#ahrs = { version = "0.5.0", features = ["field_access"] }
+ahrs = { version = "0.8", features = ["field_access"] }
+
+stabilize_spirv = { path = "./gpu/stabilize_spirv" }
+
+#rs-sync = { path = "../../../rs-sync" }
+rs-sync = { git = "https://github.com/gyroflow/rs-sync.git", rev = "fc5cf51" }
+
+argmin = { version = "0.11.0", default-features = false }
+argmin-math = { version = "0.5.1", default-features = false, features = ["nalgebra_v0_34"] }
+
+nalgebra = { version = "0.34", features = ["serde-serialize"] }
+rayon = "1.12"
+biquad = "0.6.0"
+fastrand = "2.5"
+lazy_static = "1.5.1"
+parking_lot = "0.13"
+regex = "1.13"
+bincode = { version = "2.0", features = ["serde"] }
+serde = { version = "1.0", features = ["rc"] }
+serde_json = "1.0"
+crc32fast = "1.5.5"
+byteorder = "1.5.0"
+line_drawing = "1.0.1"
+rand = "0.10.3"
+time = { version = "0.3.53", features = ["local-offset"] }
+itertools = "0.15.0"
+num = "0.4.3"
+base91 = "0.1.0"
+bitflags = "2.13"
+enum_delegate = "0.2.0"
+simple-easing = "1.1.1"
+half = "2.7"
+lru = "0.19"
+thiserror = "2.0.21"
+ciborium = "0.2.2"
+dyn-clone = "1.0"
+app_dirs2 = { git = "https://github.com/app-dirs-rs/app_dirs2.git", version = "2.5" }
+whoami = "2.1"
+
+akaze = { version = "*", git = "https://github.com/rust-cv/cv.git", rev = "d271a9a", features = ["rayon"] }
+eight-point = { version = "*", git = "https://github.com/rust-cv/cv.git", rev = "d271a9a" }
+cv-pinhole = { version = "*", git = "https://github.com/rust-cv/cv.git", rev = "d271a9a" }
+cv-core = { version = "*", git = "https://github.com/rust-cv/cv.git", rev = "d271a9a" }
+sample-consensus = "1.0.2"
+arrsac = "0.11"
+rand_xoshiro = "0.7.0"
+image = { version = "0.25", default-features = false }
+space = { version = "0.17", features = ["alloc"] }
+bitarray = { version = "0.9", features = ["space"] }
+enterpolation = "0.3.0"
+libc = "0.2"
+bytemuck = "1.25"
+pollster = "1.0.1"
+futures-intrusive = "0.5.0"
+flate2 = "1.1"
+walkdir = "2.5.0"
+url = "2.5.8"
+urlencoding = "2.1.3"
+log = "0.4"
+ocl = { version = "0.19.7", optional = true }
+ocl-interop = { version = "0.1.6", optional = true }
+rustfft = "6.4.1"
+exr = "1.74"
+opencv = { version = "0.101", default-features = false, features = [ "calib3d", "features2d", "imgproc", "optflow", "clang-runtime" ], optional = true } #"imgcodecs","objdetect","sfm",
+median = "0.3"
+burn-store = { git = "https://github.com/tracel-ai/burn", rev = "aa57952dde04a5b8dcaa48fd30e9a77c63ffa9a9", default-features = false, features = ["std"], optional = true }
+burn-cubecl = { git = "https://github.com/tracel-ai/burn", rev = "aa57952dde04a5b8dcaa48fd30e9a77c63ffa9a9", optional = true }
+cubecl = { git = "https://github.com/tracel-ai/cubecl", rev = "6c9af8de97ad0ec782e78fe05f7db45b3ee987d6", optional = true }
+sha2 = { version = "0.10", optional = true }
+ureq = { version = "3.3", optional = true }
+
+web-time = "1.1"
+wgpu = { version = "30", features = ["spirv", "naga-ir", "fragile-send-sync-non-atomic-wasm"] }
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2 = "0.6"
+objc2-metal = "0.3"
+objc2-core-foundation = "0.3"
+objc2-foundation = "0.3"
+
+# gmflow (feature use-burn) runs on the GPU only: Vulkan (SPIR-V kernels), or Metal on Apple systems with WGSL kernels,
+# whose matmuls and convolutions use the GPU's matrix units through wgpu's cooperative matrices (gmflow/coop.rs). Without
+# burn's native MSL (its metal feature): on the macOS 15 CI GPU WGSL with them ran a pass in 0.86 to 0.90 s, native MSL
+# in 1.05 to 1.14 s
+[target.'cfg(not(target_vendor = "apple"))'.dependencies]
+burn = { git = "https://github.com/tracel-ai/burn", rev = "aa57952dde04a5b8dcaa48fd30e9a77c63ffa9a9", default-features = false, features = ["std", "autotune", "fusion", "cubecl", "extension", "vulkan"], optional = true }
+[target.'cfg(target_vendor = "apple")'.dependencies]
+burn = { git = "https://github.com/tracel-ai/burn", rev = "aa57952dde04a5b8dcaa48fd30e9a77c63ffa9a9", default-features = false, features = ["std", "autotune", "fusion", "cubecl", "extension", "wgpu"], optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies.windows]
+version = "0.62"
+features = [ "Win32_System_Com", "Win32_System_Console", "Win32_System_SystemServices", "Win32_UI_Shell", "Win32_Foundation", "Wdk_Foundation", "Win32_System_LibraryLoader",
+             "Win32_Graphics_Dwm", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Dxgi",
+             "Win32_Security", "Win32_Security_Authorization", "Win32_System_WindowsProgramming", "Win32_System_Threading", "Win32_System_Registry",
+             "Win32_Storage_Packaging_Appx", "Win32_Storage_FileSystem", "Win32_System_IO" ]
+
+[features]
+default = []
+use-opencl = ["ocl", "ocl-interop"]
+use-opencv = ["opencv"]
+use-burn = ["dep:burn", "dep:burn-store", "dep:burn-cubecl", "dep:cubecl", "dep:sha2", "dep:ureq"]
+bundle-lens-profiles = []
+cache-gyro-metadata = []
+
+[profile.deploy]
+inherits = "release"
+lto = true
+codegen-units = 1
+
+[profile.profile]
+inherits = "release"
+debug = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.22"
+ndk = { version = "0.9.0", features = ["media", "api-level-26"] }
+ndk-sys = { version = "0.6.0" }
+ndk-context = { version = "0.1.1" }
+
+[build-dependencies]
+ureq = "3.5"
+
+# --- DroneClean spike: browser build ---
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ash = "0.38.0"
+libloading = "0.9"

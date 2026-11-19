@@ -1,0 +1,33 @@
+#!/bin/sh
+# The stdio command of DroneClean Studio's MCP server (task 2.2, design §4.1).
+#
+# An MCP client configured with this file gets a stdio server: it runs
+# `launcher.mjs` beside it under the app's own Electron binary in Node mode, so
+# a client needs no Node of its own, and the launcher starts the app with `--mcp`
+# when it is closed. Point DRONECLEAN_APP_BINARY at another copy of the app to use
+# that one instead.
+set -eu
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+launcher="${here}/launcher.mjs"
+if [ ! -f "${launcher}" ]; then
+  printf '%s\n' "DroneClean Studio: launcher.mjs is missing beside $0; reinstall the app." >&2
+  exit 2
+fi
+binary=${DRONECLEAN_APP_BINARY:-}
+if [ -z "${binary}" ]; then
+  # macOS: Contents/Resources/mcp -> Contents/MacOS/<app>; Linux: resources/mcp
+  # -> the app folder's binary.
+  for candidate in "${here}/../../MacOS/DroneClean Studio" "${here}/../../droneclean-studio"; do
+    if [ -x "${candidate}" ]; then
+      binary=${candidate}
+      break
+    fi
+  done
+fi
+if [ -z "${binary}" ] || [ ! -x "${binary}" ]; then
+  printf '%s\n' "DroneClean Studio: the app binary was not found beside $0; set DRONECLEAN_APP_BINARY to it." >&2
+  exit 2
+fi
+# `ELECTRON_RUN_AS_NODE` makes this process (the launcher) run under the app's
+# own Node; the launcher starts the app itself without it.
+DRONECLEAN_APP_BINARY="${binary}" ELECTRON_RUN_AS_NODE=1 exec "${binary}" "${launcher}" "$@"

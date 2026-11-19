@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>6.3 - the stabilization stage against the module's CPU warp</title>
+    <style>
+      body {
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+        margin: 2rem;
+      }
+      #log {
+        white-space: pre;
+        font-family: ui-monospace, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- The clip is chosen with setInputFiles; the page hands the File to Gyroflow's worker (unmodified), which reads it in
+     slices. The frame the CPU warp is compared on is decoded by ffmpeg in probe.mjs and served at /frame.rgba. The
+     script is probe-page.ts, bundled for this page by probe.mjs (the stage is TypeScript). -->
+    <input id="clip" type="file" />
+    <div id="log"></div>
+    <script type="module" src="/probe-page.js"></script>
+  </body>
+</html>

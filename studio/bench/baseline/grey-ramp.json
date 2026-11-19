@@ -1,0 +1,185 @@
+{
+  "measurement": "grey-ramp",
+  "schemaVersion": 1,
+  "date": "2026-11-18T01:40:17.540Z",
+  "git": {
+    "commit": "1bd342dbb50edc4da64e7b1bf7d732f0bfaa4635",
+    "shortCommit": "1bd342db",
+    "branch": "studio/0.3-bench-kit",
+    "subject": "docs(bench): say that the render falls back to the main thread as the app does",
+    "modifiedFiles": [],
+    "clean": true
+  },
+  "machine": {
+    "model": "Mac16,10",
+    "chip": "Apple M4",
+    "logicalCpus": 10,
+    "memoryGiB": 16,
+    "os": "macOS 27.2 (arm64)",
+    "node": "v24.14.0",
+    "gpuNames": ["Apple M4, 10 cores"],
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "machineBusyAtStart": {
+    "loadAverage1m": 3.89,
+    "competingProcessesAbove5PercentCpu": [],
+    "quiet": false
+  },
+  "browser": {
+    "chromeVersion": "158.0.8127.36",
+    "webgpuAdapter": {
+      "available": true,
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    }
+  },
+  "inputs": {
+    "clip": {
+      "path": "<footage>/DJI_20261115124704_0020_D.MP4",
+      "sha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa"
+    },
+    "ramp": {
+      "file": "<cache>/ramp10.mp4",
+      "sha256": "d207aec9eca939ae189b925da2a73abacc8691afe9a75181857d81f3d385250e",
+      "bytes": 30920,
+      "distinctLevelsPerRow": {
+        "allRows": {
+          "min": 680,
+          "median": 880,
+          "max": 880,
+          "rows": 2880
+        },
+        "scoredRows": {
+          "fromRow": 64,
+          "min": 879,
+          "median": 880,
+          "max": 880,
+          "rows": 2816
+        }
+      },
+      "width": 3840,
+      "height": 2880,
+      "stream": {
+        "profile": "Main 10",
+        "width": 3840,
+        "height": 2880,
+        "pix_fmt": "yuv420p10le",
+        "nb_frames": "30"
+      }
+    }
+  },
+  "elapsedSecondsBeforeThisRecord": 248,
+  "parameters": {
+    "project": "3840x2880 at 30 fps, one clip, no effect, no transform",
+    "exportSettings": "H.265 MP4, custom 120 Mbps",
+    "framesDecoded": "frame 10 of the export",
+    "rowsScored": "rows 64 to 2879 (the ramp file itself is coarser in its top rows)",
+    "unit": "distinct luma code values per row, counted at 10-bit scale without any range or colour conversion (an 8-bit file's values are scaled by 4, exactly)",
+    "sourceLevelsPerRow": {
+      "fromRow": 64,
+      "min": 879,
+      "median": 880,
+      "max": 880,
+      "rows": 2816
+    }
+  },
+  "result": {
+    "distinctLevelsPerRow": {
+      "min": 221,
+      "median": 221,
+      "max": 221,
+      "rows": 2816
+    },
+    "fileBitDepth": 8,
+    "filePixelFormat": "yuv420p",
+    "targetAfterEngineWork": "at least 800",
+    "meetsTarget": false,
+    "export": {
+      "id": "ramp-custom-10s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 120000000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 30,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": false,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "audio-processing"
+        }
+      },
+      "timing": {
+        "frames": 30,
+        "wallSeconds": 0.93,
+        "framesPerSecond": 32.2,
+        "steadyFramesPerSecond": 47.4,
+        "firstFrameSeconds": 0.14,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 0.77,
+        "baselineBeforeExportGiB": 0.7,
+        "peakByProcessTypeGiB": {
+          "browser": 0.2,
+          "gpu-process": 0.11,
+          "utility": 0.1,
+          "renderer": 0.37
+        },
+        "samples": 3,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main",
+        "pixelFormat": "yuv420p",
+        "bitDepth": 8,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "iec61966-2-1",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 242676,
+        "durationSeconds": 1,
+        "bitrateBitsPerSecond": 1941408,
+        "streamBitrateBitsPerSecond": 1934224,
+        "frameCount": 30,
+        "declaredFrameRate": "30/1",
+        "declaredAverageFrameRate": "30/1",
+        "declaredFrameRateValue": 30,
+        "timestamps": {
+          "timeBase": "1/30",
+          "frames": 30,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 1,
+              "count": 29
+            }
+          ],
+          "distinctGapCount": 1,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": [
+        "[CanvasAudio/pipeline] Failed to process audio segment 6f97992e-d15f-4c2c-926e-965eefae2f02: Unable to decode audio data"
+      ]
+    }
+  },
+  "measurementSeconds": 5
+}

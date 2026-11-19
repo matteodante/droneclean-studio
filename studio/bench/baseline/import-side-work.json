@@ -1,0 +1,1410 @@
+{
+  "measurement": "import-side-work",
+  "schemaVersion": 1,
+  "date": "2026-11-19T03:40:59.007Z",
+  "git": {
+    "commit": "4714c3132e0229ab320ad40c9dad855655ac37e9",
+    "shortCommit": "4714c3132",
+    "branch": "import-speed",
+    "subject": "fix(bench): side-work imports",
+    "modifiedFiles": [],
+    "clean": true
+  },
+  "machine": {
+    "model": "Mac16,10",
+    "chip": "Apple M4",
+    "logicalCpus": 10,
+    "memoryGiB": 16,
+    "os": "macOS 27.2 (arm64)",
+    "node": "v24.14.0",
+    "gpuNames": [
+      "Apple M4, 10 cores"
+    ],
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "machineBusyAtStart": {
+    "loadAverage1m": 3.52,
+    "competingProcessesAbove5PercentCpu": [],
+    "quiet": false
+  },
+  "browser": {
+    "chromeVersion": "158.0.8127.36",
+    "webgpuAdapter": null
+  },
+  "inputs": {
+    "clip": {
+      "path": "<footage>/DJI_20261115124704_0020_D.MP4",
+      "sha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa"
+    },
+    "importFolder": "<footage>",
+    "clips": [
+      {
+        "fileName": "DJI_20261115114020_0019_D.MP4",
+        "bytes": 2420049099
+      },
+      {
+        "fileName": "DJI_20261115124704_0020_D.MP4",
+        "bytes": 3764360098
+      },
+      {
+        "fileName": "DJI_20261115125055_0021_D.MP4",
+        "bytes": 3184209916
+      },
+      {
+        "fileName": "DJI_20261115130513_0022_D.MP4",
+        "bytes": 2191230451
+      },
+      {
+        "fileName": "DJI_20261115130733_0023_D.MP4",
+        "bytes": 3764056069
+      },
+      {
+        "fileName": "DJI_20261115131124_0024_D.MP4",
+        "bytes": 3079864709
+      }
+    ]
+  },
+  "elapsedSecondsBeforeThisRecord": 724,
+  "parameters": {
+    "how": "the app's own drop path, then filmstripCache.getFilmstrip, proxyService.generateProxy and createStabilizationClient().open for the clips left in the library; each phase starts every clip at once and the editor's own queues decide what runs together (the motion data is the exception: one clip after another, an engine each, because six engines at once hold about 10 GB)",
+    "clipLimit": null,
+    "skipped": [],
+    "workspace": "OPFS directory (as measurement 6)"
+  },
+  "result": {
+    "hardwareConcurrency": 10,
+    "idleMachineBeforeRun": {
+      "samples": 8,
+      "coreCount": 10,
+      "busyCoresMean": 0.6,
+      "busyCoresPeak": 0.94,
+      "coresOver50PercentMean": 0,
+      "overallCpuPercent": {
+        "mean": 6,
+        "peak": 9.4
+      },
+      "perCoreMeanPercent": [
+        16,
+        12,
+        6,
+        3,
+        1,
+        1,
+        9,
+        7,
+        4,
+        3
+      ],
+      "gpuBusyPercent": {
+        "mean": 0,
+        "peak": 0
+      },
+      "browserPeakBytes": null
+    },
+    "audio": {
+      "streams": [
+        {
+          "fileName": "DJI_20261115114020_0019_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        },
+        {
+          "fileName": "DJI_20261115124704_0020_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        },
+        {
+          "fileName": "DJI_20261115125055_0021_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        },
+        {
+          "fileName": "DJI_20261115130513_0022_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        },
+        {
+          "fileName": "DJI_20261115130733_0023_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        },
+        {
+          "fileName": "DJI_20261115131124_0024_D.MP4",
+          "streams": [
+            "video:hevc",
+            "data:undefined",
+            "video:mjpeg"
+          ],
+          "hasAudio": false
+        }
+      ],
+      "anyClipHasAudio": false,
+      "libraryAudioCodecs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "waveformJobs": "none: no clip has an audio track, so the editor starts no waveform job"
+    },
+    "library": [
+      {
+        "id": "cc6f4236-42aa-4407-996a-086dbcfccbd9",
+        "fileName": "DJI_20261115114020_0019_D.MP4",
+        "fileSize": 2420049099,
+        "duration": 207.97443333333334,
+        "fps": 29.97002997002997,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      },
+      {
+        "id": "ad2d6d0a-8315-45b0-8fc2-9392d5abfb02",
+        "fileName": "DJI_20261115124704_0020_D.MP4",
+        "fileSize": 3764360098,
+        "duration": 230.88065,
+        "fps": 59.94005994005994,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      },
+      {
+        "id": "3013f55b-940a-4546-9ee6-b469b4008454",
+        "fileName": "DJI_20261115125055_0021_D.MP4",
+        "fileSize": 3184209916,
+        "duration": 195.31178333333332,
+        "fps": 59.94005994005994,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      },
+      {
+        "id": "47210787-76ca-4353-aa2b-136a44785463",
+        "fileName": "DJI_20261115130513_0022_D.MP4",
+        "fileSize": 2191230451,
+        "duration": 134.35088333333334,
+        "fps": 59.94005994005994,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      },
+      {
+        "id": "a10709ac-6011-4bc0-bef0-be6c27bd1750",
+        "fileName": "DJI_20261115130733_0023_D.MP4",
+        "fileSize": 3764056069,
+        "duration": 230.81391666666667,
+        "fps": 59.94005994005994,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      },
+      {
+        "id": "ba89a9cf-f6ce-4bc4-b7aa-dcc897e032e3",
+        "fileName": "DJI_20261115131124_0024_D.MP4",
+        "fileSize": 3079864709,
+        "duration": 188.95543333333333,
+        "fps": 59.94005994005994,
+        "width": 3840,
+        "height": 2880,
+        "codec": "hevc",
+        "audioCodec": null
+      }
+    ],
+    "phases": {
+      "filmstrips": {
+        "ran": true,
+        "phase": "filmstrips",
+        "kinds": [
+          "filmstrips"
+        ],
+        "seconds": 23.134,
+        "perClip": [
+          {
+            "fileName": "DJI_20261115114020_0019_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 14.541,
+            "seconds": 14.541,
+            "detail": {
+              "frames": 58,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          },
+          {
+            "fileName": "DJI_20261115124704_0020_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 18.862,
+            "seconds": 18.862,
+            "detail": {
+              "frames": 61,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          },
+          {
+            "fileName": "DJI_20261115125055_0021_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 9.42,
+            "seconds": 9.42,
+            "detail": {
+              "frames": 56,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          },
+          {
+            "fileName": "DJI_20261115130513_0022_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 3.619,
+            "seconds": 3.619,
+            "detail": {
+              "frames": 46,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          },
+          {
+            "fileName": "DJI_20261115130733_0023_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 23.134,
+            "seconds": 23.134,
+            "detail": {
+              "frames": 61,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          },
+          {
+            "fileName": "DJI_20261115131124_0024_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 6.777,
+            "seconds": 6.777,
+            "detail": {
+              "frames": 55,
+              "isComplete": true
+            },
+            "kind": "filmstrips"
+          }
+        ],
+        "kindSeconds": {
+          "filmstrips": 23.134
+        },
+        "load": {
+          "samples": 46,
+          "coreCount": 10,
+          "busyCoresMean": 2.2,
+          "busyCoresPeak": 4.03,
+          "coresOver50PercentMean": 0,
+          "overallCpuPercent": {
+            "mean": 22,
+            "peak": 40.3
+          },
+          "perCoreMeanPercent": [
+            23,
+            13,
+            8,
+            5,
+            5,
+            4,
+            41,
+            41,
+            40,
+            40
+          ],
+          "gpuBusyPercent": {
+            "mean": 5.6,
+            "peak": 9
+          },
+          "browserPeakBytes": 1425014784,
+          "browserCpuSeconds": 27.19,
+          "browserBusyCores": 1.18
+        }
+      },
+      "proxies": {
+        "ran": true,
+        "phase": "proxies",
+        "kinds": [
+          "proxies"
+        ],
+        "seconds": 324.633,
+        "perClip": [
+          {
+            "fileName": "DJI_20261115114020_0019_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 33.838,
+            "seconds": 33.838,
+            "detail": {
+              "proxyBytes": 10642503
+            },
+            "kind": "proxies"
+          },
+          {
+            "fileName": "DJI_20261115124704_0020_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 104.745,
+            "seconds": 104.745,
+            "detail": {
+              "proxyBytes": 7495995
+            },
+            "kind": "proxies"
+          },
+          {
+            "fileName": "DJI_20261115125055_0021_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 163.792,
+            "seconds": 163.792,
+            "detail": {
+              "proxyBytes": 7879903
+            },
+            "kind": "proxies"
+          },
+          {
+            "fileName": "DJI_20261115130513_0022_D.MP4",
+            "startSeconds": 0,
+            "endSeconds": 203.424,
+            "seconds": 203.424,
+            "detail": {
+              "proxyBytes": 5492256
+            },
+            "kind": "proxies"
+          },
+          {
+            "fileName": "DJI_20261115130733_0023_D.MP4",
+            "startSeconds": 0.001,
+            "endSeconds": 270.439,
+            "seconds": 270.438,
+            "detail": {
+              "proxyBytes": 15217189
+            },
+            "kind": "proxies"
+          },
+          {
+            "fileName": "DJI_20261115131124_0024_D.MP4",
+            "startSeconds": 0.001,
+            "endSeconds": 324.633,
+            "seconds": 324.633,
+            "detail": {
+              "proxyBytes": 10682414
+            },
+            "kind": "proxies"
+          }
+        ],
+        "kindSeconds": {
+          "proxies": 324.633
+        },
+        "load": {
+          "samples": 648,
+          "coreCount": 10,
+          "busyCoresMean": 2.64,
+          "busyCoresPeak": 7.69,
+          "coresOver50PercentMean": 0,
+          "overallCpuPercent": {
+            "mean": 26.4,
+            "peak": 76.9
+          },
+          "perCoreMeanPercent": [
+            43,
+            28,
+            20,
+            15,
+            12,
+            10,
+            34,
+            34,
+            34,
+            34
+          ],
+          "gpuBusyPercent": {
+            "mean": 90.2,
+            "peak": 99
+          },
+          "browserPeakBytes": 1880981504,
+          "browserCpuSeconds": 327.17,
+          "browserBusyCores": 1.01
+        }
+      },
+      "motion-data": {
+        "ran": true,
+        "phase": "motion-data",
+        "kinds": [
+          "motion-data"
+        ],
+        "seconds": 28.045,
+        "perClip": [
+          {
+            "fileName": "DJI_20261115114020_0019_D.MP4",
+            "startSeconds": 0.034,
+            "endSeconds": 3.981,
+            "seconds": 3.947,
+            "detail": {
+              "readSeconds": 2.477,
+              "bytesRead": 1711712144,
+              "fileBytes": 2420049099,
+              "orientations": 415871,
+              "smoothedOrientations": 415871,
+              "frames": 6233,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          },
+          {
+            "fileName": "DJI_20261115124704_0020_D.MP4",
+            "startSeconds": 3.981,
+            "endSeconds": 9.639,
+            "seconds": 5.658,
+            "detail": {
+              "readSeconds": 3.537,
+              "bytesRead": 1896500750,
+              "fileBytes": 3764360098,
+              "orientations": 461674,
+              "smoothedOrientations": 461674,
+              "frames": 13839,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          },
+          {
+            "fileName": "DJI_20261115125055_0021_D.MP4",
+            "startSeconds": 9.639,
+            "endSeconds": 14.44,
+            "seconds": 4.801,
+            "detail": {
+              "readSeconds": 2.994,
+              "bytesRead": 1615946096,
+              "fileBytes": 3184209916,
+              "orientations": 390551,
+              "smoothedOrientations": 390551,
+              "frames": 11707,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          },
+          {
+            "fileName": "DJI_20261115130513_0022_D.MP4",
+            "startSeconds": 14.44,
+            "endSeconds": 17.762,
+            "seconds": 3.321,
+            "detail": {
+              "readSeconds": 2.097,
+              "bytesRead": 1136110352,
+              "fileBytes": 2191230451,
+              "orientations": 268646,
+              "smoothedOrientations": 268646,
+              "frames": 8053,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          },
+          {
+            "fileName": "DJI_20261115130733_0023_D.MP4",
+            "startSeconds": 17.762,
+            "endSeconds": 23.413,
+            "seconds": 5.651,
+            "detail": {
+              "readSeconds": 3.541,
+              "bytesRead": 1895867158,
+              "fileBytes": 3764056069,
+              "orientations": 461544,
+              "smoothedOrientations": 461544,
+              "frames": 13835,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          },
+          {
+            "fileName": "DJI_20261115131124_0024_D.MP4",
+            "startSeconds": 23.413,
+            "endSeconds": 28.045,
+            "seconds": 4.632,
+            "detail": {
+              "readSeconds": 2.902,
+              "bytesRead": 1565298832,
+              "fileBytes": 3079864709,
+              "orientations": 377830,
+              "smoothedOrientations": 377830,
+              "frames": 11326,
+              "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+            },
+            "kind": "motion-data"
+          }
+        ],
+        "kindSeconds": {
+          "motion-data": 28.045
+        },
+        "load": {
+          "samples": 56,
+          "coreCount": 10,
+          "busyCoresMean": 1.47,
+          "busyCoresPeak": 2.18,
+          "coresOver50PercentMean": 0,
+          "overallCpuPercent": {
+            "mean": 14.7,
+            "peak": 21.8
+          },
+          "perCoreMeanPercent": [
+            14,
+            10,
+            5,
+            2,
+            1,
+            1,
+            29,
+            28,
+            28,
+            29
+          ],
+          "gpuBusyPercent": {
+            "mean": 1.6,
+            "peak": 89
+          },
+          "browserPeakBytes": 2590212096,
+          "browserCpuSeconds": 27.55,
+          "browserBusyCores": 0.98
+        }
+      },
+      "filmstripMetrics": {
+        "totals": {
+          "started": 18,
+          "completed": 12,
+          "failed": 6,
+          "aborted": 0
+        },
+        "averages": {
+          "durationMs": 4388,
+          "timeToFirstFrameMs": 1993,
+          "extractFramesPerSecond": 16.47
+        },
+        "memory": {
+          "cacheBytes": 1570788,
+          "cacheEntries": 6,
+          "activeExtractions": 0,
+          "queuedExtractions": 0,
+          "usedJSHeapBytes": 13870072,
+          "maxConcurrentExtractions": 1
+        },
+        "recent": [
+          {
+            "id": "2bac807f-72da-4ff3-808b-0f485ccf7b1a",
+            "mediaId": "3013f55b-940a-4546-9ee6-b469b4008454",
+            "startedAtMs": 1795058947796,
+            "durationMs": 15,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 56,
+            "existingTargetFrames": 0,
+            "framesToExtract": 56,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "cefef504-7dcf-415a-92d2-3196b6b813f5",
+            "mediaId": "47210787-76ca-4353-aa2b-136a44785463",
+            "startedAtMs": 1795058947797,
+            "durationMs": 19,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 46,
+            "existingTargetFrames": 0,
+            "framesToExtract": 46,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "68cd28c6-58e7-4f4a-8576-653d3c126812",
+            "mediaId": "ba89a9cf-f6ce-4bc4-b7aa-dcc897e032e3",
+            "startedAtMs": 1795058947797,
+            "durationMs": 31,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 55,
+            "existingTargetFrames": 0,
+            "framesToExtract": 55,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "e1bcf0de-0d34-449b-a235-175253ed7ec9",
+            "mediaId": "47210787-76ca-4353-aa2b-136a44785463",
+            "startedAtMs": 1795058947816,
+            "durationMs": 3594,
+            "timeToFirstFrameMs": 43,
+            "targetFrames": 46,
+            "existingTargetFrames": 0,
+            "framesToExtract": 46,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 46,
+            "outcome": "completed"
+          },
+          {
+            "id": "917126c9-0fd5-4d0c-8c91-a4b27b98374c",
+            "mediaId": "ba89a9cf-f6ce-4bc4-b7aa-dcc897e032e3",
+            "startedAtMs": 1795058947829,
+            "durationMs": 6740,
+            "timeToFirstFrameMs": 3608,
+            "targetFrames": 55,
+            "existingTargetFrames": 0,
+            "framesToExtract": 55,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 55,
+            "outcome": "completed"
+          },
+          {
+            "id": "a299ae8a-a403-40b1-a913-3a212430dec7",
+            "mediaId": "3013f55b-940a-4546-9ee6-b469b4008454",
+            "startedAtMs": 1795058947811,
+            "durationMs": 9400,
+            "timeToFirstFrameMs": 6783,
+            "targetFrames": 56,
+            "existingTargetFrames": 0,
+            "framesToExtract": 56,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 56,
+            "outcome": "completed"
+          },
+          {
+            "id": "5e4b62ba-4802-4a3e-872f-90bd9f78b65a",
+            "mediaId": "cc6f4236-42aa-4407-996a-086dbcfccbd9",
+            "startedAtMs": 1795058947797,
+            "durationMs": 9433,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 58,
+            "existingTargetFrames": 0,
+            "framesToExtract": 58,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "3defa6b1-8de4-4b88-a143-20614c5e47f2",
+            "mediaId": "ad2d6d0a-8315-45b0-8fc2-9392d5abfb02",
+            "startedAtMs": 1795058947797,
+            "durationMs": 9446,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 61,
+            "existingTargetFrames": 0,
+            "framesToExtract": 61,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "1faaf1f9-1110-4f2e-b874-e7f6a399accf",
+            "mediaId": "cc6f4236-42aa-4407-996a-086dbcfccbd9",
+            "startedAtMs": 1795058957231,
+            "durationMs": 5101,
+            "timeToFirstFrameMs": 33,
+            "targetFrames": 58,
+            "existingTargetFrames": 0,
+            "framesToExtract": 58,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 58,
+            "outcome": "completed"
+          },
+          {
+            "id": "fdb365b0-40cb-4114-828a-9b06284561f6",
+            "mediaId": "a10709ac-6011-4bc0-bef0-be6c27bd1750",
+            "startedAtMs": 1795058947797,
+            "durationMs": 14558,
+            "timeToFirstFrameMs": null,
+            "targetFrames": 61,
+            "existingTargetFrames": 0,
+            "framesToExtract": 61,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 0,
+            "outcome": "failed"
+          },
+          {
+            "id": "6a731c2f-2c68-411b-bbe0-705267d60ad8",
+            "mediaId": "ad2d6d0a-8315-45b0-8fc2-9392d5abfb02",
+            "startedAtMs": 1795058957243,
+            "durationMs": 9410,
+            "timeToFirstFrameMs": 5135,
+            "targetFrames": 61,
+            "existingTargetFrames": 0,
+            "framesToExtract": 61,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 61,
+            "outcome": "completed"
+          },
+          {
+            "id": "816a2c89-d2b4-4a13-b470-ab8517e9ccd9",
+            "mediaId": "a10709ac-6011-4bc0-bef0-be6c27bd1750",
+            "startedAtMs": 1795058962355,
+            "durationMs": 8570,
+            "timeToFirstFrameMs": 4323,
+            "targetFrames": 61,
+            "existingTargetFrames": 0,
+            "framesToExtract": 61,
+            "priorityFrames": 0,
+            "backgroundStride": 1,
+            "workerCount": 0,
+            "usedVideoFallback": true,
+            "extractedFrames": 61,
+            "outcome": "completed"
+          },
+          {
+            "id": "29e9c420-9a6b-4be3-b159-103414899383",
+            "mediaId": "cc6f4236-42aa-4407-996a-086dbcfccbd9",
+            "startedAtMs": 1795059005692,
+            "durationMs": 219,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 4,
+            "framesToExtract": 8,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 66,
+            "outcome": "completed"
+          },
+          {
+            "id": "d6fd1fdb-60a9-4ce4-8128-f06b1b6ef30b",
+            "mediaId": "ad2d6d0a-8315-45b0-8fc2-9392d5abfb02",
+            "startedAtMs": 1795059076611,
+            "durationMs": 275,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 4,
+            "framesToExtract": 8,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 69,
+            "outcome": "completed"
+          },
+          {
+            "id": "a51eab53-14cb-4a73-9b70-be23faf59100",
+            "mediaId": "3013f55b-940a-4546-9ee6-b469b4008454",
+            "startedAtMs": 1795059135650,
+            "durationMs": 259,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 5,
+            "framesToExtract": 7,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 63,
+            "outcome": "completed"
+          },
+          {
+            "id": "3b21b8ee-3939-4774-94fb-147e895f084f",
+            "mediaId": "47210787-76ca-4353-aa2b-136a44785463",
+            "startedAtMs": 1795059175294,
+            "durationMs": 275,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 5,
+            "framesToExtract": 7,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 53,
+            "outcome": "completed"
+          },
+          {
+            "id": "bef54937-fd0e-494d-867e-b777e2879265",
+            "mediaId": "a10709ac-6011-4bc0-bef0-be6c27bd1750",
+            "startedAtMs": 1795059242287,
+            "durationMs": 256,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 4,
+            "framesToExtract": 8,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 69,
+            "outcome": "completed"
+          },
+          {
+            "id": "409cc6b2-ea9e-4bba-86f7-bbc0fd001de4",
+            "mediaId": "ba89a9cf-f6ce-4bc4-b7aa-dcc897e032e3",
+            "startedAtMs": 1795059296499,
+            "durationMs": 80,
+            "timeToFirstFrameMs": 0,
+            "targetFrames": 12,
+            "existingTargetFrames": 5,
+            "framesToExtract": 7,
+            "priorityFrames": 12,
+            "backgroundStride": 1,
+            "workerCount": 1,
+            "usedVideoFallback": false,
+            "extractedFrames": 62,
+            "outcome": "completed"
+          }
+        ]
+      },
+      "import": {
+        "seconds": 0.513,
+        "perClip": [
+          {
+            "fileName": "DJI_20261115114020_0019_D.MP4",
+            "startMs": 6.095,
+            "seconds": 0.278,
+            "mediaId": "cc6f4236-42aa-4407-996a-086dbcfccbd9",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          },
+          {
+            "fileName": "DJI_20261115124704_0020_D.MP4",
+            "startMs": 6.255,
+            "seconds": 0.28,
+            "mediaId": "ad2d6d0a-8315-45b0-8fc2-9392d5abfb02",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          },
+          {
+            "fileName": "DJI_20261115125055_0021_D.MP4",
+            "startMs": 284.155,
+            "seconds": 0.086,
+            "mediaId": "3013f55b-940a-4546-9ee6-b469b4008454",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          },
+          {
+            "fileName": "DJI_20261115130513_0022_D.MP4",
+            "startMs": 285.835,
+            "seconds": 0.159,
+            "mediaId": "47210787-76ca-4353-aa2b-136a44785463",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          },
+          {
+            "fileName": "DJI_20261115130733_0023_D.MP4",
+            "startMs": 369.74,
+            "seconds": 0.141,
+            "mediaId": "a10709ac-6011-4bc0-bef0-be6c27bd1750",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          },
+          {
+            "fileName": "DJI_20261115131124_0024_D.MP4",
+            "startMs": 445.12,
+            "seconds": 0.067,
+            "mediaId": "ba89a9cf-f6ce-4bc4-b7aa-dcc897e032e3",
+            "storageType": "handle",
+            "filePath": null,
+            "isDuplicate": false
+          }
+        ],
+        "load": {
+          "samples": 1,
+          "coreCount": 10,
+          "busyCoresMean": 1.86,
+          "busyCoresPeak": 1.86,
+          "coresOver50PercentMean": 0,
+          "overallCpuPercent": {
+            "mean": 18.6,
+            "peak": 18.6
+          },
+          "perCoreMeanPercent": [
+            22,
+            18,
+            6,
+            4,
+            4,
+            2,
+            32,
+            35,
+            31,
+            31
+          ],
+          "gpuBusyPercent": {
+            "mean": 3,
+            "peak": 3
+          },
+          "browserPeakBytes": 911835136
+        }
+      }
+    },
+    "motionRecompute": {
+      "fileName": "DJI_20261115124704_0020_D.MP4",
+      "engineStartSeconds": 0.023,
+      "openSeconds": 5.632,
+      "readSeconds": 3.533,
+      "bytesRead": 1896500750,
+      "recomputeSeconds": [
+        0.911,
+        0.912,
+        0.913
+      ],
+      "load": {
+        "samples": 17,
+        "coreCount": 10,
+        "busyCoresMean": 1.37,
+        "busyCoresPeak": 1.92,
+        "coresOver50PercentMean": 0,
+        "overallCpuPercent": {
+          "mean": 13.7,
+          "peak": 19.2
+        },
+        "perCoreMeanPercent": [
+          13,
+          8,
+          3,
+          2,
+          1,
+          1,
+          27,
+          28,
+          28,
+          28
+        ],
+        "gpuBusyPercent": {
+          "mean": 0,
+          "peak": 0
+        },
+        "browserPeakBytes": 2424176640,
+        "browserCpuSeconds": 8.07,
+        "browserBusyCores": 0.96
+      }
+    },
+    "together": {
+      "ran": true,
+      "gyroAvailable": true,
+      "phase": "together",
+      "kinds": [
+        "filmstrips",
+        "proxies",
+        "motion-data"
+      ],
+      "seconds": 317.231,
+      "perClip": [
+        {
+          "fileName": "DJI_20261115114020_0019_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 20.628,
+          "seconds": 20.628,
+          "detail": {
+            "frames": 58,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115124704_0020_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 32.503,
+          "seconds": 32.502,
+          "detail": {
+            "frames": 61,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115125055_0021_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 25.575,
+          "seconds": 25.575,
+          "detail": {
+            "frames": 56,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115130513_0022_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 7.678,
+          "seconds": 7.678,
+          "detail": {
+            "frames": 46,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115130733_0023_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 39.644,
+          "seconds": 39.644,
+          "detail": {
+            "frames": 61,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115131124_0024_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 13.005,
+          "seconds": 13.005,
+          "detail": {
+            "frames": 55,
+            "isComplete": true
+          },
+          "kind": "filmstrips"
+        },
+        {
+          "fileName": "DJI_20261115114020_0019_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 40.78,
+          "seconds": 40.78,
+          "detail": {
+            "proxyBytes": 10642503
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115124704_0020_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 106.277,
+          "seconds": 106.276,
+          "detail": {
+            "proxyBytes": 7495995
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115125055_0021_D.MP4",
+          "startSeconds": 0,
+          "endSeconds": 161.298,
+          "seconds": 161.298,
+          "detail": {
+            "proxyBytes": 7879903
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115130513_0022_D.MP4",
+          "startSeconds": 0.001,
+          "endSeconds": 199.191,
+          "seconds": 199.191,
+          "detail": {
+            "proxyBytes": 5492256
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115130733_0023_D.MP4",
+          "startSeconds": 0.001,
+          "endSeconds": 263.884,
+          "seconds": 263.883,
+          "detail": {
+            "proxyBytes": 15217189
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115131124_0024_D.MP4",
+          "startSeconds": 0.001,
+          "endSeconds": 317.231,
+          "seconds": 317.231,
+          "detail": {
+            "proxyBytes": 10682414
+          },
+          "kind": "proxies"
+        },
+        {
+          "fileName": "DJI_20261115114020_0019_D.MP4",
+          "startSeconds": 0.051,
+          "endSeconds": 5.576,
+          "seconds": 5.525,
+          "detail": {
+            "readSeconds": 3.453,
+            "bytesRead": 1711712144,
+            "fileBytes": 2420049099,
+            "orientations": 415871,
+            "smoothedOrientations": 415871,
+            "frames": 6233,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        },
+        {
+          "fileName": "DJI_20261115124704_0020_D.MP4",
+          "startSeconds": 5.576,
+          "endSeconds": 19.83,
+          "seconds": 14.255,
+          "detail": {
+            "readSeconds": 11.334,
+            "bytesRead": 1896500750,
+            "fileBytes": 3764360098,
+            "orientations": 461674,
+            "smoothedOrientations": 461674,
+            "frames": 13839,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        },
+        {
+          "fileName": "DJI_20261115125055_0021_D.MP4",
+          "startSeconds": 19.83,
+          "endSeconds": 31.083,
+          "seconds": 11.252,
+          "detail": {
+            "readSeconds": 8.531,
+            "bytesRead": 1615946096,
+            "fileBytes": 3184209916,
+            "orientations": 390551,
+            "smoothedOrientations": 390551,
+            "frames": 11707,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        },
+        {
+          "fileName": "DJI_20261115130513_0022_D.MP4",
+          "startSeconds": 31.083,
+          "endSeconds": 40.688,
+          "seconds": 9.606,
+          "detail": {
+            "readSeconds": 8.02,
+            "bytesRead": 1136110352,
+            "fileBytes": 2191230451,
+            "orientations": 268646,
+            "smoothedOrientations": 268646,
+            "frames": 8053,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        },
+        {
+          "fileName": "DJI_20261115130733_0023_D.MP4",
+          "startSeconds": 40.688,
+          "endSeconds": 47.143,
+          "seconds": 6.455,
+          "detail": {
+            "readSeconds": 3.954,
+            "bytesRead": 1895867158,
+            "fileBytes": 3764056069,
+            "orientations": 461544,
+            "smoothedOrientations": 461544,
+            "frames": 13835,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        },
+        {
+          "fileName": "DJI_20261115131124_0024_D.MP4",
+          "startSeconds": 47.143,
+          "endSeconds": 53.977,
+          "seconds": 6.834,
+          "detail": {
+            "readSeconds": 4.822,
+            "bytesRead": 1565298832,
+            "fileBytes": 3079864709,
+            "orientations": 377830,
+            "smoothedOrientations": 377830,
+            "frames": 11326,
+            "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps"
+          },
+          "kind": "motion-data"
+        }
+      ],
+      "kindSeconds": {
+        "filmstrips": 39.644,
+        "proxies": 317.231,
+        "motion-data": 53.977
+      },
+      "load": {
+        "samples": 633,
+        "coreCount": 10,
+        "busyCoresMean": 2.81,
+        "busyCoresPeak": 7.61,
+        "coresOver50PercentMean": 0,
+        "overallCpuPercent": {
+          "mean": 28.1,
+          "peak": 76.1
+        },
+        "perCoreMeanPercent": [
+          41,
+          22,
+          14,
+          9,
+          7,
+          6,
+          45,
+          45,
+          45,
+          45
+        ],
+        "gpuBusyPercent": {
+          "mean": 94.9,
+          "peak": 98
+        },
+        "browserPeakBytes": 2529525760,
+        "browserCpuSeconds": 488.93,
+        "browserBusyCores": 1.54
+      }
+    },
+    "summary": {
+      "importSeconds": 0.513,
+      "kindSeconds": {
+        "filmstrips": 23.134,
+        "proxies": 324.633,
+        "motion-data": 28.045
+      },
+      "sideWorkSerialSeconds": 375.8,
+      "serialSeconds": 376.3,
+      "togetherSeconds": 317.231,
+      "togetherSavedSeconds": 58.6,
+      "longestKind": {
+        "kind": "proxies",
+        "seconds": 324.633
+      },
+      "longestKindShare": 0.86,
+      "halfOfSerialSeconds": 188.2
+    },
+    "notReached": [
+      "probing and thumbnails are inside the import call and are not timed apart",
+      "preview audio conform and waveform generation (no audio on these clips)",
+      "a second run: one run per figure, read machineBusyAtStart"
+    ]
+  },
+  "sampler": {
+    "intervalMs": 500,
+    "samples": 1414,
+    "durationSeconds": 722.7,
+    "cpu": {
+      "coreCount": 10,
+      "overallPercent": {
+        "mean": 26.3,
+        "peak": 76.9
+      },
+      "perCorePercent": [
+        {
+          "mean": 40,
+          "peak": 100
+        },
+        {
+          "mean": 23.9,
+          "peak": 100
+        },
+        {
+          "mean": 15.6,
+          "peak": 100
+        },
+        {
+          "mean": 11.3,
+          "peak": 100
+        },
+        {
+          "mean": 8.9,
+          "peak": 100
+        },
+        {
+          "mean": 7.7,
+          "peak": 100
+        },
+        {
+          "mean": 39.1,
+          "peak": 96
+        },
+        {
+          "mean": 38.9,
+          "peak": 98
+        },
+        {
+          "mean": 38.9,
+          "peak": 96
+        },
+        {
+          "mean": 38.8,
+          "peak": 96
+        }
+      ]
+    },
+    "gpu": {
+      "busyPercent": {
+        "mean": 84,
+        "peak": 99
+      },
+      "memoryMiB": {
+        "mean": 600,
+        "peak": 875
+      },
+      "encoderEnginePercent": {
+        "available": false,
+        "reason": "macOS shows no media-engine counter without sudo"
+      },
+      "decoderEnginePercent": {
+        "available": false,
+        "reason": "macOS shows no media-engine counter without sudo"
+      }
+    },
+    "browserMemory": {
+      "peakBytes": 2590212096,
+      "peakByProcessType": {
+        "browser": 310657024,
+        "gpu-process": 128253952,
+        "utility": 103940096,
+        "renderer": 2047361024
+      }
+    }
+  },
+  "measurementSeconds": 724
+}

@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["./main.ts", "./import.ts", "./side-work.ts", "./long-export.ts", "./controls.ts", "../../src/**/*.d.ts"]
+}

@@ -1,0 +1,18 @@
+{
+  "comment": "May only shrink. See checks/reachable.mjs.",
+  "unreachable": [
+    "src/studio/color/display.ts",
+    "src/studio/color/gpu/probe-page.ts",
+    "src/studio/color/gpu/probe.mjs",
+    "src/studio/color/log.ts",
+    "src/studio/color/tetrahedral.ts",
+    "src/studio/licenses/generate-font-licenses.mjs",
+    "src/studio/sdk/reference/cli.ts",
+    "src/studio/sdk/reference/generate.ts",
+    "src/studio/sdk/reference/parse-declarations.ts",
+    "src/studio/shadow/cut/proof/page.ts",
+    "src/studio/shadow/cut/proof/proof.mjs",
+    "src/studio/stabilization/probe-page.ts",
+    "src/studio/stabilization/probe.mjs"
+  ]
+}

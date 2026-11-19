@@ -1,0 +1,199 @@
+{
+  "measurement": "frame-fidelity",
+  "schemaVersion": 1,
+  "date": "2026-11-18T01:38:07.176Z",
+  "git": {
+    "commit": "1bd342dbb50edc4da64e7b1bf7d732f0bfaa4635",
+    "shortCommit": "1bd342db",
+    "branch": "studio/0.3-bench-kit",
+    "subject": "docs(bench): say that the render falls back to the main thread as the app does",
+    "modifiedFiles": [],
+    "clean": true
+  },
+  "machine": {
+    "model": "Mac16,10",
+    "chip": "Apple M4",
+    "logicalCpus": 10,
+    "memoryGiB": 16,
+    "os": "macOS 27.2 (arm64)",
+    "node": "v24.14.0",
+    "gpuNames": ["Apple M4, 10 cores"],
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "machineBusyAtStart": {
+    "loadAverage1m": 3.89,
+    "competingProcessesAbove5PercentCpu": [],
+    "quiet": false
+  },
+  "browser": {
+    "chromeVersion": "158.0.8127.36",
+    "webgpuAdapter": {
+      "available": true,
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    }
+  },
+  "inputs": {
+    "clip": {
+      "path": "<footage>/DJI_20261115124704_0020_D.MP4",
+      "sha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa"
+    },
+    "segment": {
+      "file": "<cache>/segment_60s_1199f.mp4",
+      "frames": 1199,
+      "seconds": 20,
+      "startSeconds": 60,
+      "sourceStartPts": 60.06,
+      "sourceSha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa",
+      "sha256": "148c5293616f6728eb1e2728915502369394254fca173f17115374cd15e88dbf",
+      "packetStreamMd5": "6059e085e2f2079678eb01f036af597f",
+      "bytes": 324776918
+    }
+  },
+  "elapsedSecondsBeforeThisRecord": 118,
+  "parameters": {
+    "segmentSeconds": 20,
+    "exportSettings": "H.265 MP4, custom 120 Mbps (so that the encoder noise stays far below the difference between frames)",
+    "method": "every frame of the source and of the export is reduced to a 192x144 grey picture; each output frame is matched to the source frame with the smallest sum of absolute differences, searched along the sequence",
+    "expectedRepeatEveryOutputFrames": 1000,
+    "expectedRepeatEverySeconds": 16.67,
+    "segmentIsLongEnoughForOneRepeat": true,
+    "minimumSecondsForOneRepeat": 16.7
+  },
+  "result": {
+    "sourceFrames": 1199,
+    "outputFrames": 1200,
+    "uniqueSourceFramesShown": 1198,
+    "repeatedFrames": 2,
+    "skippedSourceFrames": 0,
+    "outOfOrderFrames": 0,
+    "firstSourceFrame": 0,
+    "lastSourceFrame": 1197,
+    "sourceFramesMissingAtStart": 0,
+    "sourceFramesMissingAtEnd": 1,
+    "everySourceFrameExactlyOnceInOrder": false,
+    "repeated": [
+      {
+        "outputFrame": 7,
+        "sourceFrame": 6,
+        "matchWasAmbiguous": true
+      },
+      {
+        "outputFrame": 1008,
+        "sourceFrame": 1006,
+        "matchWasAmbiguous": false
+      }
+    ],
+    "skipped": [],
+    "outOfOrder": [],
+    "outputFramesBetweenRepeats": [1001],
+    "ambiguousMatches": 21,
+    "worstMatchDistance": 24323,
+    "secondOpinionWithoutSource": {
+      "typicalFrameToFrameDifference": 55089,
+      "count": 7,
+      "outputFrames": [1, 3, 7, 16, 19, 20, 1008],
+      "listedRepeatsAlsoFoundByIt": 2
+    },
+    "timestamps": {
+      "timeBase": "1/60",
+      "frames": 1200,
+      "evenlySpaced": true,
+      "distinctGapsInTicks": [
+        {
+          "gap": 1,
+          "count": 1199
+        }
+      ],
+      "distinctGapCount": 1,
+      "duplicateTimestamps": 0
+    },
+    "export": {
+      "id": "segment-custom-20s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 120000000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 60,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": false,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "audio-processing"
+        }
+      },
+      "timing": {
+        "frames": 1200,
+        "wallSeconds": 27.2,
+        "framesPerSecond": 44.1,
+        "steadyFramesPerSecond": 44.7,
+        "firstFrameSeconds": 0.18,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 2.01,
+        "baselineBeforeExportGiB": 0.98,
+        "peakByProcessTypeGiB": {
+          "browser": 0.23,
+          "gpu-process": 0.12,
+          "utility": 0.1,
+          "renderer": 1.57
+        },
+        "samples": 92,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main",
+        "pixelFormat": "yuv420p",
+        "bitDepth": 8,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "iec61966-2-1",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 301168692,
+        "durationSeconds": 20,
+        "bitrateBitsPerSecond": 120467477,
+        "streamBitrateBitsPerSecond": 120465170,
+        "frameCount": 1200,
+        "declaredFrameRate": "60/1",
+        "declaredAverageFrameRate": "60/1",
+        "declaredFrameRateValue": 60,
+        "timestamps": {
+          "timeBase": "1/60",
+          "frames": 1200,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 1,
+              "count": 1199
+            }
+          ],
+          "distinctGapCount": 1,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": [
+        "[CanvasAudio/pipeline] Failed to process audio segment c65ba5d8-f5bd-4d33-aeee-1dc298a4aed6: Unable to decode audio data"
+      ]
+    }
+  },
+  "measurementSeconds": 78
+}

@@ -1,0 +1,16 @@
+// OpenCode, stdio (task 2.2, design §4.1).
+//
+// APP is the app's wrapper: on macOS
+// /Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp
+// (Windows: ...\DroneClean Studio\resources\mcp\droneclean-mcp.cmd).
+// The app needs Settings → Agent access switched on once.
+{
+  "mcp": {
+    "servers": {
+      "droneclean": {
+        "type": "local",
+        "command": ["APP"]
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "licenses": {
+    "title": "라이선스",
+    "backToHome": "홈으로 돌아가기",
+    "intro": "© 2026 DroneClean. 아래의 오픈 소스 프로젝트를 기반으로 만들어졌습니다.",
+    "projectTitle": "DroneClean Studio",
+    "freeCutTitle": "FreeCut",
+    "fontsTitle": "글꼴",
+    "fontsLicense": "글꼴은 <ofl>SIL Open Font License 1.1</ofl> 또는 <apache>Apache License 2.0</apache>에 따라 사용됩니다."
+  }
+}

@@ -1,0 +1,5 @@
+# Everything a run writes (build of the app under test, failure pictures, local baselines).
+/out/
+
+# The two committed test videos are inputs, not footage; the repository ignores *.mp4 by default.
+!/media/*.mp4

@@ -1,0 +1,10 @@
+{
+  "name": "gyroflow-wasm-test",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Chrome worker test of gyroflow/wasm (npm install, then GYRO_CLIP=... node chrome-worker.test.mjs)",
+  "dependencies": {
+    "playwright-core": "1.60.0"
+  }
+}

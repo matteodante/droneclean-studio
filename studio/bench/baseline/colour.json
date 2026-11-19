@@ -1,0 +1,284 @@
+{
+  "measurement": "colour",
+  "schemaVersion": 1,
+  "date": "2026-11-18T01:40:12.902Z",
+  "git": {
+    "commit": "1bd342dbb50edc4da64e7b1bf7d732f0bfaa4635",
+    "shortCommit": "1bd342db",
+    "branch": "studio/0.3-bench-kit",
+    "subject": "docs(bench): say that the render falls back to the main thread as the app does",
+    "modifiedFiles": [],
+    "clean": true
+  },
+  "machine": {
+    "model": "Mac16,10",
+    "chip": "Apple M4",
+    "logicalCpus": 10,
+    "memoryGiB": 16,
+    "os": "macOS 27.2 (arm64)",
+    "node": "v24.14.0",
+    "gpuNames": ["Apple M4, 10 cores"],
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "machineBusyAtStart": {
+    "loadAverage1m": 3.89,
+    "competingProcessesAbove5PercentCpu": [],
+    "quiet": false
+  },
+  "browser": {
+    "chromeVersion": "158.0.8127.36",
+    "webgpuAdapter": {
+      "available": true,
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    }
+  },
+  "inputs": {
+    "clip": {
+      "path": "<footage>/DJI_20261115124704_0020_D.MP4",
+      "sha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa"
+    },
+    "segment": {
+      "file": "<cache>/segment_60s_599f.mp4",
+      "frames": 599,
+      "seconds": 10,
+      "startSeconds": 60,
+      "sourceStartPts": 60.06,
+      "sourceSha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa",
+      "sha256": "94b027f243fda46f7ff635de9ceb3abc6111daa35064b49ccc40ceb766e3e6fe",
+      "packetStreamMd5": "3e52bdb82549b0fc26a30047b744daf8",
+      "bytes": 162272014
+    },
+    "lut": {
+      "file": "<lut>.cube",
+      "title": "<lut title>",
+      "size": 33,
+      "sha256": "f5b68a8970ba1ed483ec8da2f57f4579911db4fa6d823b26c6fe8085edbcf6a7"
+    }
+  },
+  "elapsedSecondsBeforeThisRecord": 243,
+  "parameters": {
+    "segmentSeconds": 10,
+    "outputFrame": 300,
+    "referenceSourceFrame": 299,
+    "sourceFramesTried": [
+      {
+        "sourceFrame": 298,
+        "meanAbsError": 5.7806428808984265
+      },
+      {
+        "sourceFrame": 299,
+        "meanAbsError": 1.724081652092333
+      },
+      {
+        "sourceFrame": 300,
+        "meanAbsError": 5.71952986810085
+      },
+      {
+        "sourceFrame": 301,
+        "meanAbsError": 7.291677921979861
+      }
+    ],
+    "reference": "FFmpeg: the 10-bit source frame to 16-bit RGB (BT.709 limited range, accurate rounding, full chroma interpolation), then lut3d with tetrahedral interpolation",
+    "outputRead": "the export's frame decoded with bt709/tv (from the file's tags) to 8-bit RGB",
+    "errorUnit": "8-bit levels: |output - reference / 257|; the mean is over every pixel and channel of the 3840x2880 frame"
+  },
+  "result": {
+    "headline": {
+      "meanAbsErrorLevels": 1.724081652092333,
+      "maxAbsErrorLevels": 37.99610894941634,
+      "perChannelMeanAbsErrorLevels": {
+        "red": 1.784221197746126,
+        "green": 1.4679963489095786,
+        "blue": 1.9200274096212946
+      },
+      "perChannelMaxAbsErrorLevels": {
+        "red": 37.24513618677043,
+        "green": 37.56420233463035,
+        "blue": 37.99610894941634
+      }
+    },
+    "exportedFileWithLut": {
+      "pixels": 11059200,
+      "perChannel": {
+        "red": {
+          "meanAbsError": 1.784221197746126,
+          "meanSignedError": -0.689034920449217,
+          "maxAbsError": 37.24513618677043,
+          "p99AbsError": 7.9375,
+          "p999AbsError": 12.0625
+        },
+        "green": {
+          "meanAbsError": 1.4679963489095786,
+          "meanSignedError": 0.1395091707367228,
+          "maxAbsError": 37.56420233463035,
+          "p99AbsError": 7,
+          "p999AbsError": 10.875
+        },
+        "blue": {
+          "meanAbsError": 1.9200274096212946,
+          "meanSignedError": -0.7642137447470444,
+          "maxAbsError": 37.99610894941634,
+          "p99AbsError": 8.125,
+          "p999AbsError": 12.125
+        }
+      },
+      "allChannels": {
+        "meanAbsError": 1.724081652092333,
+        "maxAbsError": 37.99610894941634
+      }
+    },
+    "whereTheErrorComesFrom": {
+      "pngFromRenderPathWithLut": {
+        "what": "the same frame rendered to a PNG by the render path (no video encoder, no 4:2:0), against the same reference",
+        "pixels": 11059200,
+        "perChannel": {
+          "red": {
+            "meanAbsError": 0.8199546800565898,
+            "meanSignedError": -0.8126024479352938,
+            "maxAbsError": 2.9338521400778177,
+            "p99AbsError": 1.8125,
+            "p999AbsError": 2
+          },
+          "green": {
+            "meanAbsError": 0.36587980872701015,
+            "meanSignedError": 0.16033319055671946,
+            "maxAbsError": 1.7470817120622542,
+            "p99AbsError": 1.0625,
+            "p999AbsError": 1.3125
+          },
+          "blue": {
+            "meanAbsError": 0.9088923773665234,
+            "meanSignedError": -0.9054544312329734,
+            "maxAbsError": 3.785992217898837,
+            "p99AbsError": 1.875,
+            "p999AbsError": 2.1875
+          }
+        },
+        "allChannels": {
+          "meanAbsError": 0.6982422887167078,
+          "maxAbsError": 3.785992217898837
+        }
+      },
+      "exportedFileWithoutLut": {
+        "what": "the untouched export (no LUT) against a reference with no LUT: the cost of decode, 8-bit RGB, encode and 4:2:0 alone",
+        "referenceSourceFrame": 299,
+        "pixels": 11059200,
+        "perChannel": {
+          "red": {
+            "meanAbsError": 1.952413536791889,
+            "meanSignedError": -0.9122691761050246,
+            "maxAbsError": 40.38132295719845,
+            "p99AbsError": 8.0625,
+            "p999AbsError": 11.9375
+          },
+          "green": {
+            "meanAbsError": 1.5686475700146763,
+            "meanSignedError": 0.2731011348058823,
+            "maxAbsError": 39.953307392996095,
+            "p99AbsError": 7.375,
+            "p999AbsError": 11.25
+          },
+          "blue": {
+            "meanAbsError": 2.0810383192852773,
+            "meanSignedError": -0.9513485076992862,
+            "maxAbsError": 40.87548638132296,
+            "p99AbsError": 8.5625,
+            "p999AbsError": 12.625
+          }
+        },
+        "allChannels": {
+          "meanAbsError": 1.8673664753639472,
+          "maxAbsError": 40.87548638132296
+        }
+      }
+    },
+    "export": {
+      "id": "segment-lut-custom-10s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 120000000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 60,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": false,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "visual-processing"
+        }
+      },
+      "timing": {
+        "frames": 600,
+        "wallSeconds": 13.88,
+        "framesPerSecond": 43.2,
+        "steadyFramesPerSecond": 44.7,
+        "firstFrameSeconds": 0.2,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 1.61,
+        "baselineBeforeExportGiB": 0.86,
+        "peakByProcessTypeGiB": {
+          "browser": 0.21,
+          "gpu-process": 0.18,
+          "utility": 0.1,
+          "renderer": 1.12
+        },
+        "samples": 47,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main",
+        "pixelFormat": "yuv420p",
+        "bitDepth": 8,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "iec61966-2-1",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 150897406,
+        "durationSeconds": 10,
+        "bitrateBitsPerSecond": 120717925,
+        "streamBitrateBitsPerSecond": 120715312,
+        "frameCount": 600,
+        "declaredFrameRate": "60/1",
+        "declaredAverageFrameRate": "60/1",
+        "declaredFrameRateValue": 60,
+        "timestamps": {
+          "timeBase": "1/60",
+          "frames": 600,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 1,
+              "count": 599
+            }
+          ],
+          "distinctGapCount": 1,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": [
+        "[CanvasAudio/pipeline] Failed to process audio segment 82293887-4534-4385-9885-22851dee33b1: Unable to decode audio data"
+      ]
+    }
+  },
+  "measurementSeconds": 78
+}

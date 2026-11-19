@@ -1,0 +1,229 @@
+{
+  "appShell": {
+    "newVersionAvailable": "Hay una nueva versión disponible. Guarda tu trabajo y vuelve a cargar.",
+    "saveAndReload": "Guardar y recargar",
+    "reloadWithoutSaving": "Recargar sin guardar",
+    "dockPanel": "Acoplar panel",
+    "installPrompt": {
+      "label": "Instalar DroneClean Studio",
+      "title": "Instalar DroneClean Studio",
+      "description": "Ábrelo desde tu escritorio o pantalla de inicio.",
+      "install": "Instalar",
+      "notNow": "Ahora no",
+      "dismiss": "Descartar aviso de instalación"
+    }
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "discard": "Descartar",
+    "close": "Cerrar",
+    "reset": "Restablecer",
+    "done": "Listo",
+    "loading": "Cargando...",
+    "saving": "Guardando...",
+    "deleting": "Eliminando...",
+    "clearing": "Limpiando...",
+    "queueing": "Encolando...",
+    "partial": "Parcial",
+    "untitledProject": "Proyecto sin título"
+  },
+  "presets": {
+    "profile": {
+      "label": "Perfil de color",
+      "unset": "Sin definir",
+      "suggested": "Sugerido: {{profile}}?",
+      "apply": "Aplicar"
+    },
+    "looks": {
+      "title": "Looks",
+      "unset": "Ninguno",
+      "intensity": "Intensidad",
+      "manage": "Gestionar looks…",
+      "add": "Añadir .cube",
+      "rename": "Renombrar",
+      "remove": "Quitar",
+      "rowOrder": "Probar el otro orden de filas",
+      "blueFirst": "azul primero",
+      "missing": "Look no disponible en la biblioteca",
+      "empty": "Aún no hay looks. Suelta un archivo .cube aquí o usa Añadir .cube.",
+      "removeConfirm": "¿Quitar «{{name}}» de la biblioteca?",
+      "removeUsed": "Clips que usan este look: {{count}}. ¿Quitarlo igualmente?",
+      "error": {
+        "range": "Este look espera entradas de {{min}} a {{max}}, no de 0 a 1.",
+        "tooLarge": "Este look tiene {{size}} puntos por lado; como máximo puede tener {{max}}.",
+        "noGrid": "Este archivo solo contiene una curva 1D, no un look 3D.",
+        "invalid": "Este archivo no es un look .cube válido: {{detail}}",
+        "read": "No se pudo leer el archivo .cube.",
+        "store": "No se pudo guardar la biblioteca de looks en la carpeta del espacio de trabajo.",
+        "unavailable": "Este navegador no puede abrir un selector de archivos; suelta el archivo .cube en la biblioteca."
+      }
+    },
+    "mixed": "Mixto"
+  },
+  "language": {
+    "label": "Idioma",
+    "description": "Elige el idioma utilizado en toda la aplicación.",
+    "ariaLabel": "Idioma de la interfaz"
+  },
+  "toolbar": {
+    "ariaLabel": "Barra de herramientas del editor",
+    "workspaces": {
+      "motion": "Motion",
+      "label": "Espacios de trabajo",
+      "edit": "Edición",
+      "color": "Color",
+      "animate": "Animación"
+    },
+    "backToProjects": "Volver a proyectos",
+    "backToProjectsAria": "Volver a proyectos",
+    "specs": "{{width}}x{{height}} | {{fps}} fps",
+    "specsDetailed": "{{width}}x{{height}} | {{fps}} fps | {{duration}} | {{clips}} clips | {{media}} medios | {{missing}} faltantes",
+    "whatsNew": "Novedades",
+    "whatsNewAria": "Novedades",
+    "settings": "Configuración",
+    "keyboardShortcuts": "Atajos de teclado",
+    "keyboardShortcutsAria": "Atajos de teclado",
+    "viewOnGitHub": "Ver en GitHub",
+    "joinDiscord": "Unirse a Discord",
+    "debugPanel": "Panel de depuración",
+    "debugPanelAria": "Panel de depuración",
+    "save": "Guardar",
+    "saveAria": "Guardar proyecto",
+    "export": "Exportar",
+    "exportVideo": "Exportar vídeo",
+    "downloadProjectZip": "Descargar proyecto (.zip)"
+  },
+  "unsavedChanges": {
+    "title": "Cambios sin guardar",
+    "descriptionWithName": "Tienes cambios sin guardar en <strong>{{name}}</strong>. ¿Quieres guardar antes de salir?",
+    "description": "Tienes cambios sin guardar. ¿Quieres guardar antes de salir?",
+    "discard": "Descartar",
+    "saveAndExit": "Guardar y salir",
+    "saving": "Guardando..."
+  },
+  "settings": {
+    "title": "Configuración del editor",
+    "sections": {
+      "general": "General",
+      "timeline": "Línea de tiempo",
+      "ai": "IA",
+      "storage": "Almacenamiento"
+    },
+    "general": {
+      "autoSave": "Guardado automático",
+      "interval": "Intervalo",
+      "intervalMinutes": "{{count}} min",
+      "undoHistoryDepth": "Profundidad del historial de deshacer",
+      "uiSounds": "Sonidos de interfaz",
+      "uiSoundVolume": "Volumen del sonido",
+      "uiSoundVoice": "Tema de sonido",
+      "uiSoundPreview": "Vista previa"
+    },
+    "ai": {
+      "captionSampleInterval": "Intervalo de muestreo de subtítulos",
+      "captionSampleIntervalDescription": "Con qué frecuencia Analizar con IA toma un fotograma para subtitular.",
+      "seconds": "Segundos",
+      "frames": "Fotogramas",
+      "unitSec": "s",
+      "unitFrames": "fotogramas",
+      "enterIntervalAboveZero": "Introduce un intervalo mayor que cero.",
+      "captionEstimate": "~{{sceneCount}} {{scenes}} por clip de 1 min a {{fps}} fps",
+      "scene_one": "escena",
+      "scene_other": "escenas",
+      "captionIntervalHint": "{{estimate}}. Los intervalos más pequeños producen escenas más densas pero tardan más en generarse.",
+      "defaultCaptionStyle": "Estilo de subtítulos predeterminado",
+      "defaultCaptionStyleDescription": "Estilo aplicado a los subtítulos generados a partir de transcripciones o subtitulado con IA."
+    },
+    "timeline": {
+      "snapByDefault": "Ajuste por defecto",
+      "snapByDefaultDescription": "Define el estado inicial del ajuste al abrir un proyecto.",
+      "showWaveforms": "Mostrar formas de onda",
+      "showFilmstrips": "Mostrar miniaturas de vídeo",
+      "enableFilmstripExtraction": "Extraer tiras de fotogramas",
+      "enableFilmstripExtractionDescription": "Genera tiras de miniaturas de vídeo durante la importación y la visualización en la línea de tiempo."
+    },
+    "storage": {
+      "generateMissingProxies": "Generar proxies faltantes",
+      "generateMissingProxiesDescription": "Pone en cola la generación de proxies para los vídeos de este proyecto que aún no tienen uno",
+      "queued": "En cola",
+      "generateWithCount": "Generar ({{count}})",
+      "upToDate": "Actualizado",
+      "clearProjectCache": "Borrar caché del proyecto",
+      "clearProjectCacheDescription": "Formas de onda, miniaturas de vídeo, fotogramas GIF, audio decodificado",
+      "clear": "Borrar",
+      "cleared": "Borrado",
+      "regenerateThumbnails": "Regenerar miniaturas",
+      "regenerateThumbnailsDescription": "Vuelve a crear las miniaturas de la biblioteca de medios de este proyecto",
+      "regenerate": "Regenerar",
+      "deleteProxies": "Eliminar proxies",
+      "deleteProxiesDescription": "Elimina los vídeos proxy generados para este proyecto",
+      "deleted": "Eliminado",
+      "localAi": "IA local",
+      "localAiDescription": "Descarga los runtimes residentes o borra las descargas de modelos en caché.",
+      "clearCacheConfirmTitle": "¿Borrar la caché del proyecto?",
+      "clearCacheConfirmDescription": "Esto eliminará las formas de onda, miniaturas de vídeo, fotogramas GIF y audio decodificado en caché del proyecto actual ({{count}} elementos multimedia). Se regenerarán automáticamente cuando sea necesario. Tus datos del proyecto, archivos multimedia, miniaturas y proxies no se verán afectados.",
+      "clearCache": "Borrar caché"
+    },
+    "toasts": {
+      "projectCacheCleared": "Caché del proyecto borrada",
+      "projectCachePartiallyCleared": "Caché del proyecto parcialmente borrada",
+      "projectCacheNotCleared": "Caché del proyecto no borrada",
+      "thumbnailsRegenerated": "Miniaturas regeneradas",
+      "thumbnailsPartiallyRegenerated": "Miniaturas parcialmente regeneradas",
+      "thumbnailsNotRegenerated": "Miniaturas no regeneradas",
+      "proxiesDeleted": "Proxies eliminados",
+      "proxiesPartiallyDeleted": "Proxies parcialmente eliminados",
+      "proxiesNotDeleted": "Proxies no eliminados",
+      "failedToClearCache": "No se pudo borrar la caché del proyecto",
+      "failedToRegenerateThumbnails": "No se pudieron regenerar las miniaturas",
+      "failedToDeleteProxies": "No se pudieron eliminar los proxies",
+      "itemsUpdated_one": "{{count}} elemento actualizado.",
+      "itemsUpdated_other": "{{count}} elementos actualizados.",
+      "itemsUpdatedFailed_one": "{{count}} elemento actualizado. Fallaron: {{failed}}",
+      "itemsUpdatedFailed_other": "{{count}} elementos actualizados. Fallaron: {{failed}}"
+    },
+    "feedback": {
+      "couldntClearCache": "No se pudo borrar la caché del proyecto.",
+      "couldntRegenerateThumbnails": "No se pudieron regenerar las miniaturas.",
+      "couldntDeleteProxies": "No se pudieron eliminar los proxies.",
+      "completedForItems_one": "{{action}} completado para {{count}} elemento.",
+      "completedForItems_other": "{{action}} completado para {{count}} elementos.",
+      "moreItems": "{{items}}, +{{count}} más",
+      "actionClearCache": "Borrar caché",
+      "actionRegenerateThumbnails": "Regenerar miniaturas",
+      "actionDeleteProxies": "Eliminar proxies",
+      "noMediaNeededUpdating": "No project media needed updating.",
+      "couldntProcessItems_one": "{{action}}: couldn't process {{count}} item{{detail}}",
+      "couldntProcessItems_other": "{{action}}: couldn't process {{count}} items{{detail}}",
+      "partialOutcome": "{{action}}: {{succeeded}}/{{total}} done. Needs attention: {{failed}}."
+    },
+    "agentAccess": {
+      "title": "Acceso de agentes",
+      "description": "Permite que un agente de IA que se ejecuta en este Mac lea el proyecto abierto, lo modifique e inicie exportaciones. Nada sale de tu Mac; desactivado por defecto.",
+      "enable": "Permitir agentes de IA",
+      "socketPath": "Socket",
+      "socketDescription": "La aplicación escucha aquí mientras el interruptor está activado; solo tu usuario puede leerlo.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "conflict": "Otra ventana de DroneClean Studio ya está sirviendo el acceso de agentes.",
+      "error": "El acceso de agentes no pudo iniciarse.",
+      "stateFailed": "No se pudo leer el estado del acceso de agentes.",
+      "snippetsTitle": "Conectar un cliente",
+      "snippets": {
+        "claudeCodeTitle": "Claude Code",
+        "codexTitle": "Codex",
+        "genericTitle": "Genérico (stdio)",
+        "claudeCode": "Ejecuta esto una vez en una terminal.",
+        "codex": "Añade esto a ~/.codex/config.toml.",
+        "generic": "La entrada mcpServers de un cliente stdio, como claude_desktop_config.json de Claude Desktop."
+      },
+      "lastCalls": "Últimas llamadas",
+      "noCalls": "Aún no hay llamadas.",
+      "logFailed": "No se pudo leer el registro.",
+      "duration": "{{ms}} ms",
+      "undoSteps": "Deshacer × {{count}}"
+    }
+  }
+}

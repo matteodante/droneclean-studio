@@ -1,0 +1,318 @@
+{
+  "measurement": "export-speed-and-format",
+  "schemaVersion": 1,
+  "date": "2026-11-18T01:36:49.319Z",
+  "git": {
+    "commit": "1bd342dbb50edc4da64e7b1bf7d732f0bfaa4635",
+    "shortCommit": "1bd342db",
+    "branch": "studio/0.3-bench-kit",
+    "subject": "docs(bench): say that the render falls back to the main thread as the app does",
+    "modifiedFiles": [],
+    "clean": true
+  },
+  "machine": {
+    "model": "Mac16,10",
+    "chip": "Apple M4",
+    "logicalCpus": 10,
+    "memoryGiB": 16,
+    "os": "macOS 27.2 (arm64)",
+    "node": "v24.14.0",
+    "gpuNames": ["Apple M4, 10 cores"],
+    "ffmpeg": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "machineBusyAtStart": {
+    "loadAverage1m": 3.89,
+    "competingProcessesAbove5PercentCpu": [],
+    "quiet": false
+  },
+  "browser": {
+    "chromeVersion": "158.0.8127.36",
+    "webgpuAdapter": {
+      "available": true,
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    }
+  },
+  "inputs": {
+    "clip": {
+      "path": "<footage>/DJI_20261115124704_0020_D.MP4",
+      "sha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa"
+    },
+    "segment": {
+      "file": "<cache>/segment_60s_599f.mp4",
+      "frames": 599,
+      "seconds": 10,
+      "startSeconds": 60,
+      "sourceStartPts": 60.06,
+      "sourceSha256": "c63caead24ee071ee58f984e4d1e6ea8cab15e262a3cbe54e4a29a73a5fb77fa",
+      "sha256": "94b027f243fda46f7ff635de9ceb3abc6111daa35064b49ccc40ceb766e3e6fe",
+      "packetStreamMd5": "3e52bdb82549b0fc26a30047b744daf8",
+      "bytes": 162272014
+    }
+  },
+  "elapsedSecondsBeforeThisRecord": 40,
+  "parameters": {
+    "segmentSeconds": 10,
+    "customBitrateBitsPerSecond": 120000000,
+    "project": "3840x2880 at 60 fps (59.94 fps sources are matched to 60 by the editor)",
+    "howExportRuns": "the app's own functions: mapRequestedClientSettings, assessSmartCopyEligibility, resolveClientSettings, convertTimelineToComposition, resolveMediaUrls, runRender (use-client-render.ts, render-pipeline.ts)",
+    "forcedFrameByFrame": "the clip carries a +0.01 dB audio gain (it has no audio) so that the packet-copy shortcut does not replace the render; the third run below is without it"
+  },
+  "result": {
+    "ultraAutoBitrate": {
+      "id": "segment-auto-10s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 49945000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 60,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": false,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "audio-processing"
+        }
+      },
+      "timing": {
+        "frames": 600,
+        "wallSeconds": 13.76,
+        "framesPerSecond": 43.6,
+        "steadyFramesPerSecond": 44.7,
+        "firstFrameSeconds": 0.2,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 1.51,
+        "baselineBeforeExportGiB": 0.82,
+        "peakByProcessTypeGiB": {
+          "browser": 0.21,
+          "gpu-process": 0.12,
+          "utility": 0.1,
+          "renderer": 1.08
+        },
+        "samples": 47,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main",
+        "pixelFormat": "yuv420p",
+        "bitDepth": 8,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "iec61966-2-1",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 62946974,
+        "durationSeconds": 10,
+        "bitrateBitsPerSecond": 50357579,
+        "streamBitrateBitsPerSecond": 50354966,
+        "frameCount": 600,
+        "declaredFrameRate": "60/1",
+        "declaredAverageFrameRate": "60/1",
+        "declaredFrameRateValue": 60,
+        "timestamps": {
+          "timeBase": "1/60",
+          "frames": 600,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 1,
+              "count": 599
+            }
+          ],
+          "distinctGapCount": 1,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": [
+        "[CanvasAudio/pipeline] Failed to process audio segment 3c023e1a-4f86-47e5-a26c-16cdb274a9c0: Unable to decode audio data"
+      ]
+    },
+    "custom120Mbps": {
+      "id": "segment-custom-10s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 120000000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 60,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": false,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "audio-processing"
+        }
+      },
+      "timing": {
+        "frames": 600,
+        "wallSeconds": 13.77,
+        "framesPerSecond": 43.6,
+        "steadyFramesPerSecond": 44.7,
+        "firstFrameSeconds": 0.19,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 1.51,
+        "baselineBeforeExportGiB": 0.83,
+        "peakByProcessTypeGiB": {
+          "browser": 0.21,
+          "gpu-process": 0.12,
+          "utility": 0.1,
+          "renderer": 1.08
+        },
+        "samples": 47,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main",
+        "pixelFormat": "yuv420p",
+        "bitDepth": 8,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "iec61966-2-1",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 150954528,
+        "durationSeconds": 10,
+        "bitrateBitsPerSecond": 120763622,
+        "streamBitrateBitsPerSecond": 120761009,
+        "frameCount": 600,
+        "declaredFrameRate": "60/1",
+        "declaredAverageFrameRate": "60/1",
+        "declaredFrameRateValue": 60,
+        "timestamps": {
+          "timeBase": "1/60",
+          "frames": 600,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 1,
+              "count": 599
+            }
+          ],
+          "distinctGapCount": 1,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": [
+        "[CanvasAudio/pipeline] Failed to process audio segment 1ee69433-5bf7-4b1d-b757-58f7aac032f3: Unable to decode audio data"
+      ]
+    },
+    "untouchedClipDefaultPath": {
+      "id": "segment-copy-path-auto-10s",
+      "requested": {
+        "codec": "hevc",
+        "container": "mp4",
+        "quality": "ultra",
+        "videoBitrateBitsPerSecond": 49945000,
+        "bitrateMode": "variable",
+        "width": 3840,
+        "height": 2880,
+        "fps": 60,
+        "codecFallback": null
+      },
+      "path": {
+        "renderPath": "main-thread",
+        "workerUsed": false,
+        "workerFallbackReason": "WORKER_REQUIRES_MAIN_THREAD:audio-context",
+        "packetCopyPlanned": true,
+        "smartCopy": {
+          "eligible": false,
+          "reason": "project-mismatch"
+        }
+      },
+      "timing": {
+        "frames": 600,
+        "wallSeconds": 0.18,
+        "framesPerSecond": 3274.8,
+        "steadyFramesPerSecond": 3453.7,
+        "firstFrameSeconds": 0.01,
+        "prepSeconds": 0.12
+      },
+      "memory": {
+        "peakBrowserGiB": 1.07,
+        "baselineBeforeExportGiB": 0.84,
+        "peakByProcessTypeGiB": {
+          "browser": 0.2,
+          "gpu-process": 0.09,
+          "utility": 0.09,
+          "renderer": 0.68
+        },
+        "samples": 1,
+        "note": "resident memory (RSS, ps) summed over the browser, GPU, utility and renderer processes of the benchmark browser, polled every 250 ms; shared pages are counted in each process, so this is an upper bound"
+      },
+      "file": {
+        "container": "mov,mp4,m4a,3gp,3g2,mj2",
+        "codec": "hevc",
+        "profile": "Main 10",
+        "pixelFormat": "yuv420p10le",
+        "bitDepth": 10,
+        "width": 3840,
+        "height": 2880,
+        "colour": {
+          "range": "tv",
+          "matrix": "bt709",
+          "transfer": "bt709",
+          "primaries": "bt709"
+        },
+        "sizeBytes": 162271179,
+        "durationSeconds": 9.993316,
+        "bitrateBitsPerSecond": 129903771,
+        "streamBitrateBitsPerSecond": 129900780,
+        "frameCount": 599,
+        "declaredFrameRate": "60000/1001",
+        "declaredAverageFrameRate": "6900480/115123",
+        "declaredFrameRateValue": 59.94005994005994,
+        "timestamps": {
+          "timeBase": "1/57600",
+          "frames": 599,
+          "evenlySpaced": true,
+          "distinctGapsInTicks": [
+            {
+              "gap": 961,
+              "count": 574
+            },
+            {
+              "gap": 960,
+              "count": 24
+            }
+          ],
+          "distinctGapCount": 2,
+          "duplicateTimestamps": 0
+        }
+      },
+      "pageErrors": []
+    }
+  },
+  "measurementSeconds": 40
+}

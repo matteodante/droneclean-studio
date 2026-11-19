@@ -1,0 +1,11 @@
+{
+  "licenses": {
+    "title": "ライセンス",
+    "backToHome": "ホームに戻る",
+    "intro": "© 2026 DroneClean。以下のオープンソースプロジェクトをベースにしています。",
+    "projectTitle": "DroneClean Studio",
+    "freeCutTitle": "FreeCut",
+    "fontsTitle": "フォント",
+    "fontsLicense": "フォントは <ofl>SIL Open Font License 1.1</ofl> または <apache>Apache License 2.0</apache> の下で使用されています。"
+  }
+}

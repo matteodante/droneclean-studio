@@ -1,0 +1,6 @@
+{
+  "name": "droneclean-mcp",
+  "private": true,
+  "description": "DroneClean Studio's MCP contract and launcher (PLAN.md task 2.2); not an npm package and not installed.",
+  "type": "commonjs"
+}

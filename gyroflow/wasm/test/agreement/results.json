@@ -1,0 +1,508 @@
+{
+  "note": "Task 6.2 of PLAN.md: five frames of clip 0020 rendered by the installed Gyroflow with its default settings, against the CPU warp of gyroflow/wasm. Written by run.mjs; the pictures are in the work folder.",
+  "clip": "DJI_20261115124704_0020_D.MP4",
+  "clip_bytes": 3764360098,
+  "gyroflow": {
+    "path": "<Gyroflow.app>/Contents/MacOS/gyroflow",
+    "version": "1.7.0"
+  },
+  "project": {
+    "input": [
+      3840,
+      2880
+    ],
+    "output": {
+      "codec": "H.265/HEVC",
+      "interpolation": "Lanczos4",
+      "output_width": 3840,
+      "output_height": 2160
+    },
+    "fps": 59.94005994005994,
+    "frames": 13839,
+    "duration_ms": 230880.65,
+    "stabilization": {
+      "fov": 1,
+      "method": "Default",
+      "smoothing_params": [
+        {
+          "name": "smoothness",
+          "value": 0.5
+        },
+        {
+          "name": "smoothness_pitch",
+          "value": 0.5
+        },
+        {
+          "name": "smoothness_yaw",
+          "value": 0.5
+        },
+        {
+          "name": "smoothness_roll",
+          "value": 0.5
+        },
+        {
+          "name": "per_axis",
+          "value": 0
+        },
+        {
+          "name": "trim_range_only",
+          "value": 1
+        },
+        {
+          "name": "max_smoothness",
+          "value": 1
+        },
+        {
+          "name": "alpha_0_1s",
+          "value": 0.1
+        }
+      ],
+      "frame_readout_time": 10.517524999995613,
+      "frame_readout_direction": "TopToBottom",
+      "adaptive_zoom_window": 4,
+      "adaptive_zoom_center_offset": [
+        0,
+        0
+      ],
+      "adaptive_zoom_method": 1,
+      "additional_rotation": [
+        0,
+        0,
+        0
+      ],
+      "additional_translation": [
+        0,
+        0,
+        0
+      ],
+      "lens_correction_amount": 1,
+      "output_projection": "rectilinear",
+      "horizon_lock_amount": 0,
+      "horizon_lock_roll": 0,
+      "horizon_lock_pitch_enabled": false,
+      "horizon_lock_pitch": 0,
+      "automatic_lock": false,
+      "turn_threshold": 5,
+      "turn_smoothing_ms": 500,
+      "turn_multiplier": 1,
+      "tilt_accel_limit": null,
+      "use_gravity_vectors": false,
+      "horizon_lock_integration_method": 1,
+      "video_speed": 1,
+      "video_speed_affects_smoothing": true,
+      "video_speed_affects_zooming": true,
+      "video_speed_affects_zooming_limit": true,
+      "max_zoom": 130,
+      "max_zoom_iterations": 5,
+      "fixed_zoom": false,
+      "zoom_limit_whole_clip": false,
+      "frame_offset": 0,
+      "focal_length_smoothing_enabled": false,
+      "focal_length_max_zoom_rate": 0.5,
+      "lens_metadata_delay_frames": 0,
+      "lens_breathing_enabled": true
+    },
+    "lens": {
+      "name": "DJI Avata2",
+      "calib_dimension": {
+        "w": 3840,
+        "h": 2880
+      },
+      "output_dimension": {
+        "w": 3840,
+        "h": 2160
+      },
+      "camera_matrix": [
+        [
+          1457.07373046875,
+          0,
+          1920
+        ],
+        [
+          0,
+          1457.07373046875,
+          1440
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "distortion_coeffs": [
+        0.15513110160827637,
+        0.1371408998966217,
+        -0.0938614010810852,
+        0.0041704000905156136
+      ],
+      "frame_readout_time": 10.517524999995613
+    }
+  },
+  "module": {
+    "info": {
+      "input": [
+        3840,
+        2880
+      ],
+      "output": [
+        3840,
+        2160
+      ],
+      "fps": 59.940059940059946,
+      "frames": 13839,
+      "orientations": 461674,
+      "smoothed_orientations": 461674,
+      "lens": "DJI_Avata2___4k_4by3_3840x2880-0.00fps",
+      "lens_model": "None",
+      "frame_readout_time_ms": 10.517524999995613,
+      "min_fov": 0.7883856071366204,
+      "fovs": 13839,
+      "bytes_read": 1896500750
+    },
+    "settings": {
+      "method": "Default",
+      "params": {
+        "smoothness": 0.5,
+        "smoothness_pitch": 0.5,
+        "smoothness_yaw": 0.5,
+        "smoothness_roll": 0.5,
+        "per_axis": 0,
+        "trim_range_only": 1,
+        "max_smoothness": 1,
+        "alpha_0_1s": 0.1
+      },
+      "fov": 1,
+      "adaptive_zoom_window": 4,
+      "horizon_lock_amount": 0,
+      "horizon_lock_roll": 0
+    },
+    "open_seconds": 3
+  },
+  "not_expressed": {
+    "interpolation": {
+      "gyroflow": "Lanczos4",
+      "module": "Bilinear (its CPU warp has no setter; that is Stabilization::default())",
+      "note": "Gyroflow's render uses its export interpolation setting in the warp shader"
+    },
+    "trim_range_only": {
+      "gyroflow": "0 for the render, so the trim only selects frames and the smoothing covers the whole clip",
+      "module": "no trims: the module always smooths the whole clip"
+    },
+    "frame_readout_time": {
+      "both": 10.517524999995613,
+      "from": "the lens profile in the clip"
+    }
+  },
+  "frames": [
+    {
+      "frame": 1000,
+      "timestamp_us": 16683333,
+      "trim_half_width": 60,
+      "trim_attempts": [
+        {
+          "trim_half_width": 60,
+          "fov": 1.0352252401969644,
+          "whole_clip_fov": 1.0352252401969644,
+          "equal": true
+        }
+      ],
+      "render_frames": 122,
+      "render_seconds": 109.6,
+      "gyroflow_frame_index": 60,
+      "gyroflow": {
+        "fov": 1.0352252401969644,
+        "minimal_fov": 1.1799148321151733
+      },
+      "module": {
+        "frame": 1000,
+        "fov": 1.0352252352838034,
+        "minimal_fov": 1.1799148321151733,
+        "fov_difference": 4.9131609891617245e-9,
+        "matrices_sha256": "5b99305c744d68817cb78184d43d9d0f520249440cb907a6169abc5cb74896e8"
+      },
+      "alignment": {
+        "previous_psnr": 26.547687,
+        "psnr": 48.115154,
+        "next_psnr": 26.633771
+      },
+      "psnr": {
+        "r": 48.054225,
+        "g": 48.278586,
+        "b": 48.017229,
+        "overall": 48.115154
+      },
+      "ssim": {
+        "r": 0.994568,
+        "g": 0.994998,
+        "b": 0.994393,
+        "all": 0.994653,
+        "db": 22.719159
+      },
+      "pictures": {
+        "module": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/module-1000.png",
+        "gyroflow": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/gyroflow-1000.png",
+        "difference": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/difference-1000.png"
+      }
+    },
+    {
+      "frame": 3000,
+      "timestamp_us": 50050000,
+      "trim_half_width": 300,
+      "trim_attempts": [
+        {
+          "trim_half_width": 60,
+          "fov": 1.354207231823524,
+          "whole_clip_fov": 1.333137055555143,
+          "equal": false
+        },
+        {
+          "trim_half_width": 120,
+          "fov": 1.3482076281044613,
+          "whole_clip_fov": 1.333137055555143,
+          "equal": false
+        },
+        {
+          "trim_half_width": 180,
+          "fov": 1.3482076281044613,
+          "whole_clip_fov": 1.333137055555143,
+          "equal": false
+        },
+        {
+          "trim_half_width": 240,
+          "fov": 1.3482076281044613,
+          "whole_clip_fov": 1.333137055555143,
+          "equal": false
+        },
+        {
+          "trim_half_width": 300,
+          "fov": 1.333137055555143,
+          "whole_clip_fov": 1.333137055555143,
+          "equal": true
+        }
+      ],
+      "render_frames": 602,
+      "render_seconds": 403,
+      "gyroflow_frame_index": 300,
+      "gyroflow": {
+        "fov": 1.333137055555143,
+        "minimal_fov": 1.381176471710205
+      },
+      "module": {
+        "frame": 3000,
+        "fov": 1.3331370736455872,
+        "minimal_fov": 1.381176471710205,
+        "fov_difference": 1.8090444253715532e-8,
+        "matrices_sha256": "9f5540599d2c19968f761026405a289c11ef7ad225216a615b46f1bc200dc4cc"
+      },
+      "alignment": {
+        "previous_psnr": 34.52433,
+        "psnr": 47.406769,
+        "next_psnr": 34.724755
+      },
+      "psnr": {
+        "r": 47.361821,
+        "g": 47.567949,
+        "b": 47.29517,
+        "overall": 47.406769
+      },
+      "ssim": {
+        "r": 0.994355,
+        "g": 0.994818,
+        "b": 0.993941,
+        "all": 0.994371,
+        "db": 22.49594
+      },
+      "pictures": {
+        "module": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/module-3000.png",
+        "gyroflow": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/gyroflow-3000.png",
+        "difference": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/difference-3000.png"
+      }
+    },
+    {
+      "frame": 6000,
+      "timestamp_us": 100100000,
+      "trim_half_width": 120,
+      "trim_attempts": [
+        {
+          "trim_half_width": 60,
+          "fov": 1.2039328065463848,
+          "whole_clip_fov": 1.075218849231096,
+          "equal": false
+        },
+        {
+          "trim_half_width": 120,
+          "fov": 1.075218849231096,
+          "whole_clip_fov": 1.075218849231096,
+          "equal": true
+        }
+      ],
+      "render_frames": 242,
+      "render_seconds": 112.9,
+      "gyroflow_frame_index": 120,
+      "gyroflow": {
+        "fov": 1.075218849231096,
+        "minimal_fov": 1.2297109365463257
+      },
+      "module": {
+        "frame": 6000,
+        "fov": 1.0752188464535715,
+        "minimal_fov": 1.2297109365463257,
+        "fov_difference": 2.7775244326733173e-9,
+        "matrices_sha256": "00a1acd3d1828812293bf964b361b7244c7e076247045d516f4907efc316f9fc"
+      },
+      "alignment": {
+        "previous_psnr": 21.671841,
+        "psnr": 48.051901,
+        "next_psnr": 21.750743
+      },
+      "psnr": {
+        "r": 47.962335,
+        "g": 48.185174,
+        "b": 48.011338,
+        "overall": 48.051901
+      },
+      "ssim": {
+        "r": 0.995064,
+        "g": 0.995427,
+        "b": 0.994974,
+        "all": 0.995155,
+        "db": 23.146914
+      },
+      "pictures": {
+        "module": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/module-6000.png",
+        "gyroflow": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/gyroflow-6000.png",
+        "difference": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/difference-6000.png"
+      }
+    },
+    {
+      "frame": 9000,
+      "timestamp_us": 150150000,
+      "trim_half_width": 300,
+      "trim_attempts": [
+        {
+          "trim_half_width": 60,
+          "fov": 1.308340382415588,
+          "whole_clip_fov": 1.2966528993585222,
+          "equal": false
+        },
+        {
+          "trim_half_width": 120,
+          "fov": 1.308340382415588,
+          "whole_clip_fov": 1.2966528993585222,
+          "equal": false
+        },
+        {
+          "trim_half_width": 180,
+          "fov": 1.3025610535942607,
+          "whole_clip_fov": 1.2966528993585222,
+          "equal": false
+        },
+        {
+          "trim_half_width": 240,
+          "fov": 1.3025610535942607,
+          "whole_clip_fov": 1.2966528993585222,
+          "equal": false
+        },
+        {
+          "trim_half_width": 300,
+          "fov": 1.2966528993585222,
+          "whole_clip_fov": 1.2966528993585222,
+          "equal": true
+        }
+      ],
+      "render_frames": 602,
+      "render_seconds": 302.6,
+      "gyroflow_frame_index": 300,
+      "gyroflow": {
+        "fov": 1.2966528993585222,
+        "minimal_fov": 1.3610576391220093
+      },
+      "module": {
+        "frame": 9000,
+        "fov": 1.2966529350499598,
+        "minimal_fov": 1.3610576391220093,
+        "fov_difference": 3.569143758319626e-8,
+        "matrices_sha256": "d973dc61951b540404c27d600f579f6b905ec825823eac2b45a796002f46da6a"
+      },
+      "alignment": {
+        "previous_psnr": 30.916688,
+        "psnr": 49.368244,
+        "next_psnr": 31.176238
+      },
+      "psnr": {
+        "r": 49.25055,
+        "g": 49.727473,
+        "b": 49.14843,
+        "overall": 49.368244
+      },
+      "ssim": {
+        "r": 0.994474,
+        "g": 0.995169,
+        "b": 0.994091,
+        "all": 0.994578,
+        "db": 22.65823
+      },
+      "pictures": {
+        "module": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/module-9000.png",
+        "gyroflow": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/gyroflow-9000.png",
+        "difference": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/difference-9000.png"
+      }
+    },
+    {
+      "frame": 12000,
+      "timestamp_us": 200200000,
+      "trim_half_width": 120,
+      "trim_attempts": [
+        {
+          "trim_half_width": 60,
+          "fov": 1.036973262826821,
+          "whole_clip_fov": 1.0305223389431595,
+          "equal": false
+        },
+        {
+          "trim_half_width": 120,
+          "fov": 1.0305223389431595,
+          "whole_clip_fov": 1.0305223389431595,
+          "equal": true
+        }
+      ],
+      "render_frames": 242,
+      "render_seconds": 116.5,
+      "gyroflow_frame_index": 120,
+      "gyroflow": {
+        "fov": 1.0305223389431595,
+        "minimal_fov": 1.2823244333267212
+      },
+      "module": {
+        "frame": 12000,
+        "fov": 1.0305223347340418,
+        "minimal_fov": 1.2823244333267212,
+        "fov_difference": 4.209117721032385e-9,
+        "matrices_sha256": "00a044a455e098863c1ce5a72fd7e9c7b4c984b51a6e062b12841749f41afb2b"
+      },
+      "alignment": {
+        "previous_psnr": 25.526043,
+        "psnr": 50.327961,
+        "next_psnr": 25.487051
+      },
+      "psnr": {
+        "r": 50.16283,
+        "g": 50.712718,
+        "b": 50.132529,
+        "overall": 50.327961
+      },
+      "ssim": {
+        "r": 0.994704,
+        "g": 0.995436,
+        "b": 0.994417,
+        "all": 0.994853,
+        "db": 22.884206
+      },
+      "pictures": {
+        "module": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/module-12000.png",
+        "gyroflow": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/gyroflow-12000.png",
+        "difference": "/private/var/folders/fh/n809ldpx4mg940z5540b8yb40000gn/T/opencode/gyro-agreement/run/pictures/difference-12000.png"
+      }
+    }
+  ]
+}
