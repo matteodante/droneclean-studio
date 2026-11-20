@@ -441,6 +441,18 @@ describe('the window', () => {
     expect(worker().requests('frameData')).toHaveLength(before + 1)
   })
 
+  it('fetchFrames answers a moment between two frames for that moment, as getFrameData does', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+    const frames = await client.fetchFrames('clip-1', [500, 500.5])
+    expect(frames.map((frame) => frame.sourceFrame)).toEqual([500, 500.5])
+    expect(worker().requests('frameData').at(-1)?.timestampsUs).toEqual([
+      sourceFrameToMicroseconds(RATE, 500),
+      sourcePositionToMicroseconds(RATE, 500.5),
+    ])
+    await expect(client.fetchFrames('clip-1', [-0.5])).rejects.toThrow(RangeError)
+  })
+
   it('starts at the file’s first frame and stops at its last', async () => {
     const { client, worker } = setup()
     await client.open(CLIP, SETTINGS)

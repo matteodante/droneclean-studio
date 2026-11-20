@@ -13,6 +13,7 @@
 
 import { useEffect } from 'react'
 import { createLogger, createOperationId } from '@/shared/logging/logger'
+import { trackExportFinished } from '@/studio/telemetry/usage'
 import { getNextQueuedJob, useRenderQueueStore } from '../stores/render-queue-store'
 import type { RenderJob } from '../stores/render-queue-store'
 import type { ClientRenderResult } from '../deps/renderer'
@@ -87,6 +88,7 @@ async function renderQueuedJob(job: RenderJob): Promise<void> {
         fileName: saved.fileName,
         fileSize: smartCopy.result.fileSize,
       })
+      trackExportFinished('queue', 'smart-copy', job.clientSettings, job.durationFrames / snapshot.fps)
       event.set('renderPath', 'smart-copy')
       event.success({
         savedPath: saved.relPath,
@@ -130,6 +132,7 @@ async function renderQueuedJob(job: RenderJob): Promise<void> {
       fileName: saved.fileName,
       fileSize: result.fileSize,
     })
+    trackExportFinished('queue', 'browser', job.clientSettings, job.durationFrames / snapshot.fps)
 
     event.set('renderPath', renderPath)
     event.success({

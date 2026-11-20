@@ -1,7 +1,7 @@
 // Whether the clip panel may offer shadow removal for a clip.
 //
-// The section works on one video clip at a time, and only when its source can be read: the free
-// tracking cuts a piece around the mark from that file (design 4.1, section 5.2), so a clip whose
+// The section works on one video clip at a time, and only when its source can be read: the
+// tracking pass cuts a piece around the mark from that file (design 4.1, section 5.2), so a clip whose
 // media record is gone, broken or unreadable has nothing to send. Reversed clips are hidden
 // outright: v1 does not offer shadow removal on them (a coordinator decision, 18 Nov 2026), and the
 // mark, the ranges and the pieces are all in the source's own frames, which a reversed clip plays
@@ -12,8 +12,8 @@
 // The paid clean is behind the DroneClean feature switch `shadowRemovalClean`
 // (`src/studio/feature-switches.ts`): the slice that builds it (E6) turns it on once the whole flow
 // runs against the API's recorded answers, so a build that cannot pay for seconds still shows the
-// free tracking and hides the press that spends credits (design 4.1, decision 3: never charge
-// without an explicit press the pilot can see).
+// tracking pass and hides the clean's press (design 4.1, decision 3: never charge without an
+// explicit press the pilot can see; the follow button shows its own price since 20 Nov 2026).
 
 import type { MediaMetadata } from '@/types/storage'
 import type { TimelineItem } from '@/types/timeline'
@@ -48,7 +48,7 @@ function hasMeasuredSource(media: MediaMetadata): boolean {
  * not reversed, whose stored source is readable and measured. A clip with no record, or with one
  * whose file is gone (`broken`, the media library's own report), is `no-source`: the section says
  * so in plain words instead of offering a button that would fail. `canClean` is the feature
- * switch: while it is off the section shows the free pass and its price, and no press that spends.
+ * switch: while it is off the section shows the tracking pass and the clean's price, and no clean.
  */
 export function shadowAvailability(
   item: TimelineItem | null | undefined,

@@ -1,14 +1,16 @@
-// The shadow section of the clip panel: mark the shadow, watch the cloud follow it for free, see
-// the stretches it found and what cleaning them costs, and pay for the seconds with one press
-// (design 4.1, section 7, slices E5 and E6).
+// The shadow section of the clip panel: mark the shadow, watch the cloud follow it (paid in credits
+// since 20 Nov 2026, its price on the button: `../pricing.ts`), see the stretches it found and what
+// cleaning them costs, and pay for the seconds with one press (design 4.1, section 7, slices E5 and E6).
 //
 // The whole section is behind the `shadowRemovalClean` feature switch: while it is off nothing is
 // rendered, so no session opens and no press can start a request to the cloud (review finding C6:
-// the free tracking uploads about 160 MB per press to a path not yet proved live). With the switch
+// the tracking uploads about 160 MB per press to a path not yet proved live). With the switch
 // on, the section appears only where it can work (`availability.ts`): a video clip, not reversed,
-// whose source can be read. The free pass costs nothing; the paid press is `CleanShadowPanel`. Nothing here reserves credits: the price
-// comes from `POST /v1/jobs/quote`, which creates no job, and only the clean's own press creates
-// one. Cancel stops either flow, and a session the API ended offers a new sign-in.
+// whose source can be read. The follow press reserves the tracking pass's credits on the cloud (a
+// balance that cannot cover it is refused before anything is cut or uploaded, with the cloud's own
+// words; a pass that finds no shadow where it was marked gives them back, and the section says so);
+// the clean's price comes from `POST /v1/jobs/quote`, which creates no job, and only the clean's own
+// press creates one. Cancel stops either flow, and a session the API ended offers a new sign-in.
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +27,7 @@ import { pieceExpired, pieceRedownloadDeps, redownloadShadowPiece } from '../pie
 import { SignInRequiredError, type JobQuote, type ServiceConfig } from '../api/types'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { isFeatureShown } from '@/studio/feature-switches'
+import { clipFollowCredits } from '../pricing'
 import { shadowAvailability } from './availability'
 import { CleanShadowPanel } from './CleanShadowPanel'
 import { ShadowAccount } from './ShadowAccount'
@@ -143,14 +146,19 @@ function StageLine({ stage, progress }: { stage: ShadowStage; progress: number }
   return null
 }
 
-/** The ranges the tracker found, with their seconds, and what cleaning them would cost. */
+/**
+ * The ranges the tracker found, with their seconds, and what cleaning them would cost. When it found none, whether the
+ * cloud gave the pass's credits back (it does when no shadow was found where it was marked: 20 Nov 2026).
+ */
 function PassResults({
   ranges,
+  refundedCredits,
   quote,
   config,
   rate,
 }: {
   ranges: { startFrame: number; endFrame: number }[]
+  refundedCredits: number
   quote: JobQuote | null
   config: ServiceConfig | null
   rate: { num: number; den: number }
@@ -177,7 +185,9 @@ function PassResults({
         </div>
       ) : (
         <p className="text-muted-foreground" data-testid="shadow-not-found">
-          {t('editor.shadowSection.notFound')}
+          {refundedCredits > 0
+            ? t('editor.shadowSection.notFoundRefunded', { credits: refundedCredits })
+            : t('editor.shadowSection.notFound')}
         </p>
       )}
 
@@ -222,7 +232,7 @@ function ShadowStatus({
     progress: number
     error: string | null
     needsSignIn: boolean
-    pass: { ranges: { startFrame: number; endFrame: number }[] } | null
+    pass: { ranges: { startFrame: number; endFrame: number }[]; refundedCredits: number } | null
     quote: JobQuote | null
     config: ServiceConfig | null
   }
@@ -273,6 +283,7 @@ function ShadowStatus({
       {session.pass !== null && (
         <PassResults
           ranges={session.pass.ranges}
+          refundedCredits={session.pass.refundedCredits}
           quote={session.quote}
           config={session.config}
           rate={rate}
@@ -402,7 +413,40 @@ function MissingPiecesRow({ item, busy }: { item: VideoItem; busy: boolean }) {
   )
 }
 
-/** The clip's shadow controls: the mark, the free pass, what it found and the paid clean. */
+/**
+ * The pass stopped before spending because the piece it sends reaches the keyframes around the clip's part and costs
+ * more than the button said: the exact price, and the press that agrees to it (the piece already uploaded is reused).
+ */
+function PriceAskRow({
+  item,
+  active,
+  busy,
+}: {
+  item: VideoItem
+  active: ShadowSessionStore | null
+  busy: boolean
+}) {
+  const { t } = useTranslation()
+  const credits = active?.priceAsk?.credits
+  if (credits === undefined) return null
+  return (
+    <div className="space-y-1" data-testid="shadow-price-ask">
+      <p>{t('editor.shadowSection.pieceCosts', { credits })}</p>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="w-full"
+        onClick={() => void useShadowSessionStore.getState().track(item, credits)}
+        disabled={busy}
+        data-testid="shadow-follow-agreed"
+      >
+        {t('editor.shadowSection.followFor', { credits })}
+      </Button>
+    </div>
+  )
+}
+
+/** The clip's shadow controls: the mark, the pass, what it found and the paid clean. */
 function ShadowControls({
   item,
   active,
@@ -416,6 +460,9 @@ function ShadowControls({
   const markFrame = item.shadowRemoval?.mark.sourceFrame ?? null
   const busy = active !== null && isShadowBusy(active.stage)
   const rate = toRate(getMediaSourceFps(item, useTimelineSettingsStore.getState().fps))
+  const mediaSeconds = useMediaLibraryStore((state) =>
+    item.mediaId ? state.mediaById[item.mediaId]?.duration : undefined,
+  )
   return (
     <>
       <MarkRow
@@ -432,8 +479,9 @@ function ShadowControls({
         disabled={markFrame === null || busy}
         data-testid="shadow-follow-button"
       >
-        {t('editor.shadowSection.follow')}
+        {t('editor.shadowSection.follow', { credits: clipFollowCredits(item, rate, mediaSeconds) })}
       </Button>
+      <PriceAskRow item={item} active={active} busy={busy} />
       {active !== null && <ShadowStatus session={active} rate={rate} />}
       {active !== null && canClean && <CleanShadowPanel item={item} />}
       <ShadowAccount />

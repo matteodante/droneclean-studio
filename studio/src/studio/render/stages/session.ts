@@ -1,7 +1,7 @@
 // The session's stage pipeline pieces (design 3.6 sections 2.2 and 2.9): the registry of the three stages over the
-// session's derived-size store (`staged-size.ts`), and the page's preparer, which follows the timeline's items. This is
-// the only file of the stages that reaches a store (through `watchTimelineItems`); the stages and the preparer take what
-// they need as data.
+// session's derived-size store (`staged-size.ts`), the page's preparer, which follows the timeline's items, and the
+// stabilization's look-ahead, which follows the playhead (`stabilize-ahead.ts`). This is the only file of the stages that
+// reaches a store; the stages, the preparer and the look-ahead take what they need as data.
 //
 // The preparer prepares on a device it is given: each preview renderer's stages (`renderer.ts`) call
 // `setPreparerDevice` with the renderer's own, because a pipeline built for another device is of no use to it
@@ -19,9 +19,9 @@ import { createLookStage } from './look'
 import { createPreparer, type Preparer } from './preparer'
 import { createStageRegistry, type StageRegistry } from './registry'
 import { createStabilizeStage } from './stabilize'
+import { warmStabilizationAhead } from './stabilize-ahead'
 import { isStabilized } from './predicates'
 import { derivedSizes } from './staged-size'
-import type { VideoItem } from '@/types/timeline'
 
 // A stabilized clip is made at the project's aspect, so the stabilization follows the project's frame: the clip's key, and with it its engine's frame size and its derived size, change with the frame. When the aspect
 // changes, the engines and the preparer are told at once (they otherwise look at the keys only when the items change).
@@ -50,15 +50,43 @@ if (typeof document !== 'undefined') {
   })
 }
 
-/** The video clip that starts where `item` ends on its track, for the stabilization's frames after a cut */
-function nextClipOnTrack(item: VideoItem): VideoItem | null {
-  const end = item.from + item.durationInFrames
-  for (const other of useItemsStore.getState().items) {
-    if (other.type === 'video' && other.id !== item.id && other.trackId === item.trackId && other.from === end) {
-      return other
+let followingPlayhead = false
+
+/**
+ * Asks the stabilization engines, from now on, for the frames the clips the playhead reaches next read first
+ * (`stabilize-ahead.ts`): each time the playhead moves, the playback rate changes, or the timeline's clips or
+ * transitions change (an edit that moves a clip's range or changes its speed changes what its first frames read). The
+ * first preview renderer starts it; the export worker never does.
+ */
+export function followPlayheadForStabilization(): void {
+  if (followingPlayhead || typeof document === 'undefined') return
+  followingPlayhead = true
+  void Promise.all([
+    import('@/shared/state/playback'),
+    import('@/features/timeline/stores/transitions-store'),
+    import('@/features/timeline/stores/timeline-settings-store'),
+  ]).then(([{ usePlaybackStore }, { useTransitionsStore }, { useTimelineSettingsStore }]) => {
+    const warm = (): void => {
+      const playback = usePlaybackStore.getState()
+      warmStabilizationAhead(stabilizationSeat, {
+        items: useItemsStore.getState().items,
+        transitions: useTransitionsStore.getState().transitions,
+        frame: playback.currentFrame,
+        fps: useTimelineSettingsStore.getState().fps,
+        playbackRate: playback.playbackRate,
+      })
     }
-  }
-  return null
+    usePlaybackStore.subscribe((state, previous) => {
+      if (state.currentFrame !== previous.currentFrame || state.playbackRate !== previous.playbackRate) warm()
+    })
+    useItemsStore.subscribe((state, previous) => {
+      if (state.items !== previous.items) warm()
+    })
+    useTransitionsStore.subscribe((state, previous) => {
+      if (state.transitions !== previous.transitions) warm()
+    })
+    warm()
+  })
 }
 
 let registry: StageRegistry | null = null
@@ -66,7 +94,7 @@ let registry: StageRegistry | null = null
 /** The registry, built the first time it is asked: importing this module reads nothing of the stages' modules */
 function sessionRegistry(): StageRegistry {
   registry ??= createStageRegistry([
-    createStabilizeStage({ sizes: derivedSizes, nextClip: nextClipOnTrack }),
+    createStabilizeStage({ sizes: derivedSizes }),
     createInputColourStage(),
     createLookStage(),
   ])

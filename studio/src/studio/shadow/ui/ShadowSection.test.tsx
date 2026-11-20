@@ -54,13 +54,17 @@ beforeAll(() => {
       editor: {
         shadowSection: {
           title: 'DroneClean shadow',
-          intro: "Click the drone's shadow in the picture; the tracker follows it for free.",
+          intro:
+            "Click the drone's shadow in the picture. Following it uses credits: about one for each second of the clip at 30 fps.",
           markShadow: 'Mark the shadow',
           markAgain: 'Mark again',
           armed: 'Click the shadow in the picture.',
           cancelMark: 'Cancel',
           markedAt: 'Marked on frame {{frame}}.',
-          follow: 'Follow the shadow (free)',
+          follow: 'Follow the shadow · about {{credits}} credits',
+          followFor: 'Follow for {{credits}} credits',
+          pieceCosts:
+            "The piece sent reaches the keyframes around the clip's part, so following the shadow in it costs {{credits}} credits. Nothing was spent.",
           cutting: 'Cutting the seconds around the mark…',
           uploading: 'Uploading the piece… {{percent}}%',
           tracking: 'Following the shadow…',
@@ -75,6 +79,8 @@ beforeAll(() => {
           rangesTitle: 'The shadow was found on:',
           range: 'Frames {{start}}–{{end}} · {{seconds}} s',
           notFound: 'The shadow was not found from that point. Click it again.',
+          notFoundRefunded:
+            'The shadow was not found from that point, so its {{credits}} credits are back. Click it again.',
           price: '{{seconds}} s · {{credits}} credits',
           balance: 'You have {{credits}} credits.',
           notEnough: 'You need {{credits}} credits; you have {{available}}.',
@@ -152,6 +158,8 @@ const WINDOW = {
 
 const PASS = {
   jobId: TRACK_JOB.id,
+  chargedCredits: 20,
+  refundedCredits: 0,
   uploadId: UPLOAD_ID,
   mark: { ...MARK },
   window: WINDOW,
@@ -244,6 +252,8 @@ function routes(): FakeRoute[] {
     },
     { method: 'POST', path: '/v1/jobs/quote', respond: () => ({ body: QUOTE }) },
     { method: 'GET', path: '/v1/config', respond: () => ({ body: CONFIG }) },
+    // The balance read before the piece is cut (20 Nov 2026).
+    { method: 'GET', path: '/v1/me', respond: () => ({ body: ACCOUNT }) },
   ]
 }
 
@@ -317,6 +327,76 @@ describe('ShadowSection', () => {
 
     const reversed = renderSection([{ ...clip({ id: 'clip-2', isReversed: true }) }])
     expect(reversed.container.querySelector('[data-testid="shadow-section"]')).toBeNull()
+  })
+
+  it('shows on the follow button about what following the shadow costs (20 Nov 2026)', () => {
+    // A credit a second at 30 fps, twice at 59.94: the whole 230.88 s clip, then a trimmed 600-frame part.
+    const whole = clip()
+    useItemsStore.getState().setItems([whole])
+    const first = renderSection([whole])
+    expect(screen.getByTestId('shadow-follow-button').textContent).toBe(
+      'Follow the shadow · about 462 credits',
+    )
+    first.unmount()
+    const trimmed = clip({ id: 'clip-2', sourceStart: 3000, sourceEnd: 3600 })
+    useItemsStore.getState().setItems([trimmed])
+    renderSection([trimmed])
+    expect(screen.getByTestId('shadow-follow-button').textContent).toBe(
+      'Follow the shadow · about 20 credits',
+    )
+  })
+
+  it('says the credits are back when the pass found no shadow where it was marked (20 Nov 2026)', async () => {
+    const item = clip()
+    useItemsStore.getState().setItems([item])
+    const nothing = {
+      ...TRACK_JOB,
+      track: { ...TRACK_JOB.track!, ranges: [] },
+      cost: { reservedCredits: 20, chargedCredits: 0 },
+    }
+    const server = createFakeServer(
+      routes().map((route) =>
+        route.path === '/v1/jobs' ? { ...route, respond: () => ({ body: nothing }) } : route,
+      ),
+    )
+    connect(server, DEVICE_TOKEN.access_token)
+    renderSection([item])
+
+    fireEventClick(screen.getByTestId('shadow-follow-button'))
+
+    await waitFor(() => expect(screen.getByTestId('shadow-not-found')).toBeInTheDocument())
+    expect(screen.getByTestId('shadow-not-found').textContent).toBe(
+      'The shadow was not found from that point, so its 20 credits are back. Click it again.',
+    )
+    expect(screen.queryByTestId('shadow-clean-button')).toBeNull()
+  })
+
+  it('asks for the exact price when the piece costs more than the button said, and follows at it on the press', async () => {
+    // 300 frames at 59.94 fps: the button says 10; the piece the cutter plans around them is 600 frames, 20 credits.
+    const item = clip({ id: 'clip-2', sourceStart: 3500, sourceEnd: 3800 })
+    useItemsStore.getState().setItems([item])
+    const server = createFakeServer(routes())
+    connect(server, DEVICE_TOKEN.access_token)
+    renderSection([item])
+    expect(screen.getByTestId('shadow-follow-button').textContent).toBe(
+      'Follow the shadow · about 10 credits',
+    )
+
+    fireEventClick(screen.getByTestId('shadow-follow-button'))
+
+    await waitFor(() => expect(screen.getByTestId('shadow-price-ask')).toBeInTheDocument())
+    expect(screen.getByTestId('shadow-price-ask').textContent).toContain(
+      'following the shadow in it costs 20 credits. Nothing was spent.',
+    )
+    expect(server.to('/v1/uploads')).toHaveLength(0)
+    expect(server.to('/v1/jobs')).toHaveLength(0)
+    expect(screen.getByTestId('shadow-follow-agreed').textContent).toBe('Follow for 20 credits')
+
+    fireEventClick(screen.getByTestId('shadow-follow-agreed'))
+
+    await waitFor(() => expect(server.to('/v1/jobs')).toHaveLength(1))
+    expect((server.to('/v1/jobs')[0]?.body as { maxCredits?: number }).maxCredits).toBe(20)
+    await waitFor(() => expect(screen.queryByTestId('shadow-price-ask')).toBeNull())
   })
 
   it('says plainly when the clip’s file cannot be read', () => {

@@ -152,13 +152,55 @@ function requireChoice<T extends string>(
   throw invalidArgumentError({ method, argument, expectation, valid, value })
 }
 
-/** The value as a hex colour string. */
+/** One `rgb()` channel: 0…255, or a percentage of 255. */
+function rgbChannel(text: string): number | null {
+  const match = /^(\d*\.?\d+)(%?)$/.exec(text)
+  if (!match) return null
+  const raw = Number(match[1])
+  const value = match[2] === '%' ? (raw * 255) / 100 : raw
+  return value >= 0 && value <= 255 ? Math.round(value) : null
+}
+
+/** The alpha of an `rgba()` colour: 0…1, or a percentage. */
+function rgbAlpha(text: string): number | null {
+  const match = /^(\d*\.?\d+)(%?)$/.exec(text)
+  if (!match) return null
+  const raw = Number(match[1])
+  const value = match[2] === '%' ? raw / 100 : raw
+  return value >= 0 && value <= 1 ? value : null
+}
+
+/**
+ * `rgb(r, g, b)` or `rgba(r, g, b, a)` (commas or spaces, `/` before the alpha) as the hex the editor stores: `#rrggbb`,
+ * or `#rrggbbaa` when the alpha is below 1. Null when the text is not one.
+ */
+function rgbToHex(value: string): string | null {
+  const match = /^rgba?\(\s*([^)]*?)\s*\)$/i.exec(value.trim())
+  if (!match?.[1]) return null
+  const parts = match[1].split(/\s*[,/]\s*|\s+/).filter((part) => part !== '')
+  if (parts.length !== 3 && parts.length !== 4) return null
+  const channels = parts.slice(0, 3).map(rgbChannel)
+  const alpha = parts[3] === undefined ? 1 : rgbAlpha(parts[3])
+  if (alpha === null || channels.some((channel) => channel === null)) return null
+  const hex = (channel: number | null): string => (channel ?? 0).toString(16).padStart(2, '0')
+  const base = `#${channels.map(hex).join('')}`
+  return alpha < 1 ? `${base}${hex(Math.round(alpha * 255))}` : base
+}
+
+/**
+ * The value as a hex colour string. `rgb()` and `rgba()` are accepted too and stored as `#rrggbb` / `#rrggbbaa`, the form
+ * the editor's picker and renderer read, so an alpha is drawn.
+ */
 function requireColor(value: unknown, argument: string, method: string): string {
-  if (typeof value === 'string' && HEX_COLOR.test(value)) return value
+  if (typeof value === 'string') {
+    if (HEX_COLOR.test(value)) return value
+    const converted = rgbToHex(value)
+    if (converted !== null) return converted
+  }
   throw invalidArgumentError({
     method,
     argument,
-    expectation: 'a hex colour such as "#ffffff"',
+    expectation: 'a colour such as "#ffffff", "#000000aa" or "rgba(0, 0, 0, 0.6)"',
     value,
   })
 }

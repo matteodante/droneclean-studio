@@ -66,6 +66,7 @@ function install({ isPackaged = false, userData, productName = 'DroneClean Studi
   const app = Object.assign(new EventEmitter(), {
     isPackaged,
     getName: () => state.name,
+    getVersion: () => '0.0.0-test',
     setName(name) {
       state.name = name
     },
@@ -149,6 +150,8 @@ function install({ isPackaged = false, userData, productName = 'DroneClean Studi
     protocol,
     session: { defaultSession },
     shell: { openExternal: () => Promise.resolve() },
+    // The opt-in reports' sender (main/telemetry): the fake shell has no network.
+    net: { fetch: () => Promise.reject(new Error('the fake shell has no network')) },
   }
   const module = new Proxy(fake, {
     get(target, name) {

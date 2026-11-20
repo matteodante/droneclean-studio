@@ -208,7 +208,8 @@ export const TRACK_JOB: Job = {
   click: { x: 1860.25, y: 2410.5, timeSeconds: 30 / TRACK_FPS, radius: 96.5 },
   segments: null,
   options: { harmonize: true, motion: 30, quality: 'standard' },
-  cost: { reservedCredits: 0, chargedCredits: 0 },
+  // The 10.01 s piece at 59.94 fps, a credit a second at 30 fps (contract 5): 20, kept since it found the shadow.
+  cost: { reservedCredits: 20, chargedCredits: 20 },
   result: {
     url: `https://storage.test/results/${TRACK_JOB_ID}/keyframes.json?X-Amz-Signature=1f2e3d`,
     expiresAt: '2026-11-18T10:42:31.000Z',
@@ -293,8 +294,8 @@ export const CONFIG: ServiceConfig = {
   engine: true,
   auth: { google: true, apple: false, appleNative: false, devPassword: false },
   payments: { apple: false, stripe: null },
-  preview: { seconds: 3, perUpload: 3, perDay: 20 },
-  track: { perUpload: 12, perDay: 60 },
+  preview: { seconds: 3, perUpload: 3, perDay: 20, credits: { standard: 30, maximum: 45 } },
+  track: { perUpload: 12, perDay: 60, credits: { perSecond: 1, minimum: 5 } },
   freeBeta: true,
-  welcomeCredits: 300,
+  welcomeCredits: 600,
 }

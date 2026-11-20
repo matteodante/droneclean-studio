@@ -24,20 +24,15 @@ import type {
   ResolvedGpuMediaParticipantSource,
   TransitionParticipantRenderState,
 } from '@/runtime/renderer/canvas-item-renderer/types'
-import {
-  getItemRenderTimelineSpan,
-  resolveVideoRenderSourceTimeSeconds,
-  type RenderTimelineSpan,
-} from '@/runtime/renderer/render-span'
+import type { RenderTimelineSpan } from '@/runtime/renderer/render-span'
 import { createLogger } from '@/shared/logging/logger'
 import { perDevice } from '@/studio/render/device-cache'
 import { preciseOutputActive } from '@/studio/render/precise/contract'
 import { withAnimatedFraming } from '@/studio/stabilization/framing-keyframes'
 import { timedStageAsync } from '@/studio/render/timings'
-import { secondsToFrame, toRate } from '@/studio/time'
 import type { VideoItem } from '@/types/timeline'
 import type { StagedFrame } from './pipeline'
-import { sourceFramePlan, type SourceFramePlan } from './plan'
+import { timelineFramePlan, type SourceFramePlan } from './plan'
 import { needsExactSourceFrame, needsSourceStages } from './predicates'
 
 /**
@@ -57,52 +52,6 @@ export function stagedFromProvider(item: VideoItem, rctx: ItemRenderContext): bo
 }
 
 const log = createLogger('StagedClip')
-
-/**
- * The source frames a clip's output frame at timeline frame `frame` is made of. Without motion blur, one: the integer
- * frame FreeCut's one mapping (`clipSourcePosition` inside the clip, the transition's pre-roll and ramp, the clamp to
- * the file) names; the read-back is exact: the mapping's time is `n · den / num` and `secondsToFrame` rounds
- * `t · num / den`. With blur on, the samples `planMotionBlur` weights over the span the frame covers. A frame drawn
- * through a transition (its own span differs from the clip's, or a source offset applies) keeps the single frame: the
- * blur's span is the clip's own (design 7.2 section 4.8).
- */
-function stagedSourcePlan(
-  item: VideoItem,
-  frame: number,
-  rctx: ItemRenderContext,
-  renderSpan: RenderTimelineSpan | undefined,
-  sourceFrameOffset: number,
-): SourceFramePlan {
-  const span = renderSpan ?? getItemRenderTimelineSpan(item)
-  const rate = toRate(item.sourceFps ?? rctx.fps)
-  const clipFrame = frame - item.from
-  const ownSpan =
-    sourceFrameOffset === 0 &&
-    span.from === item.from &&
-    span.durationInFrames === item.durationInFrames
-  return sourceFramePlan(item, clipFrame, {
-    sourceFrameCount: () => item.sourceDuration,
-    position: () => ({
-      frame: secondsToFrame(
-        rate,
-        resolveVideoRenderSourceTimeSeconds(item, span, frame, rctx.fps, sourceFrameOffset),
-      ),
-    }),
-    motionBlurQuery: () =>
-      item.motionBlur !== undefined &&
-      ownSpan &&
-      clipFrame >= 0 &&
-      clipFrame < item.durationInFrames
-        ? {
-            clip: item,
-            timelineFrame: clipFrame,
-            projectRate: toRate(rctx.fps),
-            shutterDegrees: item.motionBlur.shutterDegrees,
-            smoothSlowMotion: item.motionBlur.smoothSlowMotion,
-          }
-        : undefined,
-  })
-}
 
 /** What the pipeline is given for a plan: one sample with no blur is the frame itself, as a bare index */
 function pipelineSource(plan: SourceFramePlan): number | SourceFramePlan {
@@ -125,7 +74,7 @@ async function stagedPicture(
   sourceFrameOffset: number,
 ): Promise<StagedFrame | null> {
   const stages = rctx.stages
-  const plan = stagedSourcePlan(item, frame, rctx, renderSpan, sourceFrameOffset)
+  const plan = timelineFramePlan(item, frame, rctx.fps, renderSpan, sourceFrameOffset)
   const framed = framedAt(item, frame, rctx)
   const source = pipelineSource(plan)
   if (rctx.renderMode === 'export') {
@@ -185,7 +134,7 @@ async function stagedFreeCutPicture(
   if (!media) return null
   try {
     if (media.kind !== 'media') return null
-    const index = stagedSourcePlan(item, frame, rctx, participant.renderSpan, 0).samples[0]!.index
+    const index = timelineFramePlan(item, frame, rctx.fps, participant.renderSpan, 0).samples[0]!.index
     const image = { source: media.source, width: media.sourceWidth, height: media.sourceHeight }
     return await stages.stageImage(item, index, image)
   } catch (error) {

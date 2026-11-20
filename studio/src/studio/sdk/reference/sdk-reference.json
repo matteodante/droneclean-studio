@@ -1208,12 +1208,12 @@
     },
     {
       "name": "shadow",
-      "summary": "`studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (free), read the price, clean at that price (spends credits). Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.",
+      "summary": "`studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (spends credits: `followCredits` of `shadow.get`), read the price of the clean, clean at that price (spends credits). Both paying calls take the credits the caller expects to spend and refuse unless they equal the current price, so an agent never spends credits the user was not shown. Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.",
       "methods": [
         {
           "name": "get",
           "signature": "get(id: ClipId): ShadowState",
-          "summary": "A clip's shadow session: the mark, the stage, the ranges found, the price and the last failure. Not an undo step.",
+          "summary": "A clip's shadow session: the mark, the stage, the ranges found, the clean's price, the last failure and what following the shadow costs (`followCredits`). Not an undo step.",
           "mapsTo": "useShadowSessionStore (src/studio/shadow/ui/use-shadow-session.ts)",
           "throws": [
             "NOT_FOUND",
@@ -1225,7 +1225,7 @@
           "name": "mark",
           "signature": "mark(id: ClipId, mark: ShadowMarkInput): void",
           "summary": "Mark the shadow on a clip: a point in source pixels on a source frame (default: the frame the playhead shows on the clip). Forgets a pass made for another mark. One undo step.",
-          "mapsTo": "setMark (src/studio/shadow/ui/use-shadow-session.ts:921)",
+          "mapsTo": "setMark (src/studio/shadow/ui/use-shadow-session.ts:1104)",
           "throws": [
             "NOT_FOUND",
             "UNSUPPORTED",
@@ -1235,23 +1235,24 @@
         },
         {
           "name": "follow",
-          "signature": "follow(id: ClipId): Promise<ShadowFollowResult>",
-          "summary": "Follow the marked shadow with the free tracking pass and price cleaning what it found. Awaits the whole pass (cut, upload, track, quote) and costs no credits.",
-          "mapsTo": "track (src/studio/shadow/ui/use-shadow-session.ts:947)",
+          "signature": "follow(id: ClipId, expectedCredits: number): Promise<ShadowFollowResult>",
+          "summary": "Follow the marked shadow with a tracking pass and price cleaning what it found. This SPENDS the user's credits: pass the credits you expect to spend, and the call refuses unless that equals what following the shadow in this clip costs now (`followCredits` of `shadow.get`, the number the follow button shows: its part of the source, about a credit a second at 30 fps, twice at 60, at least 5). Show the user that price first. Awaits the whole pass (price check, balance check, cut, upload, track, quote); a balance that cannot cover it stops it before anything is uploaded. The piece sent reaches the keyframes around the clip's part: when that costs more than `expectedCredits`, nothing is spent and the call throws CONFLICT naming the exact price (`followCredits` then reads it, and a call with it goes on with the piece already sent). The service never charges more than `expectedCredits`, and gives the credits back when no shadow is found where it was marked: `creditsSpent` says what it took. A second call for the same mark reuses the finished pass and spends nothing.",
+          "mapsTo": "track (src/studio/shadow/ui/use-shadow-session.ts:1123)",
           "throws": [
             "NOT_FOUND",
             "UNSUPPORTED",
+            "INVALID_ARGUMENT",
             "CONFLICT",
             "MEDIA_UNAVAILABLE",
             "INTERNAL"
           ],
-          "example": "const { ranges, quote } = await studio.shadow.follow('c1')"
+          "example": "const { ranges, quote, creditsSpent } = await studio.shadow.follow('c1', 10)"
         },
         {
           "name": "quote",
           "signature": "quote(id: ClipId): Promise<ShadowQuote>",
           "summary": "Ask the price of the found ranges again, which also reads the balance again (after credits were bought). Not an undo step and no credits are spent.",
-          "mapsTo": "refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1066)",
+          "mapsTo": "refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1230)",
           "throws": [
             "NOT_FOUND",
             "UNSUPPORTED",
@@ -1264,7 +1265,7 @@
           "name": "clean",
           "signature": "clean(id: ClipId, expectedCredits: number): Promise<ShadowCleanResult>",
           "summary": "Clean the followed ranges. This SPENDS the user's credits: pass the credits you expect to spend, and the call refuses unless that equals the current price (`costCredits` of `shadow.quote`), so a clean never costs more than the price you were shown. The cleaned file is kept in the project and recorded on the clip.",
-          "mapsTo": "clean (src/studio/shadow/ui/use-shadow-session.ts:967)",
+          "mapsTo": "clean (src/studio/shadow/ui/use-shadow-session.ts:1155)",
           "throws": [
             "NOT_FOUND",
             "UNSUPPORTED",
@@ -1561,7 +1562,7 @@
     {
       "name": "ShadowQuote",
       "declaration": "export interface ShadowQuote {\n    seconds: number;\n    costCredits: number;\n    creditsPerSecond: number;\n    availableCredits: number;\n    enough: boolean;\n}",
-      "summary": "The price of cleaning the ranges the free pass found, from the service's quote."
+      "summary": "The price of cleaning the ranges the tracking pass found, from the service's quote."
     },
     {
       "name": "ShadowRangeInfo",
@@ -1570,12 +1571,12 @@
     },
     {
       "name": "ShadowState",
-      "declaration": "export interface ShadowState {\n    mark: ShadowMarkInfo | null;\n    stage: string;\n    progress: number;\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n    error: string | null;\n    needsSignIn: boolean;\n    cleanedPieces: number;\n}",
+      "declaration": "export interface ShadowState {\n    mark: ShadowMarkInfo | null;\n    stage: string;\n    progress: number;\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n    error: string | null;\n    needsSignIn: boolean;\n    cleanedPieces: number;\n    followCredits: number;\n}",
       "summary": "A clip's shadow session as `shadow.get` reads it."
     },
     {
       "name": "ShadowFollowResult",
-      "declaration": "export interface ShadowFollowResult {\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n}",
+      "declaration": "export interface ShadowFollowResult {\n    ranges: ShadowRangeInfo[];\n    quote: ShadowQuote | null;\n    creditsSpent: number;\n}",
       "summary": "What `shadow.follow` found."
     },
     {

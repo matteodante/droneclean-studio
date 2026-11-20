@@ -15,9 +15,9 @@
  * workspace-relative path of the PNG written to `projects/{id}/frames/`. The
  * argument rules live here so a bad call costs no render: at most
  * `MAX_FRAME_COUNT` sampled frames, one of `frame` and `contactSheet`, a width
- * in 16…8192, and `full` only for a single frame (a sheet is always
- * downscaled; `full` at the project's size would be a canvas of many thousand
- * pixels per edge).
+ * in 16…8192, and `full` with `width` only for a sheet (a single frame's `full`
+ * is the project's own size, so a width contradicts it; a sheet's `full` writes
+ * the sheet, at its `width`, into the frames folder).
  */
 import type { FrameRequest, FrameResult, StudioErrorJson } from '../../../../../mcp/protocol'
 import { DEFAULT_FRAME_WIDTH, MAX_FRAME_COUNT } from '../protocol'
@@ -52,7 +52,7 @@ const FRAME_RETRY = 'try a smaller width or a single frame.'
  */
 export type FramePlanJson =
   | { kind: 'frame'; frame: number; width: number; full: boolean }
-  | { kind: 'sheet'; frames: number[]; columns: number; rows: number; width: number }
+  | { kind: 'sheet'; frames: number[]; columns: number; rows: number; width: number; full: boolean }
 
 /** A validated request: the plan, or the error the tool answers. */
 type PlanOutcome = { plan: FramePlanJson } | { error: StudioErrorJson }
@@ -143,13 +143,6 @@ function sheetPlan(
   sheet: NonNullable<FrameRequest['contactSheet']>,
   width: number,
 ): PlanOutcome {
-  if (request.full === true) {
-    return invalidArgument(
-      'frame: "full" writes one frame at the project size; a contact sheet is always downscaled',
-      'full',
-      'Ask for a single frame with frame + full, or drop full for a sheet.',
-    )
-  }
   if (!isWholeAtLeast(sheet.from, 0)) {
     return invalidArgument(
       `frame: "contactSheet.from" must be an integer frame from 0 (got ${JSON.stringify(sheet.from)})`,
@@ -196,6 +189,7 @@ function sheetPlan(
       columns: grid.columns,
       rows: grid.rows,
       width,
+      full: request.full === true,
     },
   }
 }

@@ -725,7 +725,7 @@ export interface ShadowMarkInfo {
   radius: number
 }
 
-/** The price of cleaning the ranges the free pass found, from the service's quote. */
+/** The price of cleaning the ranges the tracking pass found, from the service's quote. */
 export interface ShadowQuote {
   /** Seconds of shadow that would be removed. */
   seconds: number
@@ -755,7 +755,7 @@ export interface ShadowState {
   stage: string
   /** Progress of the running step, `0..1`. */
   progress: number
-  /** The stretches the free pass found, in source frames; empty before the pass. */
+  /** The stretches the tracking pass found, in source frames; empty before the pass. */
   ranges: ShadowRangeInfo[]
   /** The price of cleaning them, or null before the pass. */
   quote: ShadowQuote | null
@@ -765,6 +765,13 @@ export interface ShadowState {
   needsSignIn: boolean
   /** How many cleaned pieces the clip records. */
   cleanedPieces: number
+  /**
+   * What following the shadow in this clip costs now, in credits, and the
+   * number `shadow.follow` must be given: the follow button's price, or the
+   * exact price of the piece once a follow stopped to ask for it (the piece
+   * reaches the keyframes around the clip's part). Never charged above it.
+   */
+  followCredits: number
 }
 
 /** What `shadow.follow` found. */
@@ -773,6 +780,11 @@ export interface ShadowFollowResult {
   ranges: ShadowRangeInfo[]
   /** The price of cleaning them; null when nothing was found. */
   quote: ShadowQuote | null
+  /**
+   * Credits the tracking pass spent: what the service charged for the piece,
+   * or 0 when it found no shadow where it was marked (it gives them back).
+   */
+  creditsSpent: number
 }
 
 /** What `shadow.clean` did. */
@@ -793,7 +805,7 @@ export interface TitleShadow {
   offsetY: number
   /** Blur radius in pixels. */
   blur: number
-  /** Shadow colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`. */
+  /** Shadow colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`, or `rgb()` / `rgba()` (stored as hex). */
   color: string
 }
 
@@ -801,7 +813,7 @@ export interface TitleShadow {
 export interface TitleStroke {
   /** Outline width in pixels. */
   width: number
-  /** Outline colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`. */
+  /** Outline colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`, or `rgb()` / `rgba()` (stored as hex). */
   color: string
 }
 
@@ -821,11 +833,11 @@ export interface TitleStyle {
   fontStyle?: 'normal' | 'italic'
   /** Underlined text. */
   underline?: boolean
-  /** Text colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`. */
+  /** Text colour: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`, or `rgb()` / `rgba()` (stored as hex). */
   color?: string
   /** Letter spacing in pixels. */
   letterSpacing?: number
-  /** Background colour behind the text: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`; `null` clears it. */
+  /** Background colour behind the text: `#RGB`, `#RGBA`, `#RRGGBB` or `#RRGGBBAA`, or `rgb()` / `rgba()` (stored as hex); `null` clears it. */
   backgroundColor?: string | null
   /** Background corner radius in pixels. */
   backgroundRadius?: number
@@ -2774,14 +2786,18 @@ export interface LooksApi {
 
 /**
  * `studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow
- * it (free), read the price, clean at that price (spends credits). Implemented
+ * it (spends credits: `followCredits` of `shadow.get`), read the price of the
+ * clean, clean at that price (spends credits). Both paying calls take the
+ * credits the caller expects to spend and refuse unless they equal the current
+ * price, so an agent never spends credits the user was not shown. Implemented
  * by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot
  * sign in: when the service needs it the user approves it in the app.
  */
 export interface ShadowApi {
   /**
-   * A clip's shadow session: the mark, the stage, the ranges found, the price
-   * and the last failure. Not an undo step.
+   * A clip's shadow session: the mark, the stage, the ranges found, the
+   * clean's price, the last failure and what following the shadow costs
+   * (`followCredits`). Not an undo step.
    * @mapsTo useShadowSessionStore (src/studio/shadow/ui/use-shadow-session.ts)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED when the clip is not a video clip or is reversed
@@ -2793,7 +2809,7 @@ export interface ShadowApi {
    * Mark the shadow on a clip: a point in source pixels on a source frame
    * (default: the frame the playhead shows on the clip). Forgets a pass made
    * for another mark. One undo step.
-   * @mapsTo setMark (src/studio/shadow/ui/use-shadow-session.ts:921)
+   * @mapsTo setMark (src/studio/shadow/ui/use-shadow-session.ts:1104)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED when the clip is not a video clip, is reversed, or the feature is switched off
    * @throws INVALID_ARGUMENT when the point is outside the source picture, the radius is not positive, or the source frame is not an integer inside the file; also when no source frame is given and the playhead is outside the clip
@@ -2802,23 +2818,36 @@ export interface ShadowApi {
   mark(id: ClipId, mark: ShadowMarkInput): void
 
   /**
-   * Follow the marked shadow with the free tracking pass and price cleaning
-   * what it found. Awaits the whole pass (cut, upload, track, quote) and costs
-   * no credits.
-   * @mapsTo track (src/studio/shadow/ui/use-shadow-session.ts:947)
+   * Follow the marked shadow with a tracking pass and price cleaning what it
+   * found. This SPENDS the user's credits: pass the credits you expect to
+   * spend, and the call refuses unless that equals what following the shadow
+   * in this clip costs now (`followCredits` of `shadow.get`, the number the
+   * follow button shows: its part of the source, about a credit a second at
+   * 30 fps, twice at 60, at least 5). Show the user that price first. Awaits
+   * the whole pass (price check, balance check, cut, upload, track, quote); a
+   * balance that cannot cover it stops it before anything is uploaded. The
+   * piece sent reaches the keyframes around the clip's part: when that costs
+   * more than `expectedCredits`, nothing is spent and the call throws CONFLICT
+   * naming the exact price (`followCredits` then reads it, and a call with it
+   * goes on with the piece already sent). The service never charges more than
+   * `expectedCredits`, and gives the credits back when no shadow is found where
+   * it was marked: `creditsSpent` says what it took. A second call for the same
+   * mark reuses the finished pass and spends nothing.
+   * @mapsTo track (src/studio/shadow/ui/use-shadow-session.ts:1123)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED when the clip is not a video clip, is reversed, or the feature is switched off
-   * @throws CONFLICT when the shadow is not marked, or the user must approve a sign-in in the app
+   * @throws INVALID_ARGUMENT when `expectedCredits` is not a whole number of credits, 0 or more
+   * @throws CONFLICT when the shadow is not marked, `expectedCredits` differs from the current price or the piece costs more (the message names the exact price; nothing is spent), or the user must approve a sign-in in the app
    * @throws MEDIA_UNAVAILABLE when the clip's file cannot be read
-   * @throws INTERNAL when the pass fails; the message is the service's
-   * @example const { ranges, quote } = await studio.shadow.follow('c1')
+   * @throws INTERNAL when the pass fails, or the balance does not cover it; the message is the service's
+   * @example const { ranges, quote, creditsSpent } = await studio.shadow.follow('c1', 10)
    */
-  follow(id: ClipId): Promise<ShadowFollowResult>
+  follow(id: ClipId, expectedCredits: number): Promise<ShadowFollowResult>
 
   /**
    * Ask the price of the found ranges again, which also reads the balance
    * again (after credits were bought). Not an undo step and no credits are spent.
-   * @mapsTo refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1066)
+   * @mapsTo refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1230)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED when the clip is not a video clip or is reversed
    * @throws CONFLICT when the shadow has not been followed yet, or the user must approve a sign-in in the app
@@ -2833,7 +2862,7 @@ export interface ShadowApi {
    * price (`costCredits` of `shadow.quote`), so a clean never costs more than
    * the price you were shown. The cleaned file is kept in the project and
    * recorded on the clip.
-   * @mapsTo clean (src/studio/shadow/ui/use-shadow-session.ts:967)
+   * @mapsTo clean (src/studio/shadow/ui/use-shadow-session.ts:1155)
    * @throws NOT_FOUND when `id` is not a clip in the active context
    * @throws UNSUPPORTED when the clip is not a video clip, is reversed, or cleaning is switched off
    * @throws INVALID_ARGUMENT when `expectedCredits` is not a whole number of credits, 0 or more

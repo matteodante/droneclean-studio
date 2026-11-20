@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vite-plus/test'
 import type { FrameBackend } from '@/studio/render/frames/types'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { createDerivedSizeStore } from './derived-sizes'
+import { clipStageStates } from './failure'
 import { createPreparer } from './preparer'
 import { createStageRegistry } from './registry'
 import { createRendererStages } from './renderer'
@@ -140,5 +141,46 @@ describe('a renderer’s stages', () => {
     const staged = await stages.render(clip({ 'input-colour': true }), 1)
     expect(staged.kind).toBe('partial')
     stages.destroy()
+  })
+
+  it('say nothing about a clip whose frame was decoding when the renderer was disposed (its input disposed under it)', async () => {
+    // mediabunny's decode of a frame rejects once the reader disposes the file's input, as the renderer's dispose does
+    let decoding = false
+    let disposeInputs: (() => void) | undefined
+    const disposing: FrameBackend = {
+      origin: 'webcodecs',
+      decode: () => {
+        decoding = true
+        return new Promise((_resolve, reject) => {
+          disposeInputs = () => reject(new Error('Input has been disposed.'))
+        })
+      },
+      destroy: () => disposeInputs?.(),
+    }
+    const prepared = async () => undefined
+    const registry = createStageRegistry([
+      stage('stabilize', prepared),
+      stage('input-colour', prepared),
+      stage('look', prepared),
+    ])
+    const preparer = createPreparer({ registry, sizes: createDerivedSizeStore() })
+    const stages = createRendererStages({
+      mode: 'preview',
+      projectFps: 30,
+      getDevice: async () => device,
+      registry,
+      preparer,
+      backend: () => disposing,
+    })
+    const item = { ...clip({ 'input-colour': true }), id: 'clip-disposed', sourceFps: 30 } as VideoItem
+    await stages.prepare([item])
+    await vi.waitFor(() => expect(preparer.statusOf(item, 'input-colour')?.status).toBe('ready'))
+
+    const rendering = stages.render(item, 5)
+    await vi.waitFor(() => expect(decoding).toBe(true))
+    stages.destroy()
+
+    await expect(rendering).rejects.toThrow('stage pipeline: destroyed while a frame was drawn')
+    expect(clipStageStates().get('clip-disposed')).toBeUndefined()
   })
 })

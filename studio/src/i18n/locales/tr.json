@@ -220,6 +220,26 @@
       "logFailed": "Günlük okunamadı.",
       "duration": "{{ms}} ms",
       "undoSteps": "Geri al × {{count}}"
+    },
+    "privacy": {
+      "title": "Gizlilik",
+      "intro": "Burada açmadığınız sürece DroneClean Studio sizin ya da çalışmanız hakkında hiçbir şey göndermez.",
+      "crashReports": "Çökme raporları gönder",
+      "crashReportsDescription": "Editör bir hatayla karşılaştığında, hatayı ve koddaki yerini sürüm ve işletim sistemiyle birlikte düzeltilebilmesi için Sentry'ye (AB) gönderir.",
+      "usageStats": "Anonim kullanım istatistikleri gönder",
+      "usageStatsDescription": "Birkaç anı (uygulamayı açma, proje oluşturma, dışa aktarmayı bitirme, yapay zekâ ajanı bağlama, gölge kaldırma) bu kurulumun rastgele kimliğiyle PostHog'a (AB) sayar. Kapatmak kimliği unutur.",
+      "never": "Asla gönderilmez: görüntüleriniz, kareler, dosya ve klasör adları, proje adları veya hesabınız. IP adresiniz saklanmaz."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "DroneClean Studio'yu geliştirmeye yardım edin",
+      "both": "Çökme raporları ve anonim kullanım istatistikleri gönderilsin mi? Raporlar neyin ters gittiğini, istatistikler hangi özelliklerin kullanıldığını sayar. İzin vermedikçe hiçbir şey gönderilmez.",
+      "crashOnly": "Bir sorun olduğunda çökme raporu gönderilsin mi? Neyin başarısız olduğunu ve editörün kodunda nerede olduğunu söyler. İzin vermedikçe hiçbir şey gönderilmez.",
+      "usageOnly": "Anonim kullanım istatistikleri gönderilsin mi? Hangi özelliklerin kullanıldığını sayar. İzin vermedikçe hiçbir şey gönderilmez.",
+      "later": "Görüntüleriniz, dosya adlarınız, klasörleriniz veya projeleriniz asla gönderilmez. Bunu istediğiniz zaman Ayarlar › Gizlilik bölümünden değiştirebilirsiniz.",
+      "allow": "İzin ver",
+      "decline": "İzin verme"
     }
   }
 }

@@ -180,8 +180,8 @@ function isActive(job: Job): boolean {
 
 /**
  * Stops a job nobody will read any more, which gives back what it reserved; a job that already
- * ended, or one the API no longer has, is left alone. For the free tracking pass only: a paid job
- * is canceled through `cancelForGood`, which reads how it ended.
+ * ended, or one the API no longer has, is left alone. For the tracking pass only: a clean is
+ * canceled through `cancelForGood`, which reads how it ended.
  */
 export async function stopJob(client: DroneCleanClient, jobId: string): Promise<void> {
   try {

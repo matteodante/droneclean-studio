@@ -11,7 +11,8 @@
 // the cross-origin isolation headers, seeds the workspace FreeCut would have
 // after the user picks a folder (an OPFS folder holding one project with one
 // text clip, registered in the app's own IndexedDB), then opens `/`, `/projects`
-// and `/editor/<id>` in Chrome, selects the clip and opens its font picker, and
+// and `/editor/<id>` in Chrome, answers the first-launch question about crash
+// reports with "Don't allow", selects the clip and opens its font picker, and
 // opens the Lottie tab, recording every request the browser context makes until
 // the network has been quiet for 3 s. Writes checks/out/network-origins.json
 // and lists every request that left the served origin, with the step it
@@ -194,6 +195,29 @@ async function runSteps({ page, recorder, base }) {
   steps.push({ name: 'seed', url: `${base}/favicon.svg`, quiet: true, idleMs: 0, durationMs: 0 })
 
   steps.push(await openStep(page, recorder, { name: 'landing', url: `${base}/` }))
+
+  steps.push(
+    await interactStep(page, recorder, {
+      name: 'telemetry-notice',
+      // A fresh profile is asked about crash reports and usage statistics, and
+      // nothing is sent while it is asked or after "Don't allow": the opt-in
+      // reports (src/studio/telemetry/) reach Sentry and PostHog only after a yes.
+      // A request here fails the run even from our own origin.
+      noRequests: true,
+      action: async () => {
+        const notice = page.getByTestId('telemetry-notice')
+        await settle(page, 'the first-launch question about crash reports', () =>
+          notice.waitFor({ state: 'visible', timeout: SETTLE_TIMEOUT_MS }),
+        )
+        await settle(page, '"Don\'t allow" in the first-launch question', () =>
+          notice.getByRole('button', { name: "Don't allow" }).click({ timeout: SETTLE_TIMEOUT_MS }),
+        )
+        await settle(page, 'the question answered and gone', () =>
+          notice.waitFor({ state: 'detached', timeout: SETTLE_TIMEOUT_MS }),
+        )
+      },
+    }),
+  )
 
   steps.push(
     await openStep(page, recorder, {

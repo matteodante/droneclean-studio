@@ -1946,7 +1946,7 @@ await studio.looks.remove('look-1')
 
 ## studio.shadow
 
-`studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (free), read the price, clean at that price (spends credits). Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.
+`studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (spends credits: `followCredits` of `shadow.get`), read the price of the clean, clean at that price (spends credits). Both paying calls take the credits the caller expects to spend and refuse unless they equal the current price, so an agent never spends credits the user was not shown. Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.
 
 ### `studio.shadow.get()`
 
@@ -1954,7 +1954,7 @@ await studio.looks.remove('look-1')
 get(id: ClipId): ShadowState
 ```
 
-A clip's shadow session: the mark, the stage, the ranges found, the price and the last failure. Not an undo step.
+A clip's shadow session: the mark, the stage, the ranges found, the clean's price, the last failure and what following the shadow costs (`followCredits`). Not an undo step.
 
 - Maps to: `useShadowSessionStore (src/studio/shadow/ui/use-shadow-session.ts)`
 - Throws: NOT_FOUND, UNSUPPORTED
@@ -1973,7 +1973,7 @@ mark(id: ClipId, mark: ShadowMarkInput): void
 
 Mark the shadow on a clip: a point in source pixels on a source frame (default: the frame the playhead shows on the clip). Forgets a pass made for another mark. One undo step.
 
-- Maps to: `setMark (src/studio/shadow/ui/use-shadow-session.ts:921)`
+- Maps to: `setMark (src/studio/shadow/ui/use-shadow-session.ts:1104)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT
 
 Example:
@@ -1985,18 +1985,18 @@ studio.shadow.mark('c1', { x: 1440, y: 1200 })
 ### `studio.shadow.follow()`
 
 ```ts
-follow(id: ClipId): Promise<ShadowFollowResult>
+follow(id: ClipId, expectedCredits: number): Promise<ShadowFollowResult>
 ```
 
-Follow the marked shadow with the free tracking pass and price cleaning what it found. Awaits the whole pass (cut, upload, track, quote) and costs no credits.
+Follow the marked shadow with a tracking pass and price cleaning what it found. This SPENDS the user's credits: pass the credits you expect to spend, and the call refuses unless that equals what following the shadow in this clip costs now (`followCredits` of `shadow.get`, the number the follow button shows: its part of the source, about a credit a second at 30 fps, twice at 60, at least 5). Show the user that price first. Awaits the whole pass (price check, balance check, cut, upload, track, quote); a balance that cannot cover it stops it before anything is uploaded. The piece sent reaches the keyframes around the clip's part: when that costs more than `expectedCredits`, nothing is spent and the call throws CONFLICT naming the exact price (`followCredits` then reads it, and a call with it goes on with the piece already sent). The service never charges more than `expectedCredits`, and gives the credits back when no shadow is found where it was marked: `creditsSpent` says what it took. A second call for the same mark reuses the finished pass and spends nothing.
 
-- Maps to: `track (src/studio/shadow/ui/use-shadow-session.ts:947)`
-- Throws: NOT_FOUND, UNSUPPORTED, CONFLICT, MEDIA_UNAVAILABLE, INTERNAL
+- Maps to: `track (src/studio/shadow/ui/use-shadow-session.ts:1123)`
+- Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT, MEDIA_UNAVAILABLE, INTERNAL
 
 Example:
 
 ```ts
-const { ranges, quote } = await studio.shadow.follow('c1')
+const { ranges, quote, creditsSpent } = await studio.shadow.follow('c1', 10)
 ```
 
 ### `studio.shadow.quote()`
@@ -2007,7 +2007,7 @@ quote(id: ClipId): Promise<ShadowQuote>
 
 Ask the price of the found ranges again, which also reads the balance again (after credits were bought). Not an undo step and no credits are spent.
 
-- Maps to: `refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1066)`
+- Maps to: `refreshQuote (src/studio/shadow/ui/use-shadow-session.ts:1230)`
 - Throws: NOT_FOUND, UNSUPPORTED, CONFLICT, INTERNAL
 
 Example:
@@ -2024,7 +2024,7 @@ clean(id: ClipId, expectedCredits: number): Promise<ShadowCleanResult>
 
 Clean the followed ranges. This SPENDS the user's credits: pass the credits you expect to spend, and the call refuses unless that equals the current price (`costCredits` of `shadow.quote`), so a clean never costs more than the price you were shown. The cleaned file is kept in the project and recorded on the clip.
 
-- Maps to: `clean (src/studio/shadow/ui/use-shadow-session.ts:967)`
+- Maps to: `clean (src/studio/shadow/ui/use-shadow-session.ts:1155)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT, INTERNAL
 
 Example:
@@ -2721,7 +2721,7 @@ export interface ShadowMarkInfo {
 
 ### `ShadowQuote`
 
-The price of cleaning the ranges the free pass found, from the service's quote.
+The price of cleaning the ranges the tracking pass found, from the service's quote.
 
 ```ts
 export interface ShadowQuote {
@@ -2758,6 +2758,7 @@ export interface ShadowState {
     error: string | null;
     needsSignIn: boolean;
     cleanedPieces: number;
+    followCredits: number;
 }
 ```
 
@@ -2769,6 +2770,7 @@ What `shadow.follow` found.
 export interface ShadowFollowResult {
     ranges: ShadowRangeInfo[];
     quote: ShadowQuote | null;
+    creditsSpent: number;
 }
 ```
 

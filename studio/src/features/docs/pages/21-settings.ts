@@ -5,12 +5,12 @@ const page = {
   slug: 'settings',
   title: 'Settings',
   description:
-    'The General, Timeline, AI, and Storage tabs, plus where language and shortcuts are set.',
+    'The General, Timeline, AI, Storage and Privacy tabs, plus where language and shortcuts are set.',
   category: 'Reference',
   related: ['keyboard-shortcuts', 'workspaces'],
   sections: [
     {
-      title: 'The four tabs',
+      title: 'The tabs',
       blocks: [
         {
           kind: 'table',
@@ -29,6 +29,7 @@ const page = {
               'Storage',
               'Generate missing proxies; clear project cache; regenerate thumbnails; delete proxies; manage Local AI.',
             ],
+            ['Privacy', 'Crash reports and anonymous usage statistics, each on or off (both off until you allow them).'],
           ],
         },
         {
@@ -58,6 +59,36 @@ const page = {
           kind: 'note',
           tone: 'info',
           text: 'Sounds are suppressed while the preview is playing, so they never bleed into the audio you are monitoring; exports are silent by design. Turning the toggle on plays a short confirmation.',
+        },
+      ],
+    },
+    {
+      title: 'Crash reports and usage statistics',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'DroneClean Studio sends nothing about you or your work unless you allow it. The first time it opens it asks, in a card in the bottom-left corner, whether to send **crash reports** and **anonymous usage statistics**; until you answer, and after **Don\'t allow**, nothing is sent. Change either one at any time in **Settings › Privacy**.',
+        },
+        {
+          kind: 'table',
+          headers: ['Report', 'What is sent', 'Where'],
+          rows: [
+            [
+              'Crash reports',
+              'The error, where it happened in the editor\'s code, the version and the operating system. Paths and file names are removed from messages before they leave.',
+              'Sentry, in the EU',
+            ],
+            [
+              'Usage statistics',
+              'That the app was opened, a project created (its size and frame rate), an export finished (its format, size and length), an AI agent connected, or a shadow removed (its length), under a random id of this installation that is forgotten when you switch statistics off.',
+              'PostHog, in the EU',
+            ],
+          ],
+        },
+        {
+          kind: 'note',
+          tone: 'info',
+          text: 'Never sent: your footage, frames, file and folder names, project names or your account. Your IP address is not stored. The desktop app keeps your answer in its profile folder, the web editor in your browser.',
         },
       ],
     },

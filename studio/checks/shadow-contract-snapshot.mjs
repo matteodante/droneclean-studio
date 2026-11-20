@@ -5,7 +5,8 @@
 // `src/studio/shadow/api/types.ts` and its recorded answers are hand-written. This script reads the
 // cloud clone's zod schemas, converts the ones the editor uses to JSON Schema with the cloud's own
 // zod (`z.toJSONSchema`), and writes
-//   src/studio/shadow/api/contract-snapshot.json      the schemas, the contract version, the commit
+//   src/studio/shadow/api/contract-snapshot.json      the schemas, the contract version, the commit and
+//                                                       the prices the editor mirrors (`prices`)
 //   src/studio/shadow/api/__fixtures__/contract-snapshot.types.ts
 //                                                       the same schemas as TypeScript types
 // `contract.test.ts` checks the recorded answers and `types.ts` against them, without needing the
@@ -112,6 +113,28 @@ const ENDPOINTS = [
   { method: 'DELETE', path: '/v1/jobs/{id}', request: null, response: 'DeleteJobResult' },
 ]
 
+/**
+ * Pieces the cloud's own `trackCredits` prices for the snapshot (seconds, frame rate or null for none): the editor's
+ * copy (`src/studio/shadow/pricing.ts`) must give the same, so the price it shows before a press and its job's
+ * `maxCredits` are the API's. Rates at the edges of the rounding: 59.94 fps pieces of whole frames, a hair under a
+ * whole credit, no frame rate.
+ */
+const TRACK_SAMPLES = [
+  [10.01, 60000 / 1001],
+  [10.01, 59.94],
+  [11.5, 59.94],
+  [10, 30],
+  [10.2, 30],
+  [9.999999, 30],
+  [2, 30],
+  [0, 60],
+  [60, 240],
+  [600.6, 120000 / 1001],
+  [30.03, 30000 / 1001],
+  [230.88065, 60000 / 1001],
+  [10, null],
+]
+
 function git(...gitArgs) {
   return execFileSync('git', ['-C', cloudRoot, ...gitArgs], { encoding: 'utf8' }).trim()
 }
@@ -127,7 +150,9 @@ const cloudCommit = git('rev-parse', 'HEAD')
 const bundle = await build({
   stdin: {
     contents:
-      "export * from './src/schemas'; export * from './src/constants'; export { z } from 'zod'",
+      "export * from './src/schemas'; export * from './src/constants'; " +
+      "export { FREE_OFFERS, PREVIEW_CREDITS, TRACK_CREDITS, trackCredits } from './src/pricing'; " +
+      "export { z } from 'zod'",
     resolveDir: sharedRoot,
     loader: 'ts',
   },
@@ -184,6 +209,18 @@ const snapshot = {
     jsonSchema: 'draft 2020-12, zod toJSONSchema (patterns of date-time and uuid left out)',
   },
   endpoints: ENDPOINTS,
+  // The cloud's prices the editor shows before a press (`src/studio/shadow/pricing.ts`) and its recorded
+  // `GET /v1/config` carries: `pricing.test.ts` holds both to these, as `pricing.ts` says them at `cloudCommit`.
+  prices: {
+    track: cloud.TRACK_CREDITS,
+    preview: cloud.PREVIEW_CREDITS,
+    welcomeCredits: cloud.FREE_OFFERS.welcomeCredits,
+    trackSamples: TRACK_SAMPLES.map(([seconds, fps]) => [
+      seconds,
+      fps,
+      cloud.trackCredits(seconds, fps ?? undefined),
+    ]),
+  },
   schemas,
 }
 

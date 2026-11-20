@@ -51,6 +51,34 @@ function output(command, args, options = {}) {
   return execFileSync(command, args, { encoding: 'utf8', ...options }).trim()
 }
 
+/**
+ * The editor's source maps to Sentry (the opt-in crash reports, 20 Nov 2026): `sourcemaps inject` writes a debug id
+ * into each built script and its map, so the shipped scripts (which carry no maps) still resolve to readable stacks,
+ * and `upload` sends the maps under the release the app reports (`droneclean-studio@<version>`). It needs an
+ * organization auth token in `SENTRY_AUTH_TOKEN` (made in Sentry by Matteo, never stored in the repository);
+ * without one the release is built the same and its crash reports show minified stacks.
+ */
+function uploadSourceMaps(dir) {
+  if (!process.env.SENTRY_AUTH_TOKEN) {
+    console.warn(`release-mac: SENTRY_AUTH_TOKEN is not set, so the source maps of ${path.basename(dir)} are not sent to Sentry`)
+    return
+  }
+  const cli = ['--yes', '@sentry/cli@3.8.2']
+  run('npx', [...cli, 'sourcemaps', 'inject', dir])
+  run('npx', [
+    ...cli,
+    'sourcemaps',
+    'upload',
+    '--org',
+    'matteo-dante',
+    '--project',
+    'droneclean',
+    '--release',
+    `droneclean-studio@${version}`,
+    dir,
+  ])
+}
+
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 }
@@ -80,6 +108,7 @@ if (publish) {
 // The build
 for (const stale of [dmg, zip, sums, webTarball]) fs.rmSync(stale, { force: true })
 run('npm', ['run', 'build'], { cwd: desktopDir })
+uploadSourceMaps(path.join(studioDir, 'dist'))
 run('sh', ['scripts/build-ffmpeg.sh'], { cwd: desktopDir })
 run('npx', ['electron-builder', '--mac', 'dmg', 'zip', '--arm64', '--publish', 'never', '-c.mac.identity=-'], {
   cwd: desktopDir,
@@ -101,6 +130,7 @@ run('hdiutil', ['verify', dmg])
 
 // The web editor
 run('npm', ['run', 'build:web'], { cwd: studioDir })
+uploadSourceMaps(path.join(studioDir, 'dist-web'))
 run('tar', ['-czf', webTarball, '--exclude', '*.map', '-C', path.join(studioDir, 'dist-web'), '.'])
 const webIndex = output('tar', ['-xzOf', webTarball, './index.html'])
 if (!webIndex.includes('/studio/assets/')) throw new Error('release-mac: the web build is not under /studio/')

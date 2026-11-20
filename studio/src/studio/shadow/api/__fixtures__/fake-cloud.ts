@@ -11,7 +11,8 @@
  *   charged and comes with a result URL signed afresh for every read.
  * - `POST /v1/jobs/{id}/cancel` cancels a queued or running job and gives its credits back; a job
  *   that ended is refused with 409 ("This job is already succeeded.").
- * - `POST /v1/jobs/quote` prices on the upload, and says whether the balance covers it.
+ * - `POST /v1/jobs/quote` prices on the upload, and says whether the balance covers it; `GET /v1/me`
+ *   answers the same balance.
  *
  * Faults are queued per kind of call (`failNext`): the network lost before the cloud acts, the
  * answer lost after it acted (the dangerous one: the job exists, the editor does not know), or an
@@ -20,6 +21,7 @@
 import type { CreateJobRequest, Job, JobStatus, Upload } from '../types'
 import { createFakeServer, type FakeAnswer, type FakeServer } from './fake-server'
 import {
+  ACCOUNT,
   CONFIG,
   FULL_JOB,
   FULL_JOB_ID,
@@ -288,6 +290,14 @@ export function createFakeCloud(options: FakeCloudOptions = {}): FakeCloud {
       },
     },
     { method: 'GET', path: '/v1/config', respond: () => ({ body: CONFIG }) },
+    // The balance a tracking pass reads before it cuts its piece (20 Nov 2026).
+    {
+      method: 'GET',
+      path: '/v1/me',
+      respond: () => ({
+        body: { ...ACCOUNT, balance: { availableCredits, reservedCredits: 0 } },
+      }),
+    },
   ])
 
   const all = () => order.map((id) => stored.get(id)!.job)

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { createLogger } from '@/shared/logging/logger'
 import { i18n } from '@/i18n'
+import { reportError } from '@/studio/telemetry/crash'
 
 const logger = createLogger('ErrorBoundary')
 
@@ -34,6 +35,8 @@ export class ErrorBoundary extends Component<Props, State> {
       logger.error('ErrorBoundary caught:', error, errorInfo)
     }
 
+    // An opt-in crash report (a no-op unless the user switched them on).
+    reportError(error, `boundary:${this.props.level ?? 'component'}`)
     this.props.onError?.(error, errorInfo)
   }
 

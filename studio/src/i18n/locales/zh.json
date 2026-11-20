@@ -220,6 +220,26 @@
       "logFailed": "无法读取日志。",
       "duration": "{{ms}} ms",
       "undoSteps": "撤销 × {{count}}"
+    },
+    "privacy": {
+      "title": "隐私",
+      "intro": "除非你在这里开启，DroneClean Studio 不会发送任何关于你或你作品的信息。",
+      "crashReports": "发送崩溃报告",
+      "crashReportsDescription": "编辑器出错时，将错误及其在代码中的位置连同版本和操作系统发送到 Sentry（欧盟），以便修复。",
+      "usageStats": "发送匿名使用统计",
+      "usageStatsDescription": "以本次安装的随机 ID，向 PostHog（欧盟）计数几个时刻（打开应用、创建项目、完成导出、连接 AI 代理、去除阴影）。关闭后会忘记该 ID。",
+      "never": "绝不发送：你的素材、画面、文件和文件夹名称、项目名称或账户。不会保存你的 IP 地址。"
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "帮助改进 DroneClean Studio",
+      "both": "发送崩溃报告和匿名使用统计吗？崩溃报告说明出了什么问题；统计只计算使用了哪些功能。未经你允许，不会发送任何内容。",
+      "crashOnly": "出现问题时发送崩溃报告吗？报告说明哪里失败、发生在编辑器代码的什么位置。未经你允许，不会发送任何内容。",
+      "usageOnly": "发送匿名使用统计吗？统计只计算使用了哪些功能。未经你允许，不会发送任何内容。",
+      "later": "绝不发送你的素材、文件名、文件夹或项目。你可以随时在 设置 › 隐私 中更改。",
+      "allow": "允许",
+      "decline": "不允许"
     }
   }
 }

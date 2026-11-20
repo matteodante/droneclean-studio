@@ -2,9 +2,14 @@
  * `studio.shadow`: DroneClean shadow removal on a clip (plan decision D7), over the clip panel's own session
  * store (`useShadowSessionStore`), so a script and a mouse take the same path.
  *
- * `clean` spends the user's credits. It takes the credits the caller expects to spend and refuses unless they
- * equal the price the service quotes at that moment, so an agent can never spend more than the price it was shown.
- * An agent cannot sign in: when the session needs it, the call fails and says the user must approve it in the app.
+ * `follow` and `clean` spend the user's credits (the tracking pass since 20 Nov 2026). Each takes the credits the
+ * caller expects to spend and refuses, before anything is cut, uploaded or reserved, unless they equal the current
+ * price: for `follow`, what the follow button shows (`clipFollowCredits`: the clip's part of its source), or the exact
+ * price of the piece once the session asked for it (`followCreditsNow`); for `clean`, the price the service quotes at
+ * that moment. A follow whose piece turns out to cost more stops with nothing spent and names the exact price, and the
+ * job carries the agreed price as its `maxCredits`. So an agent with access (on by default) never spends credits the
+ * user was not shown. An agent cannot sign in: when the session needs it, the call fails and says the user must approve it
+ * in the app.
  */
 
 import type { VideoItem } from '@/types/timeline'
@@ -18,7 +23,11 @@ import { clipSourcePosition } from '@/studio/speed'
 import type { JobQuote } from '@/studio/shadow/api/types'
 import { validateShadowRemoval, type ShadowMark } from '@/studio/shadow/model'
 import { shadowAvailability } from '@/studio/shadow/ui/availability'
-import { SHADOW_SESSION_IDLE, useShadowSessionStore } from '@/studio/shadow/ui/use-shadow-session'
+import {
+  SHADOW_SESSION_IDLE,
+  followCreditsNow,
+  useShadowSessionStore,
+} from '@/studio/shadow/ui/use-shadow-session'
 import { requireClip } from '../context'
 import { invalidArgumentError, studioError } from '../errors'
 import { transaction } from '../transaction'
@@ -136,6 +145,38 @@ function throwSessionFailure(id: ClipId, method: string): void {
       hint: 'studio.shadow.get(id) shows the session.',
     })
   }
+}
+
+/**
+ * The credits a paying call was given: a whole number, 0 or more.
+ * @throws INVALID_ARGUMENT otherwise, before anything is spent
+ */
+function requireExpectedCredits(method: string, value: unknown, priceFrom: string): number {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value
+  throw invalidArgumentError({
+    method,
+    argument: 'expectedCredits',
+    expectation: `a whole number of credits, 0 or more: ${priceFrom}`,
+    value,
+  })
+}
+
+/**
+ * The price a follow may pay: what following the shadow in the clip costs now must equal the credits the caller
+ * expects, as `clean`'s price must.
+ * @throws CONFLICT otherwise, naming the price, before anything is cut, uploaded or reserved
+ */
+function requireFollowPrice(id: ClipId, item: VideoItem, expectedCredits: number): number {
+  const price = followCreditsNow(item)
+  if (price === expectedCredits) return price
+  throw studioError({
+    code: 'CONFLICT',
+    method: 'shadow.follow',
+    argument: 'expectedCredits',
+    message: `following the shadow in this clip costs ${price} credits, not the ${expectedCredits} expected; nothing was spent`,
+    entity: { kind: 'clip', id },
+    hint: `Show the user the price (${price} credits: studio.shadow.get(id).followCredits) and pass it again.`,
+  })
 }
 
 /** The number of cleaned pieces the live clip records. */
@@ -296,6 +337,7 @@ export function createShadowApi(): ShadowApi {
         error: session.error,
         needsSignIn: session.needsSignIn || session.signIn !== null,
         cleanedPieces: item.shadowRemoval?.pieces.length ?? 0,
+        followCredits: followCreditsNow(item),
       }
     },
 
@@ -305,7 +347,12 @@ export function createShadowApi(): ShadowApi {
       transaction('SHADOW_MARK', () => useShadowSessionStore.getState().setMark(item, mark))
     },
 
-    async follow(id: ClipId): Promise<ShadowFollowResult> {
+    async follow(id: ClipId, expectedCredits: number): Promise<ShadowFollowResult> {
+      const expected = requireExpectedCredits(
+        'shadow.follow',
+        expectedCredits,
+        'the followCredits shadow.get returned, shown to the user',
+      )
       const item = requireActionClip(id, 'shadow.follow')
       if (!item.shadowRemoval?.mark) {
         throw studioError({
@@ -316,11 +363,25 @@ export function createShadowApi(): ShadowApi {
           hint: 'Call studio.shadow.mark(id, { x, y }) first.',
         })
       }
+      requireFollowPrice(id, item, expected)
       // The pass and its price belong to the clip the session is open on.
       if (useShadowSessionStore.getState().clipId !== id) useShadowSessionStore.getState().open(id)
-      await useShadowSessionStore.getState().track(item)
+      // A finished pass for the same mark is reused (`track`): that call spends nothing.
+      const before = sessionOf(id).pass
+      await useShadowSessionStore.getState().track(item, expected)
       throwSessionFailure(id, 'shadow.follow')
       const session = sessionOf(id)
+      if (session.priceAsk) {
+        const exact = session.priceAsk.credits
+        throw studioError({
+          code: 'CONFLICT',
+          method: 'shadow.follow',
+          argument: 'expectedCredits',
+          message: `following the shadow in this clip costs ${exact} credits, not the ${expected} expected: the piece sent reaches the keyframes around its part; nothing was spent`,
+          entity: { kind: 'clip', id },
+          hint: `Show the user ${exact} credits and call studio.shadow.follow(id, ${exact}); the piece already sent is reused.`,
+        })
+      }
       if (!session.pass) {
         throw studioError({
           code: 'CONFLICT',
@@ -332,6 +393,7 @@ export function createShadowApi(): ShadowApi {
       return {
         ranges: rangesOf(id),
         quote: session.quote ? quoteInfo(session.quote) : null,
+        creditsSpent: session.pass === before ? 0 : session.pass.chargedCredits,
       }
     },
 
@@ -362,15 +424,11 @@ export function createShadowApi(): ShadowApi {
 
     async clean(id: ClipId, expectedCredits: number): Promise<ShadowCleanResult> {
       const method = 'shadow.clean'
-      if (!Number.isInteger(expectedCredits) || expectedCredits < 0) {
-        throw invalidArgumentError({
-          method,
-          argument: 'expectedCredits',
-          expectation:
-            'a whole number of credits, 0 or more: the price shadow.follow or shadow.quote returned',
-          value: expectedCredits,
-        })
-      }
+      requireExpectedCredits(
+        method,
+        expectedCredits,
+        'the price shadow.follow or shadow.quote returned',
+      )
       const item = requireActionClip(id, method)
       const before = sessionOf(id)
       if (!before.pass || before.pass.ranges.length === 0) {

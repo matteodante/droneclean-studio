@@ -1,9 +1,16 @@
-// The shadow section's session: the free tracking pass for one clip, the paid clean of the ranges
-// it found, and everything the section needs to show them (design 4.1, section 7, slices E5 and E6).
+// The shadow section's session: the tracking pass for one clip, the clean of the ranges it found,
+// and everything the section needs to show them (design 4.1, section 7, slices E5 and E6). Both are
+// paid in credits since 20 Nov 2026 (the pass by its piece's seconds, `../pricing.ts`).
 //
-// The free pass costs nothing: the part of the source the clip shows (the piece the pilot chose by
-// trimming or splitting the clip: decided 19 Nov 2026) is cut with the encoded samples copied
-// (`../cut/cut.ts`), uploaded, and followed by a free `track` job from the mark; its keyframes and
+// The pass: the part of the source the clip shows (the piece the pilot chose by trimming or
+// splitting the clip: decided 19 Nov 2026) is planned, and the piece that plan uploads (it reaches
+// the keyframes around the part) is priced exactly as the API prices it: above the price the pilot
+// agreed to (the follow button's) it stops and asks "Follow for N credits", nothing cut, uploaded or
+// spent; the job carries the agreed price as `maxCredits`, so the API never charges more. It is
+// priced against the account's balance (one too short stops here, before anything is cut or
+// uploaded), cut with the encoded samples copied
+// (`../cut/cut.ts`), uploaded, and followed by a `track` job from the mark (which gives its credits
+// back when it finds no shadow there); its keyframes and
 // the ranges where the shadow was found come back in source frames, kept inside the clip's part
 // (the cut reaches the keyframes around it, which are not the pilot's), and `POST /v1/jobs/quote`
 // prices the seconds a full job would clean on that same upload (the server's price, never the
@@ -24,7 +31,7 @@
 // the session (the token in the desktop main process) and the ways a browser is opened.
 
 import { create } from 'zustand'
-import { secondsToFrame, toRate, type Rate } from '@/studio/time'
+import { frameToSeconds, secondsToFrame, toRate, type Rate } from '@/studio/time'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import { updateItem } from '@/features/timeline/stores/timeline-actions'
@@ -68,6 +75,8 @@ import {
 } from '../run'
 import { shadowAvailability } from './availability'
 import { validateShadowRemoval, type ShadowMark } from '../model'
+import { roundSeconds, track } from '@/studio/telemetry/usage'
+import { clipFollowCredits, pieceCredits, trackCredits } from '../pricing'
 
 /** The API's origin: the website, which passes `/v1/*` and `/api/auth/*` on to the API (design 4.1, 5.1). */
 const DEFAULT_API_BASE_URL = 'https://droneclean.app'
@@ -85,7 +94,7 @@ const CREDITS_REQUEST_URL = 'https://droneclean.app/profile'
  */
 const UPLOAD_KEPT_MS = 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000
 
-/** Where a tracking pass is: the API's job kinds and the free pass's own stages. */
+/** Where a tracking pass is: the API's job kinds and the pass's own stages. */
 export type ShadowStage =
   | 'idle'
   | 'signing-in'
@@ -113,10 +122,14 @@ export function isShadowBusy(stage: ShadowStage): boolean {
   return SHADOW_BUSY_STAGES.includes(stage)
 }
 
-/** A finished free tracking pass, in source frames. */
+/** A finished tracking pass, in source frames. */
 interface ShadowTrackPass {
   /** The `track` job the API ran. */
   jobId: string
+  /** The credits the pass kept: its price, or 0 when it found no shadow where it was marked. */
+  chargedCredits: number
+  /** The credits it gave back: all of them when it found no shadow where it was marked (20 Nov 2026). */
+  refundedCredits: number
   /** The upload it ran on: the quote prices it and the clean runs on it, so nothing is uploaded twice. */
   uploadId: string
   /** When the cloud stored that upload (it keeps it seven days); absent when it did not say. */
@@ -129,6 +142,17 @@ interface ShadowTrackPass {
   points: SourceTrackPoint[]
   /** The stretches the tracker found, in source frames, each with a tracked point inside it. */
   ranges: SourceFrameRange[]
+}
+
+/**
+ * A pass stopped before spending anything because its piece costs more than the price agreed to: the piece reaches the
+ * keyframes around the clip's part. The exact price, for the mark it was planned for; `piece` is the piece already
+ * uploaded when the price came from our servers' measure of it, so agreeing does not cut or upload it again.
+ */
+interface ShadowPriceAsk {
+  credits: number
+  mark: ShadowMark
+  piece: { window: ShadowCutWindow; upload: Upload } | null
 }
 
 /** What the section and the preview read, and what the preview's click writes. */
@@ -146,8 +170,10 @@ interface ShadowSessionState {
   stage: ShadowStage
   /** Upload, job or download progress, 0 to 1. */
   progress: number
-  /** The finished free pass, once there is one. */
+  /** The finished pass, once there is one. */
   pass: ShadowTrackPass | null
+  /** The pass stopped to ask for the exact price of its piece ("Follow for N credits"), or null. */
+  priceAsk: ShadowPriceAsk | null
   /** The price of cleaning the proposed ranges, from the API's quote: no job is created. */
   quote: JobQuote | null
   /** The server's settings, read after the pass so the section can say whether the beta is free. */
@@ -174,6 +200,7 @@ export const SHADOW_SESSION_IDLE: ShadowSessionState = {
   stage: 'idle',
   progress: 0,
   pass: null,
+  priceAsk: null,
   quote: null,
   config: null,
   error: null,
@@ -194,8 +221,12 @@ interface ShadowSessionActions {
   cancelMarking(): void
   /** Writes a mark in source pixels and frames, in one undo step, and forgets a pass made for another one. */
   setMark(item: VideoItem, mark: ShadowMark): void
-  /** The free flow for the clip's mark: sign in if needed, cut, upload, track, price. Reuses a finished pass. */
-  track(item: VideoItem): Promise<void>
+  /**
+   * The pass for the clip's mark: sign in if needed, price its piece, check the balance, cut, upload, track, price
+   * the clean. `agreedCredits` is the most it may cost: the follow button's price when left out, the asked price
+   * after "Follow for N credits" (which reuses the piece already uploaded). Reuses a finished pass.
+   */
+  track(item: VideoItem, agreedCredits?: number): Promise<void>
   /** The paid flow: one full job over the pass's ranges, its file kept in the project and recorded. */
   clean(item: VideoItem): Promise<void>
   /** Stops the running flow: abandons its answers and cancels its job on the server. */
@@ -352,7 +383,7 @@ function sameMark(a: ShadowMark, b: ShadowMark): boolean {
   return a.x === b.x && a.y === b.y && a.sourceFrame === b.sourceFrame && a.radius === b.radius
 }
 
-/** The free tracking job: a `track` kind from the mark's point inside the uploaded piece. */
+/** The tracking job: a `track` kind from the mark's point inside the uploaded piece, which reserves its credits. */
 function createTrackingJob(
   client: DroneCleanClient,
   deps: ShadowSessionDeps,
@@ -360,10 +391,12 @@ function createTrackingJob(
   rate: Rate,
   window: ShadowCutWindow,
   mark: ShadowMark,
+  maxCredits: number,
 ): Promise<Job> {
   return client.createJob({
     uploadId: upload.id,
     kind: 'track',
+    maxCredits,
     click: shadowClick(rate, window.startFrame, {
       x: mark.x,
       y: mark.y,
@@ -396,22 +429,56 @@ async function signInIfNeeded(
   return true
 }
 
-/** Plans and cuts the clip's part of the source; null when the run was abandoned. */
-async function cutClipPart(
+/** Plans the cut of the clip's part of the source: the window of frames it will upload; null when abandoned. */
+async function planClipPart(
   deps: ShadowSessionDeps,
   media: MediaMetadata,
   range: ShadowCutRange,
   rate: Rate,
   set: SessionUpdate,
   abandoned: () => boolean,
-): Promise<{ window: ShadowCutWindow; piece: Blob } | null> {
+): Promise<{ source: ShadowSource; window: ShadowCutWindow } | null> {
   set({ stage: 'cutting' })
   const source = await deps.getSourceBlob(media.id)
   if (!source) throw new Error("The clip's file could not be read.")
   if (abandoned()) return null
   const window = await deps.cutter.plan(source, range, rate)
-  const piece = await deps.cutter.cut(source, window)
-  return abandoned() ? null : { window, piece }
+  return abandoned() ? null : { source, window }
+}
+
+/** Cuts the planned window out of the source; null when the run was abandoned. */
+async function cutClipPart(
+  deps: ShadowSessionDeps,
+  planned: { source: ShadowSource; window: ShadowCutWindow },
+  abandoned: () => boolean,
+): Promise<{ window: ShadowCutWindow; piece: Blob } | null> {
+  const piece = await deps.cutter.cut(planned.source, planned.window)
+  return abandoned() ? null : { window: planned.window, piece }
+}
+
+/** "1 credit", "1,200 credits": the cloud's `formatCredits`, so a refusal here reads as the API's 402. */
+function formatCredits(credits: number): string {
+  const whole = Math.round(credits)
+  return `${whole.toLocaleString('en-US')} ${Math.abs(whole) === 1 ? 'credit' : 'credits'}`
+}
+
+/** What the pass over a planned window costs: its frames' seconds at the source's rate, by the API's rule. */
+function windowCredits(window: ShadowCutWindow, rate: Rate): number {
+  return trackCredits(
+    frameToSeconds(rate, window.endFrame - window.startFrame),
+    rate.num / rate.den,
+  )
+}
+
+/**
+ * Whether the balance covers `cost`, read from the account right before anything is cut or uploaded (about 160 MB a
+ * press): the sentence the API's 402 would say when it does not (`notEnoughCredits` in the cloud), or null.
+ */
+async function balanceRefusal(deps: ShadowSessionDeps, cost: number): Promise<string | null> {
+  const { availableCredits } = (await deps.client.getAccount()).balance
+  return availableCredits >= cost
+    ? null
+    : `Following the shadow here needs ${formatCredits(cost)} and you have ${formatCredits(availableCredits)}.`
 }
 
 /** Uploads the piece, reporting its progress; null when the run was abandoned. */
@@ -436,18 +503,19 @@ async function uploadPiece(
   return abandoned() ? null : upload
 }
 
-/** Creates and follows the free tracking job, then reads its keyframes; null when abandoned. */
+/** Creates and follows the tracking job, then reads its keyframes; null when abandoned. */
 async function trackPiece(
   deps: ShadowSessionDeps,
   upload: Upload,
   rate: Rate,
   window: ShadowCutWindow,
   mark: ShadowMark,
+  maxCredits: number,
   set: SessionUpdate,
   abandoned: () => boolean,
 ): Promise<{ job: Job; track: TrackData } | null> {
   set({ stage: 'tracking' })
-  const started = await createTrackingJob(deps.client, deps, upload, rate, window, mark)
+  const started = await createTrackingJob(deps.client, deps, upload, rate, window, mark, maxCredits)
   if (!abandoned()) set({ activeJobId: started.id })
   const job = await waitForJob(deps.client, started, {
     sleep: deps.sleep,
@@ -456,7 +524,7 @@ async function trackPiece(
   })
   set({ activeJobId: null })
   if (!job) {
-    // Nobody waits for this pass any more: stop it on the server (free, but it holds a slot).
+    // Nobody waits for this pass any more: stop it on the server, which gives its credits back.
     await stopJob(deps.client, started.id)
     return null
   }
@@ -503,33 +571,88 @@ async function pricePass(
   return abandoned() ? null : { points, proposal, quote, config }
 }
 
+/** A piece on the cloud, ready for its tracking job: the window of source frames it holds, and its upload. */
+type SentPiece = { window: ShadowCutWindow; upload: Upload }
+
 /**
- * The free pass, step by step: sign in if needed, cut, upload, follow, price. Every step returns
- * null when the section was closed or the clip changed under it; a failure stops the pass and is
- * shown by the caller.
+ * Plans, prices, cuts and uploads the clip's part; null when the run was abandoned or the pass stopped to ask for the
+ * piece's exact price (`priceAsk`, nothing spent). The piece is priced twice before any job: on its planned frames,
+ * before anything is cut or uploaded, and on our servers' measure of the upload (`pieceCredits`, what the job will
+ * cost), so the pilot is never charged more than `agreed` without being asked; the job's `maxCredits` holds the API
+ * to it.
+ */
+async function sendClipPart(
+  deps: ShadowSessionDeps,
+  media: MediaMetadata,
+  range: ShadowCutRange,
+  rate: Rate,
+  mark: ShadowMark,
+  agreed: number,
+  update: SessionUpdate,
+  abandoned: () => boolean,
+): Promise<SentPiece | null> {
+  const ask = (credits: number, piece: SentPiece | null) =>
+    update({ stage: 'idle', progress: 0, priceAsk: { credits, mark, piece } })
+  const planned = await planClipPart(deps, media, range, rate, update, abandoned)
+  if (!planned) return null
+  const planCredits = windowCredits(planned.window, rate)
+  if (planCredits > agreed) {
+    ask(planCredits, null)
+    return null
+  }
+  const refusal = await balanceRefusal(deps, planCredits)
+  if (abandoned()) return null
+  if (refusal !== null) throw new Error(refusal)
+  const cut = await cutClipPart(deps, planned, abandoned)
+  if (!cut) return null
+  const upload = await uploadPiece(deps, media, rate, cut, update, abandoned)
+  if (!upload) return null
+  const exact = pieceCredits(upload.video)
+  if (exact > agreed) {
+    ask(exact, { window: cut.window, upload })
+    return null
+  }
+  return { window: cut.window, upload }
+}
+
+/**
+ * The pass, step by step: sign in if needed, then the piece (planned, priced against `agreed` and the balance, cut,
+ * uploaded: `sendClipPart`), or the piece already uploaded when the pilot agreed to its exact price (`held`); then
+ * follow and price the clean. Every step returns null when the section was closed or the clip changed under it; a
+ * failure stops the pass and is shown by the caller.
  */
 async function runPass(
   deps: ShadowSessionDeps,
   item: VideoItem,
   media: MediaMetadata,
   mark: ShadowMark,
+  price: { agreed: number; held: SentPiece | null },
   update: SessionUpdate,
   abandoned: () => boolean,
 ): Promise<void> {
   if (!(await signInIfNeeded(deps, update, abandoned))) return
   const rate = sourceRateOf(item)
   const range = clipSourceRange(item, sourceFrameCount(media, rate))
-  const cut = await cutClipPart(deps, media, range, rate, update, abandoned)
-  if (!cut) return
-  const upload = await uploadPiece(deps, media, rate, cut, update, abandoned)
-  if (!upload) return
-  const tracked = await trackPiece(deps, upload, rate, cut.window, mark, update, abandoned)
+  const sent =
+    price.held ??
+    (await sendClipPart(deps, media, range, rate, mark, price.agreed, update, abandoned))
+  if (!sent) return
+  const tracked = await trackPiece(
+    deps,
+    sent.upload,
+    rate,
+    sent.window,
+    mark,
+    price.agreed,
+    update,
+    abandoned,
+  )
   if (!tracked) return
   const priced = await pricePass(
     deps,
     rate,
-    { window: cut.window, range },
-    upload,
+    { window: sent.window, range },
+    sent.upload,
     tracked.job,
     tracked.track,
     abandoned,
@@ -540,16 +663,48 @@ async function runPass(
     progress: 1,
     pass: {
       jobId: tracked.job.id,
-      uploadId: upload.id,
-      uploadCreatedAt: upload.createdAt,
+      chargedCredits: tracked.job.cost.chargedCredits,
+      refundedCredits: tracked.job.cost.reservedCredits - tracked.job.cost.chargedCredits,
+      uploadId: sent.upload.id,
+      uploadCreatedAt: sent.upload.createdAt,
       mark,
-      window: cut.window,
+      window: sent.window,
       points: priced.points,
       ranges: priced.proposal.ranges,
     },
     quote: priced.quote,
     config: priced.config,
   })
+}
+
+/** The price the session asked for this clip's mark, if it asked. */
+function askFor(state: ShadowSessionState, item: VideoItem): ShadowPriceAsk | null {
+  const mark = item.shadowRemoval?.mark
+  const ask = state.clipId === item.id ? state.priceAsk : null
+  return ask && mark && sameMark(ask.mark, mark) ? ask : null
+}
+
+/**
+ * What following the shadow in the clip costs now: the exact price the panel asked for, when it asked for this clip's
+ * mark, else the follow button's (`clipFollowCredits`). `studio.shadow` holds an agent to it.
+ */
+export function followCreditsNow(item: VideoItem): number {
+  const ask = askFor(useShadowSessionStore.getState(), item)
+  return ask ? ask.credits : clipFollowCredits(item, sourceRateOf(item), mediaOf(item)?.duration)
+}
+
+/**
+ * The most a pass may cost, as the pilot agreed to it (the button's price when `agreedCredits` is left out, the asked
+ * one after "Follow for N credits"), and the piece already uploaded for this mark when that covers its exact price.
+ */
+function agreedPrice(
+  state: ShadowSessionState,
+  item: VideoItem,
+  agreedCredits: number | undefined,
+): { agreed: number; held: SentPiece | null } {
+  const agreed = agreedCredits ?? followCreditsNow(item)
+  const ask = askFor(state, item)
+  return { agreed, held: ask && agreed >= ask.credits ? ask.piece : null }
 }
 
 /** Whether the last failure was the API refusing the session, so the panel offers a new sign-in. */
@@ -594,10 +749,10 @@ function failurePatch(
   }
 }
 
-/** What the free pass needs from the section, or the reason it cannot start. */
+/** What the pass needs from the section, or the reason it cannot start. */
 type TrackStart = { error: string } | { mark: ShadowMark; media: MediaMetadata }
 
-/** The clip's mark and source for the free pass, or the sentence that says what is missing. */
+/** The clip's mark and source for the pass, or the sentence that says what is missing. */
 function trackStart(
   item: VideoItem,
   mark: ShadowMark | undefined,
@@ -914,6 +1069,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
       progress: 0,
       activeJobId: null,
       projectNotSaved: false,
+      priceAsk: null,
       ...reset,
     })
     return {
@@ -965,7 +1121,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
       })
     },
 
-    track: async (item) => {
+    track: async (item, agreedCredits) => {
       const mark = item.shadowRemoval?.mark
       if (get().clipId === item.id && passAnswersMark(get().pass, mark)) {
         // The finished pass is still the answer for this mark. Each pass counts against the cloud's
@@ -974,6 +1130,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
         if (get().quote?.enough !== true) await get().refreshQuote(item)
         return
       }
+      const price = agreedPrice(get(), item, agreedCredits)
       const run = beginRun({ pass: null, quote: null, config: null })
       const start = trackStart(item, mark, mediaOf(item))
       if ('error' in start) {
@@ -981,7 +1138,15 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
         return
       }
       try {
-        await runPass(sessionDeps(), item, start.media, start.mark, run.update, run.abandoned)
+        await runPass(
+          sessionDeps(),
+          item,
+          start.media,
+          start.mark,
+          price,
+          run.update,
+          run.abandoned,
+        )
       } catch (error) {
         const patch = failurePatch(error, run.abandoned, 'idle')
         if (patch) set(patch)
@@ -1015,8 +1180,13 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
           foregroundCleanDeps(deps, run, key, () => cancelled),
         )
         run.update({ stage: 'ready', progress: 1, activeJobId: null })
+        track('shadow_removal_used', { result: 'succeeded', seconds: roundSeconds(start.quote.seconds) })
       } catch (error) {
         failure = error
+        track('shadow_removal_used', {
+          result: cancelled ? 'canceled' : 'failed',
+          seconds: roundSeconds(start.quote.seconds),
+        })
         const patch = cleanFailurePatch(error, run.abandoned)
         if (patch) set(patch)
       } finally {
@@ -1030,7 +1200,8 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
     cancel: async () => {
       // A paid clean is told to stop its job, which gives the credits back (one that already
       // succeeded is still recorded: it was paid for). Every answer of the run in flight is then
-      // dropped; a tracking pass stops its free job as soon as it sees that it was abandoned.
+      // dropped; a tracking pass stops its job (its credits come back) as soon as it sees that it
+      // was abandoned.
       cancelCleanOfRun.get(get().run)?.()
       set({
         run: get().run + 1,

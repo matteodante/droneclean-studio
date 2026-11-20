@@ -428,6 +428,53 @@ describe('titles', () => {
       )
     })
 
+    it('accepts rgba() and rgb() colours and stores them as hex with the alpha', () => {
+      const id = titles.add({
+        trackId: 'v1',
+        from: 0,
+        durationInFrames: 90,
+        text: 'Riomaggiore',
+        style: {
+          color: 'rgb(255, 0, 0)',
+          textShadow: { offsetX: 2, offsetY: 3, blur: 8, color: 'rgba(0, 0, 0, 0.6)' },
+          stroke: { width: 2, color: 'rgba(255 255 255 / 50%)' },
+        },
+      })
+
+      expect(storedItem(id)).toMatchObject({
+        color: '#ff0000',
+        textShadow: { offsetX: 2, offsetY: 3, blur: 8, color: '#00000099' },
+        stroke: { width: 2, color: '#ffffff80' },
+      })
+    })
+
+    it('keeps an #rrggbbaa shadow colour as given', () => {
+      const id = titles.add({
+        trackId: 'v1',
+        from: 0,
+        durationInFrames: 90,
+        text: 'Riomaggiore',
+        style: { textShadow: { offsetX: 0, offsetY: 2, blur: 4, color: '#00000099' } },
+      })
+
+      expect(storedItem(id).textShadow?.color).toBe('#00000099')
+    })
+
+    it('rejects an rgba() colour out of range', () => {
+      const error = captureError(() =>
+        titles.add({
+          trackId: 'v1',
+          from: 0,
+          durationInFrames: 90,
+          text: 'Riomaggiore',
+          style: { textShadow: { offsetX: 0, offsetY: 2, blur: 4, color: 'rgba(0, 0, 300, 0.6)' } },
+        }),
+      )
+
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('style.textShadow.color')
+    })
+
     it('rejects a non-hex colour', () => {
       const error = captureError(() =>
         titles.add({
@@ -442,7 +489,7 @@ describe('titles', () => {
       expect(error.code).toBe('INVALID_ARGUMENT')
       expect(error.argument).toBe('style.color')
       expect(error.message).toBe(
-        'titles.add: "style.color" must be a hex colour such as "#ffffff" (got "red")',
+        'titles.add: "style.color" must be a colour such as "#ffffff", "#000000aa" or "rgba(0, 0, 0, 0.6)" (got "red")',
       )
     })
   })
@@ -471,6 +518,14 @@ describe('titles', () => {
 
       expect(storedItem('t1').text).toBe('Your Text Here')
       expect(undoDepth()).toBe(depthBefore)
+    })
+
+    it('accepts an rgba() shadow colour in update', () => {
+      titles.update('t1', {
+        style: { textShadow: { offsetX: 1, offsetY: 1, blur: 2, color: 'rgba(17, 17, 17, 1)' } },
+      })
+
+      expect(storedItem('t1').textShadow?.color).toBe('#111111')
     })
 
     it('merges the style fields into the title', () => {

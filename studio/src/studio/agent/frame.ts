@@ -17,8 +17,8 @@
  * as base64 (`FramePngResult`), writes the project's own size to
  * `projects/{id}/frames/frame-N-<time>-<counter>.png` (a new file per render) and answers the path (`FramePathResult`)
  * when the plan says `full`, or tiles up to 12 sampled frames into one PNG and
- * answers that (the contact sheet). Every cell of a sheet is a full-size render
- * downscaled by `renderSingleFrame`, not a cheap thumbnail: the sheet is for
+ * answers that (the contact sheet), as base64 or, with `full`, as the path of the sheet written the same way. Every
+ * cell of a sheet is a full-size render downscaled by `renderSingleFrame`, not a cheap thumbnail: the sheet is for
  * judging the edit, so its cells come from the same pixels as a single frame.
  *
  * The module is installed on the page by `installAgentFrame()`, which the app
@@ -70,6 +70,8 @@ export interface ContactSheetPlan {
   readonly rows: number
   /** Long edge of the composed sheet, in pixels. */
   readonly width: number
+  /** Write the sheet into `projects/{id}/frames/` and answer its path instead of base64. */
+  readonly full: boolean
 }
 
 /** What the tool asks the page for. */
@@ -322,6 +324,7 @@ async function renderSingle(
 async function renderSheet(
   plan: ContactSheetPlan,
   sequence: FrameSequenceView,
+  projectId: string,
   environment: FrameEnvironment,
 ): Promise<FrameResult> {
   const geometry = sheetGeometry(plan.width, plan.columns, plan.rows, sequence.width, sequence.height)
@@ -340,6 +343,11 @@ async function renderSheet(
     geometry.cellWidth,
     geometry.cellHeight,
   )
+  if (plan.full) {
+    // Named like a single frame, after the sheet's first frame, so a before and an after both stay.
+    const path = await environment.write(projectId, frameFileName(plan.frames[0] ?? 0), sheet)
+    return { path, bytes: sheet.size, width: geometry.width, height: geometry.height }
+  }
   return {
     png: await blobToBase64(sheet),
     bytes: sheet.size,
@@ -381,7 +389,7 @@ export async function renderFramePlan(
     const result =
       plan.kind === 'frame'
         ? await renderSingle(plan, sequence, projectId, environment)
-        : await renderSheet(plan, sequence, environment)
+        : await renderSheet(plan, sequence, projectId, environment)
     return { result, durationMs: Date.now() - startedAt }
   } catch (error) {
     return { error: errorJson(error), durationMs: Date.now() - startedAt }

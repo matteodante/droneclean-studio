@@ -2,8 +2,9 @@
  * The typed client of the DroneClean cloud API: one function per call the editor makes, over an
  * injected `fetch` and token (design 4.1, section 7, slice E3).
  *
- * Every `/v1/*` call carries `Authorization: Bearer <token>` and `x-droneclean-contract: 4`, the
- * version of the API's contract this client speaks (`cloud/packages/shared/src/constants.ts`): an
+ * Every `/v1/*` call carries `Authorization: Bearer <token>` and `x-droneclean-contract: 5`, the
+ * version of the API's contract this client speaks (5 since 20 Nov 2026, when the tracking pass and
+ * the preview began to cost credits: the API asks a client of 4 to update before either) (`cloud/packages/shared/src/constants.ts`): an
  * older client is refused before it can spend credits on an answer it cannot read. A 401 means the
  * session is gone: the token is deleted from the session and the call throws `SignInRequiredError`,
  * which the panel shows as "sign in again". Every other failure is a `DroneCleanApiError` with the
@@ -41,7 +42,7 @@ import {
 import { uploadPiece, type UploadApi, type UploadOptions } from './uploads'
 
 /** The version of the API's contract this client speaks, sent with every `/v1/*` request. */
-const API_CONTRACT = 4
+const API_CONTRACT = 5
 const API_CONTRACT_HEADER = 'x-droneclean-contract'
 
 const NETWORK_MESSAGE = 'Could not reach DroneClean. Check your connection.'
@@ -65,7 +66,7 @@ export interface DroneCleanClient {
   startSignIn(): Promise<DeviceSignIn>
   /** `GET /v1/me`: who is signed in and the credits (the balance is `account.balance.availableCredits`). */
   getAccount(): Promise<Account>
-  /** `GET /v1/config`: whether the engine runs and whether the beta is free. */
+  /** `GET /v1/config`: whether the engine runs, whether the beta is free, what a preview and a tracking pass cost. */
   getConfig(): Promise<ServiceConfig>
   /** `POST /v1/uploads`: a signed PUT URL for a piece under the parts threshold. */
   createUpload(video: VideoMeta): Promise<UploadTicket>
@@ -79,7 +80,7 @@ export interface DroneCleanClient {
   abortUpload(uploadId: string): Promise<DeleteUploadResult>
   /** A piece end to end: the video described, the bytes sent (one PUT or parts), the upload completed. */
   uploadPiece(body: Blob, video: VideoMeta, options?: UploadOptions): Promise<Upload>
-  /** `POST /v1/jobs`: a full job over its ranges, a free preview, or a free tracking pass. */
+  /** `POST /v1/jobs`: a full job over its ranges, a preview, or a tracking pass; each reserves its credits. */
   createJob(request: CreateJobRequest): Promise<Job>
   /** `GET /v1/jobs/{id}`: the job's state, its cost and, once it succeeded, its result. */
   getJob(jobId: string): Promise<Job>

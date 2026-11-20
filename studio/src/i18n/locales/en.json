@@ -220,6 +220,26 @@
       "logFailed": "The log could not be read.",
       "duration": "{{ms}} ms",
       "undoSteps": "Undo × {{count}}"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "intro": "DroneClean Studio sends nothing about you or your work unless you switch it on here.",
+      "crashReports": "Send crash reports",
+      "crashReportsDescription": "When the editor hits an error, send the error and where it happened in the code, with the version and the operating system, to Sentry (EU), so it can be fixed.",
+      "usageStats": "Send anonymous usage statistics",
+      "usageStatsDescription": "Count a few moments (opening the app, creating a project, finishing an export, connecting an AI agent, removing a shadow) under a random id of this installation, to PostHog (EU). Switching it off forgets the id.",
+      "never": "Never sent: your footage, frames, file and folder names, project names or your account. Your IP address is not stored."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "Help improve DroneClean Studio",
+      "both": "Send crash reports and anonymous usage statistics? Crash reports say what went wrong; statistics count which features are used. Nothing is sent unless you allow it.",
+      "crashOnly": "Send crash reports when something goes wrong? They say what failed and where in the editor's code. Nothing is sent unless you allow it.",
+      "usageOnly": "Send anonymous usage statistics? They count which features are used. Nothing is sent unless you allow it.",
+      "later": "Never your footage, file names, folders or projects. You can change this any time in Settings › Privacy.",
+      "allow": "Allow",
+      "decline": "Don't allow"
     }
   }
 }

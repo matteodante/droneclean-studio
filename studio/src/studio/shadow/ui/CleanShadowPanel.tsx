@@ -1,4 +1,4 @@
-// The clean action of the shadow section: the press that pays for the seconds the free pass found,
+// The clean action of the shadow section: the press that pays for the seconds the tracking pass found,
 // what the clip's record says about those seconds once they are cleaned, and the paid cleans still
 // on their way (design 4.1, sections 5.4 and 5.6; slice E6; review findings C1–C4 and C7).
 //
@@ -219,7 +219,7 @@ function PendingCleans({ item }: { item: VideoItem }) {
 }
 
 /**
- * The section's paid action for one clip: "Clean" over the ranges the free pass proposed, blocked
+ * The section's clean for one clip: "Clean" over the ranges the tracking pass proposed, blocked
  * with the way to get credits when the balance is short, the state of the seconds once they are
  * cleaned, and the paid cleans still on their way. Renders nothing until the clip has a priced pass
  * or a pending clean.

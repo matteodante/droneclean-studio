@@ -82,6 +82,8 @@ const ITEM: VideoItem = {
 
 const PASS = {
   jobId: TRACK_JOB.id,
+  chargedCredits: 20,
+  refundedCredits: 0,
   uploadId: 'upload-1',
   mark: { ...MARK },
   window: {

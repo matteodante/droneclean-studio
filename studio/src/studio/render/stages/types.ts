@@ -33,6 +33,12 @@ export interface StageNotReady {
   readonly kind: 'not-ready'
   readonly stage: StageId
   readonly ready: Promise<void>
+  /**
+   * The frame's data is on its way from an engine that is open and answers (milliseconds), not a preparation or an engine
+   * still opening (seconds): a preview with no good frame of the clip to hold waits for it a little longer rather than
+   * draw the clip without the stage (a stabilized clip at its source's shape).
+   */
+  readonly arriving?: true
 }
 
 /** Whether a stage answer is the "not yet" one rather than a value. */

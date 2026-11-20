@@ -6,7 +6,8 @@
 //   export   `prepare` runs `prepareAll` before frame 0: every staged clip's engine is open, its size known and its
 //            passes built, or the export stops with the first `StageError`;
 //   preview  `prepare` starts the preparations in the background (`ensure`), the page's preparer follows the timeline
-//            from then on, and a held frame that becomes drawable asks the preview to draw again.
+//            from then on, the stabilization's look-ahead follows the playhead (`stabilize-ahead.ts`), and a held frame
+//            that becomes drawable asks the preview to draw again.
 //
 // The WebCodecs backend decodes the frames (mediabunny, the decoder FreeCut uses). While a native 10-bit export runs in
 // this realm (`precise/native-session.ts`), an export's provider reads every clip from its file on disk through the
@@ -27,7 +28,7 @@ import { createStagePipeline, type StagedFrame, type StagePipeline } from './pip
 import type { Preparer } from './preparer'
 import type { StageRegistry } from './registry'
 import { MAX_SAMPLES_PER_PASS } from '@/studio/motion-blur/stage'
-import { pagePreparer, setPreparerDevice, SOURCE_STAGES } from './session'
+import { followPlayheadForStabilization, pagePreparer, setPreparerDevice, SOURCE_STAGES } from './session'
 
 /** `GPUTextureUsage.COPY_DST`, as the spec numbers it (the module loads where there is no GPU) */
 const COPY_DST = 0x02
@@ -115,6 +116,7 @@ export function createRendererStages(options: RendererStagesOptions): RendererSt
     if (!followingTimeline) {
       followingTimeline = true
       void preparer.start()
+      followPlayheadForStabilization()
     }
   }
 

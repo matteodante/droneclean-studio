@@ -74,7 +74,7 @@ describe('the account and the server', () => {
     const [call] = server.to('/v1/me')
     expect(call?.headers).toEqual({
       accept: 'application/json',
-      'x-droneclean-contract': '4',
+      'x-droneclean-contract': '5',
       authorization: 'Bearer session-token',
     })
   })
@@ -89,7 +89,7 @@ describe('the account and the server', () => {
 
     const [call] = server.to('/v1/config')
     expect(call?.headers.authorization).toBeUndefined()
-    expect(call?.headers['x-droneclean-contract']).toBe('4')
+    expect(call?.headers['x-droneclean-contract']).toBe('5')
   })
 
   it('forgets a token the API refused, and asks for a sign-in again', async () => {

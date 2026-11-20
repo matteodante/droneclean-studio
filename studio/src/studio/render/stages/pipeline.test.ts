@@ -91,12 +91,13 @@ function fakeStage(id: StageId, log: string[]) {
   }
   return {
     stage,
-    notReady() {
+    /** The stage's data is not there; `arriving`: it is on its way from an engine that answers (a frame fetch) */
+    notReady(arriving = false) {
       let resolve!: () => void
       const ready = new Promise<void>((done) => {
         resolve = done
       })
-      readyAnswer = () => ({ kind: 'not-ready', stage: id, ready })
+      readyAnswer = () => ({ kind: 'not-ready', stage: id, ready, ...(arriving ? { arriving: true as const } : {}) })
       return () => {
         readyAnswer = () => true
         resolve()
@@ -412,6 +413,51 @@ describe('a preview', () => {
     expect(staged).toMatchObject({ kind: 'partial', width: 320, height: 240 })
     expect(log).toEqual(['frame 5', 'input-colour 5 320x240>320x240 rgba16float', 'submit', 'release'])
     expect(states.at(-1)).toEqual({ kind: 'opening', stage: 'stabilize' })
+  })
+
+  it('waits for the data of a clip with no good frame yet when it is on its way, rather than draw it without its stage', async () => {
+    // 20 Nov 2026: at a cut the next clip's stabilization was 100 ms or more away, and the preview drew its source as it
+    // is (a 4:3 frame with bars in a 16:9 project) before the stabilized frame, saying "waiting for stabilization"
+    const { pipeline, stabilize, states, log } = setup('preview')
+    const arrive = stabilize.notReady(true)
+    const rendering = pipeline.render(item({ stabilize: true, 'input-colour': true }), 5)
+    setTimeout(arrive, 120)
+    const staged = await rendering
+
+    expect(staged).toMatchObject({ kind: 'fresh', width: 300, height: 170 })
+    expect(log).toEqual([
+      'frame 5',
+      'stabilize 5 320x240>300x170 rgba16float',
+      'input-colour 5 300x170>300x170 rgba16float',
+      'submit',
+      'release',
+    ])
+    expect(states.filter((state) => state !== null)).toEqual([])
+  })
+
+  it('draws a clip with no good frame without its stage once the data has not come within a quarter of a second', async () => {
+    const { pipeline, stabilize, states } = setup('preview')
+    stabilize.notReady(true)
+    const started = performance.now()
+    const staged = await pipeline.render(item({ stabilize: true, 'input-colour': true }), 5)
+
+    expect(performance.now() - started).toBeGreaterThanOrEqual(240)
+    expect(staged).toMatchObject({ kind: 'partial', width: 320, height: 240 })
+    expect(states.at(-1)).toEqual({ kind: 'opening', stage: 'stabilize' })
+  })
+
+  it('holds a clip’s good frame after the short wait even when its data is on its way: only a clip with none waits longer', async () => {
+    const { pipeline, stabilize, states } = setup('preview')
+    const clip = item({ stabilize: true })
+    const good = await pipeline.render(clip, 1)
+    const arrive = stabilize.notReady(true)
+    const started = performance.now()
+    const held = await pipeline.render(clip, 2)
+
+    expect(performance.now() - started).toBeLessThan(200)
+    expect(held).toMatchObject({ kind: 'held', texture: good.texture })
+    expect(states.at(-1)).toEqual({ kind: 'opening', stage: 'stabilize' })
+    arrive()
   })
 
   it('starts the preparation of a clip it was never asked to prepare, and waits for it', async () => {
@@ -835,5 +881,43 @@ describe('the vector motion blur (design 9.2)', () => {
 
     expect(vectorDestroyed).toHaveBeenCalledTimes(1)
     expect(textures.filter((texture) => texture.label === 'staged-neighbour').every((texture) => texture.destroyed)).toBe(true)
+  })
+})
+
+describe('a preview render its pipeline’s destroy overtakes (the renderer disposed while the frame was drawn)', () => {
+  const clip = { ...item({ stabilize: true }), mediaId: 'media-1' } as VideoItem
+  const cases = [
+    // the vector blur's neighbour after the frame (it asks 10, 9, then 11)
+    { name: 'the motion blur’s neighbour frame', source: { samples: [{ index: 10, weight: 1, extent: 0.5 }] }, gated: 11 },
+    // the optical flow's second frame
+    {
+      name: 'the optical flow’s second frame',
+      source: { samples: [{ index: 12, weight: 0.5 }, { index: 13, weight: 0.5 }], flow: { phase: 0.5 } },
+      gated: 13,
+    },
+  ]
+
+  it.each(cases)('says nothing about the clip when the disposed input fails $name, and rejects as destroyed', async ({ source, gated }) => {
+    const { pipeline, provider, states } = setup('preview')
+    let dispose: (() => void) | undefined
+    provider.frameAt.mockImplementation(async (_item, index) => {
+      if (index === gated) {
+        // The renderer is disposed while this frame decodes: its provider disposes the file's input under the decode
+        await new Promise<void>((resolve) => {
+          dispose = resolve
+        })
+        throw new Error('Input has been disposed.')
+      }
+      return { texture: { createView: () => ({}) } as unknown as GPUTexture, index, width: 320, height: 240, origin: 'webcodecs' }
+    })
+
+    const rendering = pipeline.render(clip, source)
+    await vi.waitFor(() => expect(dispose).toBeDefined())
+    pipeline.destroy()
+    dispose!()
+
+    await expect(rendering).rejects.toThrow('stage pipeline: destroyed while a frame was drawn')
+    // no "failed" line on the Program monitor: the live renderer's draw of the clip is the one that speaks
+    expect(states).toEqual([])
   })
 })

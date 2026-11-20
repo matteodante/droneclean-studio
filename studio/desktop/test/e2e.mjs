@@ -83,6 +83,9 @@ const observations = {}
 const openApps = new Set()
 const allMainOutput = []
 let lastPage = null
+/** Every request any launch's page made to Sentry or PostHog: the run answers "Don't allow", so it must stay empty. */
+const telemetryRequests = []
+const TELEMETRY_HOSTS = /(^|\.)(sentry\.io|posthog\.com)$/
 /** The throwaway profile, workspace and clip excerpt: removed at the end, pass or fail. */
 let work = null
 let profileRoot = null
@@ -137,6 +140,13 @@ async function launch() {
   page.on('console', (message) => {
     if (message.type() === 'error') {
       consoleErrors.push({ text: message.text(), url: message.location()?.url ?? null })
+    }
+  })
+  page.on('request', (request) => {
+    try {
+      if (TELEMETRY_HOSTS.test(new URL(request.url()).hostname)) telemetryRequests.push(request.url().split('?')[0])
+    } catch {
+      // not a URL with a host (data:, blob:)
     }
   })
   page.on('requestfailed', (request) => {
@@ -246,6 +256,28 @@ async function main() {
   await first.page.reload()
   await waitForRender(first.page)
   await first.page.waitForTimeout(1000)
+
+  {
+    // The opt-in reports (20 Nov 2026): a fresh profile is asked once, and "Don't allow" is stored in the profile, so
+    // the main process, the page and the MCP launcher all read the same no.
+    const notice = first.page.getByTestId('telemetry-notice')
+    const asked = await notice.waitFor({ state: 'visible', timeout: 30000 }).then(() => true, () => false)
+    if (asked) await notice.getByRole('button', { name: "Don't allow" }).click()
+    const gone = await notice.waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false)
+    let stored = null
+    try {
+      stored = JSON.parse(fs.readFileSync(path.join(profile, 'telemetry.json'), 'utf8'))
+    } catch {
+      // checked below
+    }
+    observations.telemetryAnswer = stored
+    check(
+      'a fresh profile is asked about crash reports, and "Don\'t allow" is stored as no',
+      asked && gone && stored?.version === 1 && stored.crashReports === false && stored.usageStats !== true &&
+        stored.installId === undefined,
+      { asked, gone, stored },
+    )
+  }
 
   {
     const start = await first.page.evaluate(() => ({
@@ -756,6 +788,10 @@ async function main() {
     }))
     observations.restartGate = gate
     check('the projects page opens on a fresh launch', gate.newProjectLinks > 0, gate)
+    check(
+      'the answered question about crash reports does not come back on the next launch',
+      (await second.page.getByTestId('telemetry-notice').count()) === 0,
+    )
   }
 
   {
@@ -923,6 +959,10 @@ async function main() {
   } finally {
     fs.renameSync(movedWorkspace, workspaceDir)
   }
+
+  check('no page of any launch reached Sentry or PostHog after "Don\'t allow"', telemetryRequests.length === 0, {
+    telemetryRequests,
+  })
 }
 
 let failure = null

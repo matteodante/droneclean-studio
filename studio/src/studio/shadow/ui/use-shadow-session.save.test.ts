@@ -86,6 +86,8 @@ function connect(): ReturnType<typeof createFakeCloud> {
     stage: 'ready',
     pass: {
       jobId: TRACK_JOB_ID,
+      chargedCredits: 20,
+      refundedCredits: 0,
       uploadId: UPLOAD_ID,
       mark: MARK,
       window: WINDOW,

@@ -185,7 +185,7 @@ export interface DeleteUploadResult {
 // ---------------------------------------------------------------------------
 // Jobs
 
-/** `full`: the ranges to clean, paid; `preview`: free, a few seconds; `track`: free, the shadow followed. */
+/** `full`: the ranges to clean; `preview`: a few seconds; `track`: the shadow followed. All paid in credits since 20 Nov 2026. */
 export type JobKind = 'full' | 'preview' | 'track'
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
@@ -261,6 +261,11 @@ export interface CreateJobRequest {
    * request sent again after its answer was lost returns the same job, never a second one charged.
    */
   attemptId?: string
+  /**
+   * The most credits the job may cost: the price the pilot (or an agent) agreed to before the press (20 Nov 2026).
+   * The API refuses a job that costs more (409, the exact price in its words) before reserving anything.
+   */
+  maxCredits?: number
 }
 
 /** Where to preview and download the cleaned file (a pre-signed URL that expires). */
@@ -332,7 +337,7 @@ export interface Job {
   segments: Segment[] | null
   options: JobSettings
   cost: {
-    /** Credits held when the job is created (0 for previews and tracks, which are free). */
+    /** Credits held when the job is created (every kind since 20 Nov 2026; 0 for the free previews and tracks before). */
     reservedCredits: number
     /** Taken when the job succeeds; a failed or canceled job gives the reserved credits back. */
     chargedCredits: number
@@ -427,8 +432,22 @@ export interface ServiceConfig {
     /** Stripe's embedded checkout; null while it is not set up. */
     stripe: { publishableKey: string; managedPayments: boolean } | null
   }
-  preview: { seconds: number; perUpload: number; perDay: number }
-  track: { perUpload: number; perDay: number }
+  preview: {
+    seconds: number
+    perUpload: number
+    perDay: number
+    /** What a preview costs at each quality (20 Nov 2026); absent from an older API, free then. */
+    credits?: { standard: number; maximum: number }
+  }
+  track: {
+    perUpload: number
+    perDay: number
+    /**
+     * What a tracking pass costs (20 Nov 2026): `perSecond` credits for each second of its piece at 30 fps (twice at
+     * 60, 4 times at 120), at least `minimum` (`../pricing.ts`). Absent from an older API, free then.
+     */
+    credits?: { perSecond: number; minimum: number }
+  }
   /** The free beta: nothing can be bought, credits are asked for instead. */
   freeBeta: boolean
   /** The credits a new account gets once. */

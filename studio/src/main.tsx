@@ -15,6 +15,7 @@ import { BASE_URL } from '@/studio/web/base-path'
 import { installStudio } from '@/studio/sdk/install'
 import { installAgentBridges } from '@/studio/agent/install'
 import { installDesktopShadowSession } from '@/studio/shadow/install-desktop'
+import { installTelemetry } from '@/studio/telemetry/install'
 
 const log = createLogger('App')
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000
@@ -254,6 +255,9 @@ const rootElement = document.getElementById('root')
 if (!rootElement) {
   throw new Error('Root element not found')
 }
+
+// Opt-in crash reports and usage statistics: nothing is sent until the user says yes.
+installTelemetry()
 
 void i18nReady.then(() => {
   createRoot(rootElement).render(

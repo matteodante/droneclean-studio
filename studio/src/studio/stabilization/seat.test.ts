@@ -434,6 +434,72 @@ describe('frames', () => {
     expect(seat.frame(stabilizationEngineKey(moved)!, 401)).toBeUndefined()
   })
 
+  it('warm: a list that grows keeps the frames it had; one that moves on lets the old frames go when the new arrive', async () => {
+    const fetchFrames = vi.fn(async (_id: string, frames: readonly number[]) =>
+      frames.map((sourceFrame) => ({ ...FRAME, sourceFrame })),
+    )
+    const { client } = fakeClient({ fetchFrames } as never)
+    const seat = host(client)
+    await seat.open(clip())
+    const key = stabilizationEngineKey(clip())!
+    const settle = async () => {
+      await fetchFrames.mock.results.at(-1)?.value
+      await Promise.resolve()
+    }
+
+    seat.warm(key, [400, 401])
+    await settle()
+    // A second clip of the same file comes into the look-ahead: its frames are asked for, the first clip's stay
+    seat.warm(key, [400, 401, 900, 901])
+    await settle()
+    expect(fetchFrames).toHaveBeenLastCalledWith(expect.any(String), [900, 901])
+    for (const frame of [400, 401, 900, 901]) expect(seat.frame(key, frame)?.sourceFrame).toBe(frame)
+
+    // The playhead moved on: only the later clip's frames and the next ones are wanted
+    seat.warm(key, [900, 901, 1500])
+    await settle()
+    expect(fetchFrames).toHaveBeenLastCalledWith(expect.any(String), [1500])
+    expect(seat.frame(key, 400)).toBeUndefined()
+    expect(seat.frame(key, 900)?.sourceFrame).toBe(900)
+    expect(seat.frame(key, 1500)?.sourceFrame).toBe(1500)
+  })
+
+  it('warm: four engines keep their frames at most, and the one warmed least recently lets them go first', async () => {
+    const fetchFrames = vi.fn(async (_id: string, frames: readonly number[]) =>
+      frames.map((sourceFrame) => ({ ...FRAME, sourceFrame })),
+    )
+    const { client } = fakeClient({ fetchFrames } as never)
+    const seat = host(client)
+    const clips = [1, 2, 3, 4, 5].map((n) => clip({ id: `clip-${n}`, mediaId: `media-${n}` }))
+    for (const item of clips) await seat.open(item)
+    const keys = clips.map((item) => stabilizationEngineKey(item)!)
+    for (const key of keys.slice(0, 4)) seat.warm(key, [10])
+    await Promise.all(fetchFrames.mock.results.map((result) => result.value))
+    // The first engine is warmed again (its clip is still ahead): the second is now the least recent
+    seat.warm(keys[0]!, [10])
+    seat.warm(keys[4]!, [10])
+    await Promise.all(fetchFrames.mock.results.map((result) => result.value))
+    await Promise.resolve()
+    expect(seat.frame(keys[1]!, 10)).toBeUndefined()
+    for (const key of [keys[0]!, keys[2]!, keys[3]!, keys[4]!]) expect(seat.frame(key, 10)?.sourceFrame).toBe(10)
+  })
+
+  it('warm: asks only for what the file has, and for a moment between two frames as it is', async () => {
+    const fetchFrames = vi.fn(async (_id: string, frames: readonly number[]) =>
+      frames.map((sourceFrame) => ({ ...FRAME, sourceFrame })),
+    )
+    const { client } = fakeClient({ fetchFrames } as never)
+    const seat = host(client)
+    await seat.open(clip())
+    const key = stabilizationEngineKey(clip())!
+    const last = INFO.frames - 1
+    seat.warm(key, [-1, 0, 12.25, last, last + 1, last + 0.5])
+    await fetchFrames.mock.results[0]?.value
+    await Promise.resolve()
+    expect(fetchFrames).toHaveBeenCalledWith(expect.any(String), [0, 12.25, last])
+    expect(seat.frame(key, 12.25)?.sourceFrame).toBe(12.25)
+  })
+
   it('are not asked of an engine that is not open', async () => {
     const { client, getFrameData } = fakeClient()
     const seat = host(client)

@@ -149,7 +149,24 @@ describe('renderFramePlan: a contact sheet', () => {
     columns: 3,
     rows: 2,
     width: 1280,
+    full: false,
   }
+
+  it('full writes the sheet into the frames folder and answers its path, one file per render', async () => {
+    const { environment, faked } = fakeEnvironment()
+    const plan = { ...SHEET, full: true }
+    const first = await renderFramePlan(plan, environment)
+    const second = await renderFramePlan(plan, environment)
+    if (!('result' in first) || !('result' in second)) throw new Error('expected results')
+    expect(faked.writes).toHaveLength(2)
+    expect(faked.writes[0]).toMatchObject({ projectId: 'p1', bytes: 7 })
+    expect(faked.writes[0]?.fileName).toMatch(/^frame-0-[0-9a-z]+-\d+\.png$/)
+    expect(faked.writes[0]?.fileName).not.toBe(faked.writes[1]?.fileName)
+    expect('png' in first.result).toBe(false)
+    expect(first.result).toMatchObject({ bytes: 7, width: 1278, height: 480 })
+    if (!('path' in first.result)) throw new Error('expected a path')
+    expect(first.result.path).toMatch(/^projects\/p1\/frames\/frame-0-/)
+  })
 
   it('tiles six frames as 3 × 2 cells of a 1278 × 480 sheet', async () => {
     const { environment, faked } = fakeEnvironment()
@@ -191,7 +208,7 @@ describe('renderFramePlan: failures', () => {
       render: () => Promise.resolve([pngBlob()]),
     })
     const answer = await renderFramePlan(
-      { kind: 'sheet', frames: [0, 1], columns: 2, rows: 1, width: 1280 },
+      { kind: 'sheet', frames: [0, 1], columns: 2, rows: 1, width: 1280, full: false },
       environment,
     )
     if (!('error' in answer)) throw new Error('expected an error')

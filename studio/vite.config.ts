@@ -27,9 +27,17 @@ function basePathFromEnv(): string {
   return trimmed === '' ? '/' : `/${trimmed}/`
 }
 
+// The desktop app's version, for the opt-in crash reports' release name (src/studio/telemetry/config.ts).
+const desktopVersion: string = JSON.parse(
+  readFileSync(new URL('./desktop/package.json', import.meta.url), 'utf8'),
+).version
+
 // https://vite.dev/config/
 export default defineConfig({
   base: basePathFromEnv(),
+  define: {
+    __DRONECLEAN_VERSION__: JSON.stringify(desktopVersion),
+  },
   lint: {
     ...oxlintConfig,
     ignorePatterns: toolIgnorePatterns,

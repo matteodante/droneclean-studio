@@ -153,6 +153,8 @@ describe('MarkShadowOverlay', () => {
     useShadowSessionStore.setState({
       pass: {
         jobId: 'pass-1',
+        chargedCredits: 20,
+        refundedCredits: 0,
         uploadId: 'upload-1',
         mark: { x: 500, y: 500, sourceFrame: 0, radius: 50 },
         window: { startFrame: 0, endFrame: 120, startSeconds: 0, endSeconds: 2 },

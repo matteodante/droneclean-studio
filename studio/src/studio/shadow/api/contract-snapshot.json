@@ -1,7 +1,7 @@
 {
-  "contract": 4,
+  "contract": 5,
   "contractHeader": "x-droneclean-contract",
-  "cloudCommit": "62800488972dcc9f53513aafe03c9ff0a88264a4",
+  "cloudCommit": "35860ba1f27856593a64c336732dfd19dd03ab1d",
   "generator": {
     "zod": "4.6.5",
     "jsonSchema": "draft 2020-12, zod toJSONSchema (patterns of date-time and uuid left out)"
@@ -86,6 +86,32 @@
       "response": "DeleteJobResult"
     }
   ],
+  "prices": {
+    "track": {
+      "perSecond": 1,
+      "minimum": 5
+    },
+    "preview": {
+      "standard": 30,
+      "maximum": 45
+    },
+    "welcomeCredits": 600,
+    "trackSamples": [
+      [10.01, 59.94005994005994, 20],
+      [10.01, 59.94, 20],
+      [11.5, 59.94, 23],
+      [10, 30, 10],
+      [10.2, 30, 11],
+      [9.999999, 30, 10],
+      [2, 30, 5],
+      [0, 60, 5],
+      [60, 240, 480],
+      [600.6, 119.88011988011988, 2400],
+      [30.03, 29.97002997002997, 31],
+      [230.88065, 59.94005994005994, 462],
+      [10, null, 10]
+    ]
+  },
   "schemas": {
     "VideoMeta": {
       "type": "object",
@@ -410,6 +436,11 @@
         "attemptId": {
           "type": "string",
           "format": "uuid"
+        },
+        "maxCredits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": ["uploadId"],
@@ -1628,6 +1659,23 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "credits": {
+              "type": "object",
+              "properties": {
+                "standard": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "maximum": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["standard", "maximum"],
+              "additionalProperties": false
             }
           },
           "required": ["seconds", "perUpload", "perDay"],
@@ -1645,6 +1693,22 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "credits": {
+              "type": "object",
+              "properties": {
+                "perSecond": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "minimum": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["perSecond", "minimum"],
+              "additionalProperties": false
             }
           },
           "required": ["perUpload", "perDay"],

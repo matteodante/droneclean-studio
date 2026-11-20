@@ -220,6 +220,26 @@
       "logFailed": "Das Protokoll konnte nicht gelesen werden.",
       "duration": "{{ms}} ms",
       "undoSteps": "Rückgängig × {{count}}"
+    },
+    "privacy": {
+      "title": "Datenschutz",
+      "intro": "DroneClean Studio sendet nichts über dich oder deine Arbeit, solange du es hier nicht einschaltest.",
+      "crashReports": "Absturzberichte senden",
+      "crashReportsDescription": "Wenn der Editor auf einen Fehler stößt, werden der Fehler und die Stelle im Code mit Version und Betriebssystem an Sentry (EU) gesendet, damit er behoben werden kann.",
+      "usageStats": "Anonyme Nutzungsstatistiken senden",
+      "usageStatsDescription": "Zählt einige Momente (App öffnen, Projekt erstellen, Export abschließen, KI-Agent verbinden, Schatten entfernen) unter einer zufälligen ID dieser Installation, an PostHog (EU). Beim Ausschalten wird die ID vergessen.",
+      "never": "Nie gesendet: deine Aufnahmen, Bilder, Datei- und Ordnernamen, Projektnamen oder dein Konto. Deine IP-Adresse wird nicht gespeichert."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "Hilf, DroneClean Studio zu verbessern",
+      "both": "Absturzberichte und anonyme Nutzungsstatistiken senden? Absturzberichte zeigen, was schiefging; die Statistiken zählen, welche Funktionen genutzt werden. Ohne deine Erlaubnis wird nichts gesendet.",
+      "crashOnly": "Absturzberichte senden, wenn etwas schiefgeht? Sie zeigen, was fehlschlug und wo im Code des Editors. Ohne deine Erlaubnis wird nichts gesendet.",
+      "usageOnly": "Anonyme Nutzungsstatistiken senden? Sie zählen, welche Funktionen genutzt werden. Ohne deine Erlaubnis wird nichts gesendet.",
+      "later": "Niemals deine Aufnahmen, Dateinamen, Ordner oder Projekte. Du kannst das jederzeit unter Einstellungen › Datenschutz ändern.",
+      "allow": "Erlauben",
+      "decline": "Nicht erlauben"
     }
   }
 }

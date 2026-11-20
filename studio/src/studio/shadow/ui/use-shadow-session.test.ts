@@ -139,6 +139,8 @@ function trackingRoutes() {
     },
     { method: 'POST' as const, path: '/v1/jobs/quote', respond: () => ({ body: QUOTE }) },
     { method: 'GET' as const, path: '/v1/config', respond: () => ({ body: CONFIG }) },
+    // The balance read before the piece is cut (20 Nov 2026).
+    { method: 'GET' as const, path: '/v1/me', respond: () => ({ body: ACCOUNT }) },
   ]
 }
 
@@ -308,7 +310,7 @@ describe('the shadow session', () => {
       },
     })
 
-    // A free tracking job: the money kind is never asked for, and only the tap is sent.
+    // A tracking job, never a clean: only the tap is sent.
     const created = server.to('/v1/jobs')[0]?.body as Record<string, unknown>
     expect(created.kind).toBe('track')
     expect(created.uploadId).toBe(UPLOAD_ID)
@@ -347,8 +349,12 @@ describe('the shadow session', () => {
 
   it('proposes, prices and cleans only inside the clip’s part, not in the GOPs the cut adds around it', async () => {
     setup()
+    const item = clip({ sourceStart: 3370, sourceEnd: 3425 })
 
-    await useShadowSessionStore.getState().track(clip({ sourceStart: 3370, sourceEnd: 3425 }))
+    // The piece reaches the keyframes around the 55 frames: 600 frames, 20 credits, more than the button's 5.
+    await useShadowSessionStore.getState().track(item)
+    expect(useShadowSessionStore.getState().priceAsk?.credits).toBe(20)
+    await useShadowSessionStore.getState().track(item, 20)
     expect(useShadowSessionStore.getState().pass?.ranges).toEqual([
       { startFrame: 3370, endFrame: 3390 },
       { startFrame: 3420, endFrame: 3425 },
@@ -486,6 +492,132 @@ describe('the shadow session', () => {
     // The pass and its price survive: the press can be tried again.
     expect(useShadowSessionStore.getState().pass?.jobId).toBe(TRACK_JOB_ID)
     expect(useShadowSessionStore.getState().quote).toEqual(QUOTE)
+  })
+
+  it('stops a pass the balance cannot cover before anything is cut or uploaded, with the API’s words', async () => {
+    let available = 12
+    const routes = trackingRoutes().map((route) =>
+      route.path === '/v1/me'
+        ? {
+            ...route,
+            respond: () => ({
+              body: { ...ACCOUNT, balance: { availableCredits: available, reservedCredits: 0 } },
+            }),
+          }
+        : route,
+    )
+    const { server, plan, cut } = setup({ routes })
+
+    await useShadowSessionStore.getState().track(clip({ sourceStart: 3330, sourceEnd: 3930 }))
+
+    // The planned piece, 600 frames at 59.94 fps, costs 20 credits: the window was read, nothing cut or sent.
+    const state = useShadowSessionStore.getState()
+    expect(state.stage).toBe('idle')
+    expect(state.error).toBe('Following the shadow here needs 20 credits and you have 12 credits.')
+    expect(state.pass).toBeNull()
+    expect(plan).toHaveBeenCalledTimes(1)
+    expect(cut).not.toHaveBeenCalled()
+    expect(server.to('/v1/uploads')).toHaveLength(0)
+    expect(server.to('/v1/jobs')).toHaveLength(0)
+
+    // Credits bought in the browser: the same press goes through.
+    available = 20
+    await useShadowSessionStore.getState().track(clip({ sourceStart: 3330, sourceEnd: 3930 }))
+    expect(useShadowSessionStore.getState().error).toBeNull()
+    expect(useShadowSessionStore.getState().pass?.chargedCredits).toBe(20)
+    expect(cut).toHaveBeenCalledTimes(1)
+    expect(server.to('/v1/jobs')).toHaveLength(1)
+  })
+
+  it('sends the price agreed to as the job’s ceiling (maxCredits): the button’s, by default', async () => {
+    const { server } = setup()
+
+    // 600 frames at 59.94 fps: the button says 20, the planned piece and the upload cost 20.
+    await useShadowSessionStore.getState().track(clip({ sourceStart: 3330, sourceEnd: 3930 }))
+
+    const created = server.to('/v1/jobs')[0]?.body as Record<string, unknown>
+    expect(created.maxCredits).toBe(20)
+    expect(useShadowSessionStore.getState().priceAsk).toBeNull()
+    expect(useShadowSessionStore.getState().pass?.chargedCredits).toBe(20)
+  })
+
+  it('asks before charging more than the button said, when the planned piece reaches past the clip’s part: nothing cut, uploaded or spent', async () => {
+    const { server, cut } = setup()
+    // 300 frames (5.005 s) at 59.94 fps: the button says 10; the piece planned around them is 600 frames, 20 credits.
+    const item = clip({ sourceStart: 3500, sourceEnd: 3800 })
+
+    await useShadowSessionStore.getState().track(item)
+
+    const asked = useShadowSessionStore.getState()
+    expect(asked.stage).toBe('idle')
+    expect(asked.error).toBeNull()
+    expect(asked.priceAsk).toEqual({ credits: 20, mark: MARK, piece: null })
+    expect(cut).not.toHaveBeenCalled()
+    expect(server.to('/v1/uploads')).toHaveLength(0)
+    expect(server.to('/v1/jobs')).toHaveLength(0)
+
+    // "Follow for 20 credits": the pass goes on, its job never charged above 20.
+    await useShadowSessionStore.getState().track(item, 20)
+    expect(useShadowSessionStore.getState().priceAsk).toBeNull()
+    expect((server.to('/v1/jobs')[0]?.body as Record<string, unknown>).maxCredits).toBe(20)
+    expect(useShadowSessionStore.getState().pass?.chargedCredits).toBe(20)
+  })
+
+  it('asks again when our servers measure the uploaded piece longer, and goes on with that piece once agreed', async () => {
+    // The servers measure 10.6 s at 59.94 fps: 22 credits, more than the 20 the plan and the button said.
+    const measured = { ...UPLOAD, video: { ...UPLOAD.video, durationSeconds: 10.6 } }
+    const routes = trackingRoutes().map((route) =>
+      route.path === `/v1/uploads/${UPLOAD_ID}/complete`
+        ? { ...route, respond: () => ({ body: measured }) }
+        : route,
+    )
+    const { server, cut } = setup({ routes })
+    const item = clip({ sourceStart: 3330, sourceEnd: 3930 })
+
+    await useShadowSessionStore.getState().track(item)
+
+    const asked = useShadowSessionStore.getState().priceAsk
+    expect(asked?.credits).toBe(22)
+    expect(asked?.piece?.upload.id).toBe(UPLOAD_ID)
+    expect(server.to('/v1/jobs')).toHaveLength(0)
+
+    // Agreed: the piece already sent is used, not cut or uploaded again.
+    await useShadowSessionStore.getState().track(item, 22)
+    expect(cut).toHaveBeenCalledTimes(1)
+    expect(server.to('/v1/uploads')).toHaveLength(1)
+    expect((server.to('/v1/jobs')[0]?.body as Record<string, unknown>).maxCredits).toBe(22)
+    expect(useShadowSessionStore.getState().pass?.uploadId).toBe(UPLOAD_ID)
+    // An agreed price below the asked one never reuses the piece: it asks again.
+    useShadowSessionStore.setState({
+      pass: null,
+      priceAsk: { credits: 22, mark: MARK, piece: asked!.piece },
+    })
+    await useShadowSessionStore.getState().track(item, 20)
+    expect(useShadowSessionStore.getState().priceAsk?.credits).toBe(22)
+    expect(server.to('/v1/jobs')).toHaveLength(1)
+  })
+
+  it('records that a pass which found no shadow gave its credits back', async () => {
+    const nothing = {
+      ...TRACK_JOB,
+      track: { ...TRACK_JOB.track!, ranges: [] },
+      cost: { reservedCredits: 20, chargedCredits: 0 },
+    }
+    const routes = trackingRoutes().map((route) =>
+      route.path === '/v1/jobs' ? { ...route, respond: () => ({ body: nothing }) } : route,
+    )
+    const { server } = setup({ routes })
+
+    await useShadowSessionStore.getState().track(clip())
+
+    const state = useShadowSessionStore.getState()
+    expect(state.stage).toBe('ready')
+    expect(state.pass?.ranges).toEqual([])
+    expect(state.pass?.chargedCredits).toBe(0)
+    expect(state.pass?.refundedCredits).toBe(20)
+    // Nothing to price.
+    expect(state.quote).toBeNull()
+    expect(server.to('/v1/jobs/quote')).toHaveLength(0)
   })
 
   it('cancels a running tracking pass', async () => {
@@ -692,7 +824,8 @@ describe('the paid clean, on the cloud’s rules', () => {
     const full = cloud.fullJobs()
     expect(full).toHaveLength(1)
     expect(full[0]?.uploadId).toBe(UPLOAD_ID)
-    expect(cloud.charged()).toBe(QUOTE.costCredits)
+    // The pass's 20 credits (paid since 20 Nov 2026), then the clean's price.
+    expect(cloud.charged()).toBe(TRACK_JOB.cost.chargedCredits + QUOTE.costCredits)
     expect(savePiece).toHaveBeenCalledTimes(1)
     expect(liveRecord()?.pieces).toHaveLength(1)
     expect(liveRecord()?.pending).toBeUndefined()
@@ -757,6 +890,8 @@ describe('the paid clean, on the cloud’s rules', () => {
       stage: 'ready',
       pass: {
         jobId: TRACK_JOB_ID,
+        chargedCredits: 20,
+        refundedCredits: 0,
         uploadId: UPLOAD_ID,
         mark: MARK,
         window: WINDOW,

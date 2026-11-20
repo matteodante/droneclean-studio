@@ -220,6 +220,26 @@
       "logFailed": "Não foi possível ler o registro.",
       "duration": "{{ms}} ms",
       "undoSteps": "Desfazer × {{count}}"
+    },
+    "privacy": {
+      "title": "Privacidade",
+      "intro": "O DroneClean Studio não envia nada sobre você ou seu trabalho, a menos que você ative aqui.",
+      "crashReports": "Enviar relatórios de falhas",
+      "crashReportsDescription": "Quando o editor encontra um erro, envia o erro e onde ele aconteceu no código, com a versão e o sistema operacional, ao Sentry (UE), para que possa ser corrigido.",
+      "usageStats": "Enviar estatísticas de uso anônimas",
+      "usageStatsDescription": "Conta alguns momentos (abrir o app, criar um projeto, concluir uma exportação, conectar um agente de IA, remover uma sombra) com um id aleatório desta instalação, ao PostHog (UE). Desativar esquece o id.",
+      "never": "Nunca enviados: seus vídeos, quadros, nomes de arquivos e pastas, nomes de projetos ou sua conta. Seu endereço IP não é armazenado."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "Ajude a melhorar o DroneClean Studio",
+      "both": "Enviar relatórios de falhas e estatísticas de uso anônimas? Os relatórios dizem o que deu errado; as estatísticas contam quais recursos são usados. Nada é enviado sem sua permissão.",
+      "crashOnly": "Enviar relatórios de falhas quando algo der errado? Eles dizem o que falhou e onde no código do editor. Nada é enviado sem sua permissão.",
+      "usageOnly": "Enviar estatísticas de uso anônimas? Elas contam quais recursos são usados. Nada é enviado sem sua permissão.",
+      "later": "Nunca seus vídeos, nomes de arquivos, pastas ou projetos. Você pode mudar isso quando quiser em Configurações › Privacidade.",
+      "allow": "Permitir",
+      "decline": "Não permitir"
     }
   }
 }

@@ -24,6 +24,7 @@ import {
 import { FreeCutLogo } from '@/components/brand/freecut-logo'
 import { Button } from '@/components/ui/button'
 import { createLogger } from '@/shared/logging/logger'
+import { reportError } from '@/studio/telemetry/crash'
 import {
   ensureKnownWorkspaceForCurrent,
   getWorkspaceHandleRecord,
@@ -63,6 +64,11 @@ export function RouteErrorScreen({ error, reset }: ErrorComponentProps) {
     : explanationKey
       ? t(explanationKey)
       : t('app.routeError.description')
+
+  // An opt-in crash report (a no-op unless the user switched them on); a stale project link is expected.
+  useEffect(() => {
+    if (!projectNotFound) reportError(error, 'route')
+  }, [error, projectNotFound])
 
   useEffect(
     () => () => {

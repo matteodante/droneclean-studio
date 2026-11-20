@@ -20,7 +20,18 @@
  * `DRONECLEAN_DEV_URL` and `DRONECLEAN_FFMPEG` are read only by an unpackaged
  * run (`launch-env.ts`).
  */
-import { app, BrowserWindow, protocol, safeStorage, session, shell, systemPreferences, type Session } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  net,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+  systemPreferences,
+  type Session,
+} from 'electron'
 import path from 'node:path'
 import { installAgentAccess } from './mcp'
 import { installAgentAccessIpc } from './mcp/ipc'
@@ -36,6 +47,7 @@ import { isAppUrl, trustDevUrl } from './sender'
 import { installMicrophoneIpc } from './microphone'
 import { ShadowSession, installShadowSessionIpc } from './shadow-session'
 import { installWorkspaceOwnerLock, observeWorkspaceAccess } from './workspace-lock'
+import { createMainTelemetry, installMainTelemetry } from './telemetry'
 
 /**
  * The product name, read before any `setName`. The packaged test variant
@@ -66,6 +78,15 @@ app.setName(APP_NAME)
 // `DRONECLEAN_USER_DATA` moves it for a throwaway profile (the MCP proof and the
 // e2e); the launcher resolves the same folder from the same variable.
 app.setPath('userData', LAUNCH.userData ?? path.join(app.getPath('appData'), APP_NAME))
+
+// Opt-in crash reports and usage statistics (`telemetry/`): the user's answer is read now, so an
+// error from here on is reported if, and only if, the user switched reports on.
+const telemetry = createMainTelemetry({
+  userDataDir: app.getPath('userData'),
+  context: { version: app.getVersion(), platform: process.platform },
+  fetch: (url, init) => net.fetch(url, init),
+})
+installMainTelemetry(app, ipcMain, telemetry)
 
 // Ask Chromium for the high-performance GPU (task 8.1). On a machine with an
 // integrated and a discrete GPU the default is the integrated one, which is the
@@ -165,6 +186,13 @@ function installAgentAccessPreload(target: Session): void {
     id: 'droneclean-agent-access',
     type: 'frame',
     filePath: path.join(__dirname, '../preload/agent-access.js'),
+    includeGlobs: [`${origin}/*`],
+  })
+  // `window.dronecleanTelemetry`, the page's way to the opt-in reports' answer, on the same terms.
+  target.registerPreloadScript({
+    id: 'droneclean-telemetry',
+    type: 'frame',
+    filePath: path.join(__dirname, '../preload/telemetry.js'),
     includeGlobs: [`${origin}/*`],
   })
 }
@@ -269,7 +297,10 @@ if (!app.requestSingleInstanceLock()) {
     // "the editor is still starting".
     try {
       installAgentAccessIpc(
-        await installAgentAccess(() => mainWindow, showMainWindow, { startedForAgent: STARTED_FOR_MCP }),
+        await installAgentAccess(() => mainWindow, showMainWindow, {
+          startedForAgent: STARTED_FOR_MCP,
+          onAgentConnected: () => telemetry.agentConnected(),
+        }),
       )
     } catch (error) {
       // The editor works without agent access; the window must still open.

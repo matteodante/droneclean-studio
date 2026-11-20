@@ -14,8 +14,10 @@
 //            message. No frame is ever written without its active stages.
 //   preview  a clip that cannot be drawn with all its stages shows its last good staged frame and says why (`onState`);
 //            when what it waited for arrives, `onReady` asks for the frame again (once). A clip with no good frame yet
-//            is drawn from its source frame with the stages that can draw (`partial`), never silently: its state says
-//            what is missing.
+//            waits a little longer for a stage's data that is on its way (`PREVIEW_FIRST_FRAME_WAIT_MS`), then is
+//            drawn from its source frame with the stages that can draw (`partial`), never silently: its state says
+//            what is missing. A render that `destroy` overtook (its renderer disposed while the frame was drawn, its
+//            provider's inputs disposed under the decode) says nothing and rejects as destroyed: it is not the clip's.
 
 import {
   createMotionBlurStage,
@@ -91,6 +93,18 @@ const EXPORT_WAIT_MS = 60_000
 const PREVIEW_WAIT_MS = 50
 
 /**
+ * How long, in all, the preview waits for a stage's data that is on its way (`StageNotReady.arriving`) before it draws
+ * a clip that has no good frame to hold without that stage: such a frame is the source as it is, which for a stabilized
+ * clip is another shape (a 4:3 frame with bars in a 16:9 project, 20 Nov 2026) and, with motion blur on, a second whole
+ * blur at that shape. FreeCut keeps the previous picture meanwhile. The engine's slowest answer while a reel played was
+ * 99 ms; past this the data is not merely on its way, and the clip is drawn with the stages that can draw, as before.
+ */
+const PREVIEW_FIRST_FRAME_WAIT_MS = 250
+
+/** How many times the preview asks a clip's stages again within `PREVIEW_FIRST_FRAME_WAIT_MS` (a frame's data can come in two steps) */
+const PREVIEW_FIRST_FRAME_ASKS = 8
+
+/**
  * How many source gaps' optical flows a pipeline keeps (task 11.12): an export frees a clip's gaps once it is past them
  * and needs one per clip on screen (two through a transition); a preview keeps a few for scrubbing back and forth.
  */
@@ -157,6 +171,7 @@ export interface StagePipeline {
    * staged frames around it, over its extent, and adds them with their weights.
    *
    * @throws StageError in an export, when an active stage cannot draw the frame.
+   * @throws Error "destroyed while a frame was drawn" when `destroy` overtook the render; the clip's state is untouched.
    * @throws RangeError when a plan has no sample or a weight that is not in (0, 1], an extent that is not above 0, or
    *   a flow plan is not two consecutive frames with a phase in (0, 1).
    */
@@ -174,7 +189,13 @@ export interface StagePipeline {
 /** One active stage's answer for a frame */
 type Check =
   | { readonly kind: 'ok' }
-  | { readonly kind: 'wait'; readonly stage: StageErrorStage; readonly ready: Promise<void> }
+  | {
+      readonly kind: 'wait'
+      readonly stage: StageErrorStage
+      readonly ready: Promise<void>
+      /** The frame's data is on its way from an engine that answers (`StageNotReady.arriving`) */
+      readonly arriving?: boolean
+    }
   | { readonly kind: 'fail'; readonly stage: StageErrorStage; readonly error: StageError }
 
 /** A clip's staged picture; `good` when every active stage drew it */
@@ -249,6 +270,17 @@ function assertFlowPlan(samples: readonly SourceSample[], phase: number): void {
   }
 }
 
+/**
+ * What `checks` wait for, when every check that blocks the frame waits for data on its way (`StageNotReady.arriving`);
+ * `null` when one failed, nothing blocks, or one waits for a preparation or an engine still opening
+ */
+function arrivingWaits(checks: readonly Check[]): Promise<void>[] | null {
+  if (checks.some((answer) => answer.kind === 'fail')) return null
+  const waits = checks.flatMap((answer) => (answer.kind === 'wait' ? [answer] : []))
+  if (waits.length === 0 || waits.some((answer) => answer.arriving !== true)) return null
+  return waits.map((answer) => answer.ready)
+}
+
 function sameSize(a: Size, b: Size): boolean {
   return a.width === b.width && a.height === b.height
 }
@@ -280,6 +312,28 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   const awaitingReady = new Set<string>()
   let destroyed = false
   let gpuClock: GpuStageClock | undefined
+
+  /**
+   * A preview clip's visible state, said by a live pipeline only. A render that `destroy` overtook belongs to a renderer
+   * that was disposed (the preview rebuilds its renderers for an edit, a resize or a change of transitions); the dispose
+   * disposed its provider's inputs under the frames it was decoding, and its "Input has been disposed." is no failure
+   * of the clip: the states are the page's, and the live renderer's draw of the clip is the one that sets them.
+   */
+  const publish = (item: VideoItem, state: ClipStageState | null): void => {
+    if (!destroyed) options.onState?.(item, state)
+  }
+
+  /** What a render that `destroy` overtook settles with, whatever it met after: its picture is nobody's */
+  const unlessDestroyed = <T>(rendering: Promise<T>): Promise<T> =>
+    rendering.then(
+      (value) => {
+        if (destroyed) throw new Error('stage pipeline: destroyed while a frame was drawn')
+        return value
+      },
+      (error: unknown) => {
+        throw destroyed ? new Error('stage pipeline: destroyed while a frame was drawn', { cause: error }) : error
+      },
+    )
 
   const createTexture = (size: Size, label: string): GPUTexture =>
     device.createTexture({
@@ -316,7 +370,9 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
     try {
       const answer = stage.ready(item, sourceIndex)
-      return answer === true ? { kind: 'ok' } : { kind: 'wait', stage: stage.id, ready: answer.ready }
+      return answer === true
+        ? { kind: 'ok' }
+        : { kind: 'wait', stage: stage.id, ready: answer.ready, arriving: answer.arriving === true }
     } catch (error) {
       return { kind: 'fail', stage: stage.id, error: asStageError(error, item, stage, sourceIndex) }
     }
@@ -471,7 +527,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     const waits = checks.flatMap((answer) => (answer.kind === 'wait' ? [answer] : []))
     const first = failure ?? waits[0]
     if (first === undefined) return null
-    options.onState?.(item, stateOf(first))
+    publish(item, stateOf(first))
     if (failure === undefined)
       redrawWhenReady(
         item,
@@ -528,6 +584,28 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     return true
   }
 
+  /**
+   * The preview's answers before a clip is held or drawn without a stage: asked, asked again after the short wait
+   * (`waitedBriefly`), and, for a clip with no good frame to hold whose stages wait only for data on its way, asked again
+   * as it arrives until `PREVIEW_FIRST_FRAME_WAIT_MS` have passed. `flatten` lists the checks of an answer.
+   */
+  async function previewAnswers<T>(item: VideoItem, ask: () => T, flatten: (answers: T) => readonly Check[]): Promise<T> {
+    const started = performance.now()
+    let answers = ask()
+    if (await waitedBriefly(flatten(answers))) answers = ask()
+    if (clips.get(item.id)?.good === true) return answers
+    for (let attempt = 0; attempt < PREVIEW_FIRST_FRAME_ASKS; attempt += 1) {
+      const waits = arrivingWaits(flatten(answers))
+      const left = started + PREVIEW_FIRST_FRAME_WAIT_MS - performance.now()
+      if (waits === null || left <= 0) return answers
+      // A wait that rejects is reported by the stage's next answer
+      const settled = await settledWithin(waits, left).catch(() => true)
+      answers = ask()
+      if (!settled) return answers
+    }
+    return answers
+  }
+
   /** The export's wait: asks `answers` again after each wait, throws the first failure, and gives up when stuck */
   async function untilReady(
     item: VideoItem,
@@ -567,9 +645,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     source: { acquire(): Promise<SourceFrame>; release(frame: SourceFrame): void },
   ): Promise<StagedFrame> {
     const stages = registry.activeStages(item)
-    const ask = () => stages.map((stage) => check(item, stage, sourceIndex))
-    let checks = ask()
-    if (await waitedBriefly(checks)) checks = ask()
+    const checks = await previewAnswers(
+      item,
+      () => stages.map((stage) => check(item, stage, sourceIndex)),
+      (answers) => answers,
+    )
     const held = blocked(item, checks)
     if (held) return held
     // No good frame to hold: the source with the stages that can draw
@@ -614,7 +694,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       if ('texture' in answer) {
         const fresh = run.length === activeCount
         remember(item, answer.texture, answer.size, fresh)
-        if (fresh) options.onState?.(item, null)
+        if (fresh) publish(item, null)
         const { width, height } = answer.size
         return { texture: answer.texture, width, height, kind: fresh ? 'fresh' : 'partial' }
       }
@@ -938,9 +1018,10 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       sourceChecks: source.map((stage) => firstBlocking(samples.map((sample) => check(item, stage, sample.index)))),
       outputChecks: output.map((stage) => check(item, stage, firstIndex)),
     })
-    let answers = ask()
-    if (await waitedBriefly([...answers.sourceChecks, ...answers.outputChecks])) answers = ask()
-    const { sourceChecks, outputChecks } = answers
+    const { sourceChecks, outputChecks } = await previewAnswers(item, ask, (answers) => [
+      ...answers.sourceChecks,
+      ...answers.outputChecks,
+    ])
     const held = blocked(item, [...sourceChecks, ...outputChecks])
     if (held) return held
     // No good frame to hold: the samples with the stages that can draw
@@ -993,7 +1074,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         const { texture, size } = await runGather(item, samples, sourceRun, outputRun, answer, first, gather)
         const fresh = sourceRun.length + outputRun.length === activeCount
         remember(item, texture, size, fresh)
-        if (fresh) options.onState?.(item, null)
+        if (fresh) publish(item, null)
         return { texture, width: size.width, height: size.height, kind: fresh ? 'fresh' : 'partial' }
       }
       const heldNow = blocked(item, [answer])
@@ -1486,8 +1567,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     flow: { readonly phase: number } | undefined,
   ): Promise<StagedFrame> {
     const { stages, source, output } = byScope(item)
-    let checks = vectorChecks(item, samples, flow?.phase, source, output)
-    if (await waitedBriefly([...checks.source, ...checks.output])) checks = vectorChecks(item, samples, flow?.phase, source, output)
+    const checks = await previewAnswers(
+      item,
+      () => vectorChecks(item, samples, flow?.phase, source, output),
+      (answers) => [...answers.source, ...answers.output],
+    )
     const held = blocked(item, [...checks.source, ...checks.output])
     if (held) return held
     // No good frame to hold: the samples with the stages that can draw
@@ -1527,7 +1611,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         const { texture, size } = await runVector(item, samples, phase, sourceRun, outputRun, answer, first)
         const fresh = sourceRun.length + outputRun.length === activeCount
         remember(item, texture, size, fresh)
-        if (fresh) options.onState?.(item, null)
+        if (fresh) publish(item, null)
         return { texture, width: size.width, height: size.height, kind: fresh ? 'fresh' : 'partial' }
       }
       const heldNow = blocked(item, [answer])
@@ -1540,41 +1624,48 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
   }
 
+  /** `render`'s path for what it was given: one frame, a gather, an interpolated frame or a vector blur */
+  function renderSource(item: VideoItem, source: number | SourceFramePlan): Promise<StagedFrame> {
+    let samples: readonly SourceSample[]
+    try {
+      samples = samplesOf(source)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    if (typeof source !== 'number' && samples.some((sample) => sample.extent !== undefined)) {
+      return exclusive(() =>
+        mode === 'export' ? renderVectorExport(item, samples, source.flow) : renderVectorPreview(item, samples, source.flow),
+      )
+    }
+    if (samples.length === 1) {
+      const sourceIndex = samples[0]!.index
+      return mode === 'export'
+        ? renderExport(item, sourceIndex, fromProvider(item, sourceIndex))
+        : renderPreview(item, sourceIndex, fromProvider(item, sourceIndex))
+    }
+    const flow = typeof source === 'number' ? undefined : source.flow
+    if (flow !== undefined) {
+      return exclusive(() => renderInterpolated(item, samples[0]!.index, flow.phase))
+    }
+    return exclusive(() =>
+      mode === 'export' ? renderGatheredExport(item, samples) : renderGatheredPreview(item, samples),
+    )
+  }
+
   return {
     render(item, source) {
       if (destroyed) return Promise.reject(new Error('stage pipeline: used after destroy'))
-      let samples: readonly SourceSample[]
-      try {
-        samples = samplesOf(source)
-      } catch (error) {
-        return Promise.reject(error)
-      }
-      if (typeof source !== 'number' && samples.some((sample) => sample.extent !== undefined)) {
-        return exclusive(() =>
-          mode === 'export' ? renderVectorExport(item, samples, source.flow) : renderVectorPreview(item, samples, source.flow),
-        )
-      }
-      if (samples.length === 1) {
-        const sourceIndex = samples[0]!.index
-        return mode === 'export'
-          ? renderExport(item, sourceIndex, fromProvider(item, sourceIndex))
-          : renderPreview(item, sourceIndex, fromProvider(item, sourceIndex))
-      }
-      const flow = typeof source === 'number' ? undefined : source.flow
-      if (flow !== undefined) {
-        return exclusive(() => renderInterpolated(item, samples[0]!.index, flow.phase))
-      }
-      return exclusive(() =>
-        mode === 'export' ? renderGatheredExport(item, samples) : renderGatheredPreview(item, samples),
-      )
+      return unlessDestroyed(renderSource(item, source))
     },
 
     renderFrame(item, frame) {
       if (destroyed) return Promise.reject(new Error('stage pipeline: used after destroy'))
-      return renderPreview(item, frame.index, {
-        acquire: () => Promise.resolve(frame),
-        release: () => undefined,
-      })
+      return unlessDestroyed(
+        renderPreview(item, frame.index, {
+          acquire: () => Promise.resolve(frame),
+          release: () => undefined,
+        }),
+      )
     },
 
     destroy() {

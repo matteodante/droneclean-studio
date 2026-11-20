@@ -2,11 +2,18 @@
 // integer source frame the clip shows. Blur on: `planMotionBlur`'s weighted samples over the span the output frame
 // covers, each with the shutter time it stands for, which the vector blur blurs it over (design 9.2). The source frame comes from `clipSourcePosition(item, clipFrame, projectFps)` of `@/studio/speed` (review
 // finding T8), through `exactSourcePosition`: the plan takes the mapping's own integer `frame`, never the floor of a
-// double, so a position within 1e-12 of a whole frame still names the right one.
+// double, so a position within 1e-12 of a whole frame still names the right one. `timelineFramePlan` is that plan for a
+// timeline frame as the renderer draws it (its render span, a transition's pre-roll); the stabilization's look-ahead
+// asks the same function which frames the clips the playhead reaches next will read (`stabilize-ahead.ts`).
 
+import {
+  getItemRenderTimelineSpan,
+  resolveVideoRenderSourceTimeSeconds,
+  type RenderTimelineSpan,
+} from '@/runtime/renderer/render-span'
 import { planMotionBlur, restrictToSourceRange, type MotionBlurQuery } from '@/studio/motion-blur'
 import { clipSourcePosition } from '@/studio/speed'
-import type { Rate } from '@/studio/time'
+import { secondsToFrame, toRate, type Rate } from '@/studio/time'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { hasMotionBlur } from './predicates'
 
@@ -97,4 +104,50 @@ export function sourceFramePlan(
     throw new RangeError(`sourceFramePlan: the source frame must be a whole number >= 0, got ${frame}`)
   }
   return { samples: [{ index: frame, weight: 1 }] }
+}
+
+/**
+ * The source frames a clip's output frame at timeline frame `frame` is made of, as the renderer draws it. Without motion
+ * blur, one: the integer frame FreeCut's one mapping (`clipSourcePosition` inside the clip, the transition's pre-roll
+ * and ramp, the clamp to the file) names; the read-back is exact: the mapping's time is `n · den / num` and
+ * `secondsToFrame` rounds `t · num / den`. With blur on, the samples `planMotionBlur` weights over the span the frame
+ * covers. A frame drawn through a transition (its own span differs from the clip's, or a source offset applies) keeps
+ * the single frame: the blur's span is the clip's own (design 7.2 section 4.8).
+ */
+export function timelineFramePlan(
+  item: VideoItem,
+  frame: number,
+  projectFps: number,
+  renderSpan: RenderTimelineSpan | undefined,
+  sourceFrameOffset: number,
+): SourceFramePlan {
+  const span = renderSpan ?? getItemRenderTimelineSpan(item)
+  const rate = toRate(item.sourceFps ?? projectFps)
+  const clipFrame = frame - item.from
+  const ownSpan =
+    sourceFrameOffset === 0 &&
+    span.from === item.from &&
+    span.durationInFrames === item.durationInFrames
+  return sourceFramePlan(item, clipFrame, {
+    sourceFrameCount: () => item.sourceDuration,
+    position: () => ({
+      frame: secondsToFrame(
+        rate,
+        resolveVideoRenderSourceTimeSeconds(item, span, frame, projectFps, sourceFrameOffset),
+      ),
+    }),
+    motionBlurQuery: () =>
+      item.motionBlur !== undefined &&
+      ownSpan &&
+      clipFrame >= 0 &&
+      clipFrame < item.durationInFrames
+        ? {
+            clip: item,
+            timelineFrame: clipFrame,
+            projectRate: toRate(projectFps),
+            shutterDegrees: item.motionBlur.shutterDegrees,
+            smoothSlowMotion: item.motionBlur.smoothSlowMotion,
+          }
+        : undefined,
+  })
 }

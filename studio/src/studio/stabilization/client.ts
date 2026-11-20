@@ -310,10 +310,11 @@ export interface StabilizationClient {
    */
   slideWindow(clipId: string, sourceFrame: number): void
   /**
-   * The engine's data for these integer source frames, in one request, outside the window and without moving it: the
-   * first frames of a clip about to start after a cut, while the clip before it still plays from the window of the
-   * same engine (clips of one file with the same settings share it). Copies, like every frame handed out; an empty
-   * list when a settings change landed meanwhile (the answer belongs to the old settings).
+   * The engine's data for these source frames, in one request, outside the window and without moving it: the frames a
+   * clip the playhead reaches next reads first, while the clip before it still plays from the window of the same
+   * engine (clips of one file with the same settings share it). A position between two frames (a clip that starts in
+   * optical-flow slow motion) is answered for that moment, as `getFrameData` answers it. Copies, like every frame
+   * handed out; an empty list when a settings change landed meanwhile (the answer belongs to the old settings).
    */
   fetchFrames(clipId: string, sourceFrames: readonly number[]): Promise<StabilizationFrameData[]>
   /**
@@ -925,16 +926,24 @@ class Client implements StabilizationClient {
     const clip = this.requireClip(clipId)
     const { engine } = clip
     const info = this.requireInfo(engine)
-    for (const frame of sourceFrames) requireSourceFrame(info, frame)
+    for (const frame of sourceFrames) {
+      if (Number.isSafeInteger(frame)) requireSourceFrame(info, frame)
+      else requirePositionBetween(info, frame)
+    }
     if (sourceFrames.length === 0) return []
     const cache = clip.cache
     const reply = await engine.engine.call<{ frames: RawFrameData[]; ms: number }>('frameData', {
-      timestampsUs: sourceFrames.map((frame) => sourceFrameToMicroseconds(engine.rate, frame)),
+      timestampsUs: sourceFrames.map((frame) =>
+        Number.isSafeInteger(frame)
+          ? sourceFrameToMicroseconds(engine.rate, frame)
+          : sourcePositionToMicroseconds(engine.rate, frame),
+      ),
     })
     if (clip.cache !== cache) return []
     return sourceFrames.map((frame, index) => {
       const answer = reply.frames[index]
-      if (!answer || answer.frame !== frame) {
+      // A position between two frames is answered by one of the two (the engine names the nearer frame's lens)
+      if (!answer || (answer.frame !== frame && answer.frame !== Math.floor(frame) && answer.frame !== Math.ceil(frame))) {
         throw new StabilizationError('engine', `the engine answered no data for source frame ${frame}`)
       }
       return { matrices: answer.matrices, params: answer.params, mesh: answer.mesh, sourceFrame: frame }

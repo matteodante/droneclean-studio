@@ -36,6 +36,7 @@ import {
   Sparkles,
   Play,
   Bot,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   AgentAccessPanel,
@@ -48,6 +49,7 @@ import {
   type CaptioningIntervalUnit,
 } from '@/features/editor/deps/settings'
 import { hasAgentAccess } from '@/studio/agent/access'
+import { hasTelemetrySettings, PrivacyPanel } from '@/studio/telemetry/privacy-panel'
 import {
   useMediaLibraryStore,
   getSharedProxyKey,
@@ -84,6 +86,7 @@ const SETTINGS_SECTIONS = [
   { id: 'ai', labelKey: 'settings.sections.ai', icon: Sparkles },
   { id: 'storage', labelKey: 'settings.sections.storage', icon: HardDrive },
   { id: 'agentAccess', labelKey: 'settings.agentAccess.title', icon: Bot },
+  { id: 'privacy', labelKey: 'settings.privacy.title', icon: ShieldCheck },
 ] as const
 
 const ESTIMATE_REFERENCE_DURATION_SEC = 60
@@ -578,9 +581,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   ).length
   // Agent access is the desktop shell's (task 2.2, slice 7): the browser build
   // has no MCP server, so it is not offered there at all.
-  const sections = hasAgentAccess()
-    ? SETTINGS_SECTIONS
-    : SETTINGS_SECTIONS.filter((section) => section.id !== 'agentAccess')
+  // Privacy holds the opt-in reports' switches, offered when this build configures them.
+  const sections = SETTINGS_SECTIONS.filter(
+    (section) =>
+      (section.id !== 'agentAccess' || hasAgentAccess()) &&
+      (section.id !== 'privacy' || hasTelemetrySettings()),
+  )
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl gap-0 overflow-hidden p-0 sm:top-16 sm:max-h-[calc(100vh-4rem)] sm:translate-y-0 sm:origin-top">
@@ -1115,6 +1121,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     )}
 
                     {activeSection === 'agentAccess' && <AgentAccessPanel />}
+
+                    {activeSection === 'privacy' && <PrivacyPanel />}
                   </motion.div>
                 </AnimatePresence>
               </div>

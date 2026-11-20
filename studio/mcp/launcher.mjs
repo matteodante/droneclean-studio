@@ -97,6 +97,87 @@ export function socketPathFor(userDataDir, platform = process.platform, userName
 }
 
 /** `userData/agent-access.json`. */
+/**
+ * Opt-in crash reports (20 Nov 2026): the app's Sentry project and the app's answer
+ * (`desktop/src/shared/telemetry.ts`, `userData/telemetry.json`). Only a failure the launcher did not expect is
+ * reported, only when that answer says yes, and without paths or file names; `desktop/test/telemetry.test.mjs` holds
+ * these values to the app's.
+ */
+export const LAUNCHER_TELEMETRY = Object.freeze({
+  sentryDsn:
+    'https://cc591f18b25bdcf7689a5814e4e4d8ad@o4510946315403264.ingest.de.sentry.io/4512177723474000',
+  settingsFileName: 'telemetry.json',
+  reportTimeoutMs: 2000,
+})
+
+/** Whether the app's stored answer switches crash reports on (a missing or broken file does not). */
+export function crashReportsOn(userDataDir) {
+  try {
+    const value = JSON.parse(fs.readFileSync(path.join(userDataDir, LAUNCHER_TELEMETRY.settingsFileName), 'utf8'))
+    return value?.version === 1 && value.crashReports === true
+  } catch {
+    return false
+  }
+}
+
+/** The app's scrubbing rules (`src/studio/telemetry/scrub.ts`): no absolute paths, no media file names. */
+export function scrubLauncherText(text) {
+  return text
+    .replace(
+      /(?:(?:file:\/\/\/?)?\/(?:Users|home|Volumes|private|var|tmp|mnt|media|run|opt|root)(?:\/[^\/\n'"`)\]>,;]*(?=\/))*\/[^\s'"`)\]>,;]*|[A-Za-z]:(?:[\\\/][^\\\/\n'"`)\]>,;]*(?=[\\\/]))*[\\\/][^\s'"`)\]>,;]*|\\\\[^\s'"`)\]>,;]+)/g,
+      '<path>',
+    )
+    .replace(
+      /[^\s/\\'"`()[\]<>,;:]+\.(?:mp4|mov|m4v|mkv|avi|mxf|insv|lrv|lrf|mts|m2ts|webm|wav|mp3|m4a|aac|flac|aiff?|ogg|opus|png|jpe?g|heic|webp|gif|dng|tiff?|cube|3dl|srt|vtt|gcsv|bbl|osd|fcpxml|xml|otio|edl|fcproject|zip)\b/gi,
+      '<file>',
+    )
+}
+
+/** The Sentry envelope request of a launcher failure. */
+export function launcherCrashRequest(error, platform = process.platform) {
+  const [, scheme, key, host, project] = /^(https?):\/\/([^@]+)@([^/]+)\/(\d+)$/.exec(LAUNCHER_TELEMETRY.sentryDsn)
+  const eventId = crypto.randomUUID().replace(/-/g, '')
+  const event = {
+    event_id: eventId,
+    timestamp: Date.now() / 1000,
+    platform: 'node',
+    logger: 'droneclean-studio.launcher',
+    environment: 'studio-desktop',
+    level: 'error',
+    tags: { app: 'studio', where: 'launcher', os: platform },
+    sdk: { name: 'droneclean-studio.launcher', version: '1', settings: { infer_ip: 'never' } },
+    exception: {
+      values: [
+        {
+          type: error instanceof Error ? error.name : 'NonError',
+          value: scrubLauncherText(error instanceof Error ? error.message : String(error)),
+        },
+      ],
+    },
+  }
+  return {
+    url: `${scheme}://${host}/api/${project}/envelope/?sentry_key=${key}&sentry_version=7`,
+    body: `${JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(event)}\n`,
+  }
+}
+
+/** Report a failure the launcher did not expect, when the user switched crash reports on; never throws. */
+export async function reportLauncherCrash(error, userDataDir, send = globalThis.fetch) {
+  if (!crashReportsOn(userDataDir)) return false
+  try {
+    const request = launcherCrashRequest(error)
+    await send(request.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-sentry-envelope' },
+      body: request.body,
+      signal: AbortSignal.timeout(LAUNCHER_TELEMETRY.reportTimeoutMs),
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function settingsPathFor(userDataDir) {
   return path.join(userDataDir, settingsFileName)
 }
@@ -350,10 +431,11 @@ const invokedDirectly = isEntryScript(process.argv[1], import.meta.url)
 if (invokedDirectly) {
   main().then(
     (code) => finish(code),
-    (error) => {
+    async (error) => {
       process.stderr.write(
         `DroneClean Studio launcher failed: ${error instanceof Error ? error.message : String(error)}\n`,
       )
+      await reportLauncherCrash(error, userDataDirFor(process.platform, process.env))
       finish(exitAppUnreachable)
     },
   )

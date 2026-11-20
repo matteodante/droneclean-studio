@@ -39,6 +39,8 @@ const MEDIA: MediaMetadata = {
 const INITIAL = useShadowSessionStore.getState()
 const PASS = {
   jobId: 'j1',
+  chargedCredits: 10,
+  refundedCredits: 0,
   uploadId: 'u1',
   mark: { x: 1, y: 1, sourceFrame: 0, radius: 5 },
   window: { startFrame: 0, endFrame: 100 },
@@ -56,7 +58,10 @@ const QUOTE = {
 
 let shadow: ShadowApi
 
-/** The session as a finished free pass leaves it. */
+/** What following the shadow in `c1` costs: its 300 source frames at 30 fps, a credit a second. */
+const FOLLOW_PRICE = 10
+
+/** The session as a finished tracking pass leaves it. */
 function followed(patch: Record<string, unknown> = {}): void {
   useShadowSessionStore.setState({
     clipId: 'c1',
@@ -122,7 +127,13 @@ describe('studio.shadow', () => {
 
   describe('get', () => {
     it('reads the mark, the pass and the price of the clip', () => {
-      expect(shadow.get('c1')).toMatchObject({ mark: null, stage: 'idle', ranges: [], quote: null })
+      expect(shadow.get('c1')).toMatchObject({
+        mark: null,
+        stage: 'idle',
+        ranges: [],
+        quote: null,
+        followCredits: FOLLOW_PRICE,
+      })
 
       followed()
 
@@ -182,32 +193,136 @@ describe('studio.shadow', () => {
   })
 
   describe('follow', () => {
-    it('runs the free pass and returns the ranges and the price', async () => {
+    it('runs the paid pass at exactly the price shown, and returns the ranges, the price and what it spent', async () => {
       shadow.mark('c1', { x: 100, y: 100 })
-      useShadowSessionStore.setState({
-        track: vi.fn(async () => followed()),
-      })
+      const track = vi.fn(async (_item: unknown, _agreed?: number) => followed())
+      useShadowSessionStore.setState({ track })
 
-      const result = await shadow.follow('c1')
+      const result = await shadow.follow('c1', FOLLOW_PRICE)
 
+      expect(track).toHaveBeenCalledOnce()
+      // The price agreed to goes with the pass: its job is never charged above it (`maxCredits`).
+      expect(track.mock.calls[0]?.[1]).toBe(FOLLOW_PRICE)
       expect(result.ranges).toEqual([{ startFrame: 10, endFrame: 40 }])
       expect(result.quote?.costCredits).toBe(12)
+      expect(result.creditsSpent).toBe(10)
+    })
+
+    it('throws CONFLICT naming the price, and spends nothing, unless the credits expected are the current price', async () => {
+      shadow.mark('c1', { x: 100, y: 100 })
+      const track = vi.fn(async () => followed())
+      useShadowSessionStore.setState({ track })
+
+      for (const credits of [0, 9, 11]) {
+        const error = await rejectedAsync(() => shadow.follow('c1', credits))
+        expect(error.code).toBe('CONFLICT')
+        expect(error.argument).toBe('expectedCredits')
+        expect(error.message).toContain(
+          `following the shadow in this clip costs 10 credits, not the ${credits} expected; nothing was spent`,
+        )
+        expect(error.hint).toContain('studio.shadow.get(id).followCredits')
+      }
+      expect(track).not.toHaveBeenCalled()
+    })
+
+    it('throws INVALID_ARGUMENT, and spends nothing, without a whole number of credits (an agent that forgot the price)', async () => {
+      shadow.mark('c1', { x: 100, y: 100 })
+      const track = vi.fn(async () => followed())
+      useShadowSessionStore.setState({ track })
+      const follow = shadow.follow as (id: string, credits?: unknown) => Promise<unknown>
+
+      for (const credits of [undefined, -1, 10.5, Number.NaN, '10']) {
+        const error = await rejectedAsync(() => follow('c1', credits))
+        expect(error.code).toBe('INVALID_ARGUMENT')
+        expect(error.argument).toBe('expectedCredits')
+      }
+      expect(track).not.toHaveBeenCalled()
+    })
+
+    it('follows the price of the part the clip shows: a trim changes it', async () => {
+      useItemsStore.getState()._updateItem('c1', { sourceStart: 30, sourceEnd: 120 })
+      // 90 frames at 30 fps: 3 s, the minimum of 5 credits.
+      expect(shadow.get('c1').followCredits).toBe(5)
+      shadow.mark('c1', { x: 100, y: 100, sourceFrame: 40 })
+      useShadowSessionStore.setState({ track: vi.fn(async () => followed()) })
+      expect((await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))).code).toBe('CONFLICT')
+      await expect(shadow.follow('c1', 5)).resolves.toMatchObject({ creditsSpent: 10 })
+    })
+
+    it('throws CONFLICT naming the exact price, nothing spent, when the piece costs more; then follows at that price', async () => {
+      shadow.mark('c1', { x: 100, y: 100 })
+      const mark = useItemsStore.getState().itemById['c1']!
+      const markOf = (mark as { shadowRemoval?: { mark: unknown } }).shadowRemoval!.mark
+      // The session planned the piece: it reaches the keyframes around the clip's part and costs 12.
+      const asking = vi.fn(async () => {
+        useShadowSessionStore.setState({
+          clipId: 'c1',
+          priceAsk: { credits: 12, mark: markOf, piece: null } as never,
+        })
+      })
+      useShadowSessionStore.setState({ track: asking })
+
+      const error = await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.argument).toBe('expectedCredits')
+      expect(error.message).toContain(
+        'following the shadow in this clip costs 12 credits, not the 10 expected: the piece sent reaches the keyframes around its part; nothing was spent',
+      )
+      expect(error.hint).toContain('studio.shadow.follow(id, 12)')
+      // What following costs now is the exact price: the button's 10 is refused, 12 goes through.
+      expect(shadow.get('c1').followCredits).toBe(12)
+      expect((await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))).message).toContain(
+        'costs 12 credits, not the 10 expected; nothing was spent',
+      )
+      const track = vi.fn(async (_item: unknown, _agreed?: number) =>
+        followed({ priceAsk: null, pass: { ...PASS, chargedCredits: 12 } }),
+      )
+      useShadowSessionStore.setState({ track })
+      await expect(shadow.follow('c1', 12)).resolves.toMatchObject({ creditsSpent: 12 })
+      expect(track.mock.calls[0]?.[1]).toBe(12)
+    })
+
+    it('says it spent nothing when no shadow was found, or when the finished pass was reused', async () => {
+      shadow.mark('c1', { x: 100, y: 100 })
+      useShadowSessionStore.setState({
+        track: vi.fn(async () =>
+          followed({
+            pass: { ...PASS, ranges: [], chargedCredits: 0, refundedCredits: 10 },
+            quote: null,
+          }),
+        ),
+      })
+      expect(await shadow.follow('c1', FOLLOW_PRICE)).toEqual({
+        ranges: [],
+        quote: null,
+        creditsSpent: 0,
+      })
+
+      // The pass for this mark is done: `track` reuses it, and no credits go.
+      followed()
+      useShadowSessionStore.setState({ track: vi.fn(async () => undefined) })
+      expect((await shadow.follow('c1', FOLLOW_PRICE)).creditsSpent).toBe(0)
     })
 
     it('throws NOT_FOUND for an unknown clip id', async () => {
-      expect((await rejectedAsync(() => shadow.follow('c9'))).code).toBe('NOT_FOUND')
+      expect((await rejectedAsync(() => shadow.follow('c9', FOLLOW_PRICE))).code).toBe('NOT_FOUND')
     })
 
     it('throws UNSUPPORTED for a clip that is not a video', async () => {
-      expect((await rejectedAsync(() => shadow.follow('ca'))).code).toBe('UNSUPPORTED')
+      expect((await rejectedAsync(() => shadow.follow('ca', FOLLOW_PRICE))).code).toBe(
+        'UNSUPPORTED',
+      )
     })
 
     it('throws MEDIA_UNAVAILABLE for a clip whose file is not in the library', async () => {
-      expect((await rejectedAsync(() => shadow.follow('c2'))).code).toBe('MEDIA_UNAVAILABLE')
+      expect((await rejectedAsync(() => shadow.follow('c2', FOLLOW_PRICE))).code).toBe(
+        'MEDIA_UNAVAILABLE',
+      )
     })
 
     it('throws CONFLICT before the shadow is marked, and when the user must approve a sign-in', async () => {
-      const unmarked = await rejectedAsync(() => shadow.follow('c1'))
+      const unmarked = await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))
       expect(unmarked.code).toBe('CONFLICT')
       expect(unmarked.hint).toContain('studio.shadow.mark')
 
@@ -217,7 +332,7 @@ describe('studio.shadow', () => {
           useShadowSessionStore.setState({ clipId: 'c1', needsSignIn: true, error: 'Sign in' })
         }),
       })
-      const signIn = await rejectedAsync(() => shadow.follow('c1'))
+      const signIn = await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))
       expect(signIn.code).toBe('CONFLICT')
       expect(signIn.message).toContain('approve the DroneClean sign-in in the app')
     })
@@ -230,10 +345,17 @@ describe('studio.shadow', () => {
         }),
       })
 
-      const error = await rejectedAsync(() => shadow.follow('c1'))
+      const error = await rejectedAsync(() => shadow.follow('c1', FOLLOW_PRICE))
 
       expect(error.code).toBe('INTERNAL')
       expect(error.message).toContain('The upload failed.')
+    })
+
+    it("studio.shadow.follow('c1', 10)", async () => {
+      shadow.mark('c1', { x: 100, y: 100 })
+      useShadowSessionStore.setState({ track: vi.fn(async () => followed()) })
+
+      await expect(shadow.follow('c1', 10)).resolves.toMatchObject({ creditsSpent: 10 })
     })
   })
 

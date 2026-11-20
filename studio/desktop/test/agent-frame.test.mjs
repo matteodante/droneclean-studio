@@ -143,6 +143,7 @@ test('a six-frame sheet from a step is a 3 × 2 grid in reading order', async ()
     columns: 3,
     rows: 2,
     width: 1280,
+    full: false,
   })
 })
 
@@ -181,11 +182,23 @@ test('a sheet with too many columns or rows is INVALID_ARGUMENT naming that argu
   assert.equal(tooManyRows.error.argument, 'contactSheet.rows')
 })
 
-test('a sheet with full is INVALID_ARGUMENT naming full', async () => {
-  const outcome = await frameTool({ contactSheet: { from: 0, to: 5 }, full: true }, fakePage(pngResult()))
-  assert.ok('error' in outcome)
-  assert.equal(outcome.error.code, 'INVALID_ARGUMENT')
-  assert.equal(outcome.error.argument, 'full')
+test('a sheet with full plans the sheet to be written and answers the path', async () => {
+  const written = { path: 'projects/p1/frames/frame-0-mhx3k9z1-0.png', bytes: 90, width: 1278, height: 480 }
+  const page = fakePage({ result: written })
+  const outcome = await frameTool({ contactSheet: { from: 0, to: 5 }, full: true }, page)
+  assert.ok('result' in outcome)
+  assert.deepEqual(outcome.result, written)
+  const plan = planOf(page.calls[0])
+  assert.equal(plan.kind, 'sheet')
+  assert.equal(plan.full, true)
+  assert.equal(plan.width, 1280)
+})
+
+test('a sheet with full and a width keeps the width for the sheet', async () => {
+  const page = fakePage({ result: { path: 'projects/p1/frames/x.png', bytes: 1, width: 1, height: 1 } })
+  const outcome = await frameTool({ contactSheet: { from: 0, to: 5 }, full: true, width: 2560 }, page)
+  assert.ok('result' in outcome)
+  assert.equal(planOf(page.calls[0]).width, 2560)
 })
 
 test('a range that ends before it starts is INVALID_ARGUMENT naming contactSheet.to', async () => {

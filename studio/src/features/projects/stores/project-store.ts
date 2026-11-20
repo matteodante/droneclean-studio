@@ -18,6 +18,7 @@ import { createProjectObject, duplicateProject } from '../utils/project-helpers'
 // v3: Lazy-load media service for cascade operations
 import { importMediaLibraryService } from '@/features/projects/deps/media-library-contract'
 import { createLogger } from '@/shared/logging/logger'
+import { track } from '@/studio/telemetry/usage'
 
 const logger = createLogger('ProjectStore')
 
@@ -149,6 +150,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>()(
         try {
           await createProjectDB(newProject)
           set({ currentProject: newProject })
+          track('project_created', { width: data.width, height: data.height, fps: data.fps })
           return newProject
         } catch (error) {
           // Rollback on error

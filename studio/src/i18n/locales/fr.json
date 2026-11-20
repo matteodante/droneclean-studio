@@ -220,6 +220,26 @@
       "logFailed": "Le journal n'a pas pu être lu.",
       "duration": "{{ms}} ms",
       "undoSteps": "Annuler × {{count}}"
+    },
+    "privacy": {
+      "title": "Confidentialité",
+      "intro": "DroneClean Studio n'envoie rien sur vous ni sur votre travail, sauf si vous l'activez ici.",
+      "crashReports": "Envoyer les rapports de plantage",
+      "crashReportsDescription": "Quand l'éditeur rencontre une erreur, il envoie l'erreur et l'endroit du code où elle s'est produite, avec la version et le système, à Sentry (UE), pour qu'elle soit corrigée.",
+      "usageStats": "Envoyer des statistiques d'utilisation anonymes",
+      "usageStatsDescription": "Compte quelques moments (ouvrir l'app, créer un projet, terminer un export, connecter un agent IA, retirer une ombre) sous un identifiant aléatoire de cette installation, à PostHog (UE). Le désactiver oublie l'identifiant.",
+      "never": "Jamais envoyés : vos vidéos, images, noms de fichiers et de dossiers, noms de projets ou votre compte. Votre adresse IP n'est pas conservée."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "Aidez à améliorer DroneClean Studio",
+      "both": "Envoyer des rapports de plantage et des statistiques d'utilisation anonymes ? Les rapports disent ce qui a échoué ; les statistiques comptent les fonctions utilisées. Rien n'est envoyé sans votre accord.",
+      "crashOnly": "Envoyer des rapports de plantage en cas de problème ? Ils disent ce qui a échoué et où dans le code de l'éditeur. Rien n'est envoyé sans votre accord.",
+      "usageOnly": "Envoyer des statistiques d'utilisation anonymes ? Elles comptent les fonctions utilisées. Rien n'est envoyé sans votre accord.",
+      "later": "Jamais vos vidéos, noms de fichiers, dossiers ou projets. Vous pouvez changer cela à tout moment dans Réglages › Confidentialité.",
+      "allow": "Autoriser",
+      "decline": "Ne pas autoriser"
     }
   }
 }

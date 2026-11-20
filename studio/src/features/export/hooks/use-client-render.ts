@@ -50,6 +50,7 @@ import { DEFAULT_PROJECT_HEIGHT, DEFAULT_PROJECT_WIDTH } from '@/shared/projects
 import { resolveMediaUrls } from '@/features/export/deps/media-library'
 import { usePlaybackStore } from '@/shared/state/playback'
 import { createLogger, createOperationId } from '@/shared/logging/logger'
+import { exportedFormat, trackExportFinished } from '@/studio/telemetry/usage'
 
 const log = createLogger('Export')
 
@@ -271,6 +272,7 @@ export function useClientRender(): UseClientRenderReturn {
           setResult(copied)
           setStatus('completed')
           setProgress(100)
+          trackExportFinished('dialog', 'smart-copy', exportedFormat(settings), copied.duration)
           event.set('renderPath', 'smart-copy')
           event.success({
             fileSize: copied.fileSize,
@@ -452,6 +454,12 @@ export function useClientRender(): UseClientRenderReturn {
         setStatus('completed')
         setProgress(100)
 
+        trackExportFinished(
+          'dialog',
+          native ? 'native' : 'browser',
+          exportedFormat(settings),
+          renderResult.duration,
+        )
         event.set('renderPath', renderPath)
         event.success({
           fileSize: finalResult.fileSize,

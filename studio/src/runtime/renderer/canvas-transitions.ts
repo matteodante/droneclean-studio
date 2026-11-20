@@ -368,7 +368,8 @@ function renderClockWipeTransition(
   clipPath.arc(centerX, centerY, radius, currentAngle, startAngle + Math.PI * 2, false)
   clipPath.closePath()
   ctx.clip(clipPath)
-  drawScaledCanvas(ctx, leftCanvas, canvas, 1 - 0.04 * p, 1 - 0.1 * p)
+  // Grows from 1 to 1.04, like the fade's outgoing clip: shrinking it stretched the edge pixels into a band (DroneClean, 20 Nov 2026)
+  drawScaledCanvas(ctx, leftCanvas, canvas, 1 + 0.04 * p, 1 - 0.1 * p)
   ctx.restore()
 }
 
@@ -405,7 +406,8 @@ function renderIrisTransition(
   clipPath.rect(0, 0, canvas.width, canvas.height)
   clipPath.arc(centerX, centerY, radius, 0, Math.PI * 2)
   ctx.clip(clipPath, 'evenodd')
-  drawScaledCanvas(ctx, leftCanvas, canvas, 1 - 0.04 * p, 1 - 0.1 * p)
+  // Grows from 1 to 1.04, like the fade's outgoing clip: shrinking it stretched the edge pixels into a band (DroneClean, 20 Nov 2026)
+  drawScaledCanvas(ctx, leftCanvas, canvas, 1 + 0.04 * p, 1 - 0.1 * p)
   ctx.restore()
 }
 

@@ -46,6 +46,13 @@ const log = createLogger('StabilizationSeat')
 /** How many source frames' data the host keeps per engine (the client's own window is 33) */
 const FRAME_CACHE = 48
 
+/**
+ * How many engines keep the frames asked for ahead of the playhead (`warm`) at once: the clips it reaches next, a few at
+ * most within the look-ahead. The engine warmed least recently lets its frames go first, so a long reel does not keep
+ * every clip's first frames (about 6 MB each for a 4K clip that starts at 4x).
+ */
+const WARMED_ENGINES = 4
+
 /** What a clip's open came to */
 export type EngineOpenResult =
   /** The engine answers frames and the file has a lens profile */
@@ -110,9 +117,10 @@ export interface StabilizationSeat {
    */
   frame(key: string, sourceFrame: number): StabilizationFrameData | undefined
   /**
-   * Asks the key's engine for these frames ahead of time and keeps them beside the window, which stays where the clip
-   * playing now needs it: the first frames of a clip that starts after a cut (20 Nov 2026: those frames were drawn
-   * unstabilized while the window slid to them).
+   * Asks the key's engine for these source positions ahead of time and keeps them beside the window, which stays where
+   * the clip playing now needs it: the frames the clips the playhead reaches next read first (`stabilize-ahead.ts`).
+   * The list is everything wanted ahead from this engine now: what was kept for an earlier list and is not in this one
+   * goes when the new frames arrive, and what is already kept or on its way is not asked for again.
    */
   warm(key: string, sourceFrames: readonly number[]): void
   /**
@@ -183,8 +191,10 @@ interface Entry {
   readonly frames: Map<number, StabilizationFrameData>
   readonly inflight: Map<number, Promise<void>>
   readonly frameFailures: Map<number, Error>
-  /** Frames asked for ahead of a cut, beside the window (`warm`) */
+  /** Frames asked for ahead of the playhead, beside the window (`warm`) */
   readonly warmed: Map<number, StabilizationFrameData>
+  /** The positions the last `warm` wanted: what `warmed` keeps when the next answer arrives */
+  warmTarget: ReadonlySet<number>
   /** Whether a `warm` request is on its way */
   warming: boolean
 }
@@ -213,6 +223,12 @@ function sizeOf(info: StabilizationInfo): StabilizationOutputSize | null {
     return null
   }
   return { width, height }
+}
+
+/** Whether the engine of a file of `frames` frames answers a position: a whole frame of it, or a moment between two */
+function inFile(position: number, frames: number): boolean {
+  if (Number.isSafeInteger(position)) return position >= 0 && position < frames
+  return Number.isFinite(position) && position > 0 && position < frames - 1
 }
 
 /** Whether a result leaves the engine answering frames */
@@ -295,6 +311,8 @@ class Seat implements StabilizationSeat {
   /** The entry each item last used: how a settings change finds the engine to move */
   private readonly itemEntries = new Map<string, Entry>()
   private readonly waiters = new Map<string, Array<() => void>>()
+  /** The entries holding frames asked for ahead (`warm`), the least recently warmed first */
+  private readonly warmedEntries = new Set<Entry>()
   private nextClientId = 0
 
   constructor(options: StabilizationSeatOptions) {
@@ -364,8 +382,13 @@ class Seat implements StabilizationSeat {
 
   warm(key: string, sourceFrames: readonly number[]): void {
     const entry = this.entries.get(key)
-    if (!entry || entry.warming || !isUsable(entry.result)) return
-    const missing = sourceFrames.filter((frame) => !entry.frames.has(frame) && !entry.warmed.has(frame))
+    if (!entry || !isUsable(entry.result)) return
+    const fileFrames = entry.result.info.frames
+    entry.warmTarget = new Set(sourceFrames.filter((position) => inFile(position, fileFrames)))
+    this.markWarmed(entry)
+    // One request at a time per engine: a list that changed meanwhile is asked for by the next call
+    if (entry.warming) return
+    const missing = [...entry.warmTarget].filter((position) => !entry.warmed.has(position))
     if (missing.length === 0) return
     const generation = entry.generation
     entry.warming = true
@@ -374,14 +397,31 @@ class Seat implements StabilizationSeat {
       .then(
         (frames) => {
           if (entry.generation !== generation) return
-          entry.warmed.clear()
-          for (const frame of frames) entry.warmed.set(frame.sourceFrame, frame)
+          // Only what is still wanted is kept: the list may have changed, or the engine let its frames go, meanwhile
+          for (const position of [...entry.warmed.keys()]) {
+            if (!entry.warmTarget.has(position)) entry.warmed.delete(position)
+          }
+          for (const frame of frames) {
+            if (entry.warmTarget.has(frame.sourceFrame)) entry.warmed.set(frame.sourceFrame, frame)
+          }
         },
-        (error: unknown) => log.debug('the frames after a cut could not be asked for ahead', { key, error }),
+        (error: unknown) => log.debug('the frames ahead of the playhead could not be asked for', { key, error }),
       )
       .finally(() => {
         entry.warming = false
       })
+  }
+
+  /** Makes the entry the most recently warmed; the least recent beyond `WARMED_ENGINES` let their warmed frames go */
+  private markWarmed(entry: Entry): void {
+    this.warmedEntries.delete(entry)
+    this.warmedEntries.add(entry)
+    for (const oldest of this.warmedEntries) {
+      if (this.warmedEntries.size <= WARMED_ENGINES) break
+      this.warmedEntries.delete(oldest)
+      oldest.warmed.clear()
+      oldest.warmTarget = new Set()
+    }
   }
 
   /** Keeps a frame's data, the oldest going once the host holds `FRAME_CACHE` of the key's frames */
@@ -500,6 +540,7 @@ class Seat implements StabilizationSeat {
     this.entries.clear()
     this.itemEntries.clear()
     this.waiters.clear()
+    this.warmedEntries.clear()
     this.client.destroy()
   }
 
@@ -602,6 +643,7 @@ class Seat implements StabilizationSeat {
       inflight: new Map(),
       frameFailures: new Map(),
       warmed: new Map(),
+      warmTarget: new Set(),
       warming: false,
     }
   }
@@ -726,6 +768,7 @@ class Seat implements StabilizationSeat {
     entry.generation += 1
     entry.frames.clear()
     entry.warmed.clear()
+    this.warmedEntries.delete(entry)
     entry.gone.resolve()
     if (this.entries.get(entry.key) === entry) this.entries.delete(entry.key)
     for (const itemId of entry.users) {

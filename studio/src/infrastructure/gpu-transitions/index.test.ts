@@ -307,3 +307,22 @@ describe('GPU transition registry', () => {
     expect(getGpuTransition('')).toBeUndefined()
   })
 })
+
+describe.each(['iris', 'clockWipe'] as const)('%s shader covers the frame', (id) => {
+  it('samples both textures at a scale of at least 1 for the whole transition', () => {
+    // The outgoing clip once shrank to 0.96, stretching its edge pixels into a band 40 px wide at 4K (DroneClean,
+    // 20 Nov 2026). Both scales are evaluated here from the shader's own expressions.
+    const shader = getGpuTransition(id)!.shader
+    const scaleOf = (name: string) => {
+      const match = new RegExp(`let ${name} = ([^;]+);`).exec(shader)
+      expect(match, `${id} ${name}`).not.toBeNull()
+      return new Function('p', `return ${match![1]!}`) as (p: number) => number
+    }
+    const outgoing = scaleOf('outgoingScale')
+    const incoming = scaleOf('incomingScale')
+    for (const p of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      expect(outgoing(p), `${id} outgoing p=${p}`).toBeCloseTo(1 + 0.04 * p, 10)
+      expect(incoming(p), `${id} incoming p=${p}`).toBeCloseTo(1.04 - 0.04 * p, 10)
+    }
+  })
+})

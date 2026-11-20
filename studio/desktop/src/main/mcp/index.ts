@@ -60,11 +60,12 @@ async function loadDocumentsForSearch(): Promise<SearchDocument[]> {
  * stdio launcher starts the app hidden, and the agent is the one that decides
  * when the user should see the edit. `startedForAgent` is that hidden launch:
  * such an app quits when idle, unless a window was shown (`idle-quit.ts`).
+ * `onAgentConnected` hears each client that connects (the opt-in `mcp_connected` statistic).
  */
 export async function installAgentAccess(
   getWindow: () => BrowserWindow | null,
   showWindow: () => void = () => undefined,
-  options: { startedForAgent?: boolean } = {},
+  options: { startedForAgent?: boolean; onAgentConnected?: () => void } = {},
 ): Promise<AgentAccess> {
   const page = createPageBridge(getWindow, { showWindow })
   // An app the launcher started hidden quits, after saving, when no client has
@@ -83,7 +84,10 @@ export async function installAgentAccess(
     page,
     loadDocuments: loadDocumentsForSearch,
     showWindow,
-    onActivity: (event) => idle.activity(event),
+    onActivity: (event) => {
+      idle.activity(event)
+      if (event === 'client-connected') options.onAgentConnected?.()
+    },
     workspaceFolder: heldWorkspaceFolder,
   })
   await access.startIfEnabled()

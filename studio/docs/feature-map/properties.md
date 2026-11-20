@@ -406,7 +406,7 @@ Hidden by the `shadowRemovalClean` feature switch. Cleaning spends the user's cr
 
 ### Follow the shadow
 - Where: Editor › Properties › Video tab › Shadow
-- Does: Runs the free tracking pass on the clip's part of the source and shows the stretches where the shadow was found.
+- Does: Runs the tracking pass on the clip's part of the source, for the credits its button shows (given back when no shadow is found where it was marked), and shows the stretches where the shadow was found.
 - SDK: `studio.shadow.follow`
 - Code: `src/studio/shadow/ui/ShadowSection.tsx`
 

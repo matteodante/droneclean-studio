@@ -49,7 +49,9 @@ fn irisFragment(input: VertexOutput) -> @location(0) vec4f {
   let maxRadius = sqrt(halfW * halfW + halfH * halfH) * 1.2;
   let radius = p * maxRadius;
   let feather = max(0.0, min(params.edgeSoftness, min(radius, maxRadius - radius)));
-  let outgoingScale = 1.0 - (0.04 * p);
+  // The outgoing clip grows from 1 to 1.04 (DroneClean, 20 Nov 2026: FreeCut shrank it to 0.96, which stretched the
+  // edge pixels into a band 40 px wide at 4K), so both clips always cover the frame.
+  let outgoingScale = 1.0 + (0.04 * p);
   let incomingScale = 1.04 - (0.04 * p);
   let outgoingOpacity = 1.0 - (0.1 * p);
   let incomingOpacity = 0.85 + (0.15 * p);
