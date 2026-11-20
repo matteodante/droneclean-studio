@@ -12,7 +12,7 @@
  * the server and its tests run under plain Node; `index.ts` passes the real
  * `BrowserWindow`.
  */
-import type { PageBridge } from './types'
+import type { ExecuteOptions, PageBridge, PageRecovery } from './types'
 
 /**
  * Why the page cannot take a script. `crashed` and `reloaded` are a page that
@@ -38,11 +38,17 @@ export class PageUnavailableError extends Error {
   }
 }
 
-/** The page did not answer in time: its main thread is busy or the script hangs. */
+/**
+ * The page did not answer in time: its main thread is busy or the script hangs.
+ * `recovery` is what the bridge did about it when the call asked for recovery.
+ */
 export class PageTimeoutError extends Error {
-  constructor(message: string) {
+  readonly recovery?: PageRecovery
+
+  constructor(message: string, recovery?: PageRecovery) {
     super(message)
     this.name = 'PageTimeoutError'
+    if (recovery !== undefined) this.recovery = recovery
   }
 }
 
@@ -83,6 +89,8 @@ export interface PageWindow {
     isCrashed?(): boolean
     /** Load the page again: the only way a crashed renderer comes back. */
     reload?(): void
+    /** Kill a renderer that no longer answers (Electron's `forcefullyCrashRenderer()`). */
+    forcefullyCrashRenderer?(): void
     on?(
       event: 'render-process-gone',
       listener: (event: unknown, details: PageGoneDetails) => void,
@@ -99,6 +107,10 @@ export interface PageBridgeOptions {
   readyTimeoutMs?: number
   /** How often the wait asks the page (design §4.9: 200 ms). */
   pollMs?: number
+  /** How long a stuck page gets to acknowledge the abort request. */
+  abortGraceMs?: number
+  /** How long a page that did not acknowledge the abort gets to answer a save. */
+  saveGraceMs?: number
 }
 
 /** The wait of design §4.9. */
@@ -107,12 +119,49 @@ export const PAGE_READY_TIMEOUT_MS = 20_000
 /** How often the wait asks the page. */
 export const PAGE_READY_POLL_MS = 200
 
+/** How long a stuck page gets to acknowledge the abort request before the app asks it to save. */
+export const PAGE_ABORT_GRACE_MS = 5_000
+
+/** How long the page gets to save before the app reloads it anyway. */
+export const PAGE_SAVE_GRACE_MS = 10_000
+
 /**
  * The page global a `run` script sets while its promise is pending. A timed-out
  * or cancelled call leaves the script running; this is how the page reports it
  * is not finished (`tools/run.ts` sets and clears it).
  */
 export const RUN_BUSY_GLOBAL = '__droneAgentRunBusy'
+
+/**
+ * The page global holding the `AbortController` of the script that is running
+ * (`run` and `frame` set it when their script starts). The SDK's `transaction`
+ * and the frame renderer read its signal (`sdk/context.ts`), so a script that
+ * was told to stop fails its next SDK call instead of editing on.
+ */
+export const RUN_ABORT_GLOBAL = '__droneAgentAbort'
+
+/** The page script that stops the running call and says the page answered. */
+const ABORT_SCRIPT = `(() => {
+  const controller = globalThis.${RUN_ABORT_GLOBAL}
+  if (controller && typeof controller.abort === 'function') controller.abort()
+  globalThis.${RUN_BUSY_GLOBAL} = false
+  return 'aborted'
+})()`
+
+/**
+ * The page script that saves the open project. `kept` is true when nothing
+ * stays unsaved: the save went through, or no project is open.
+ */
+export const SAVE_PROJECT_SCRIPT = `(async () => {
+  const s = globalThis.studio
+  try {
+    if (!s || !s.project || s.project.current() === null) return { kept: true }
+    await s.project.save()
+    return { kept: true }
+  } catch {
+    return { kept: false }
+  }
+})()`
 
 /**
  * The page's readiness: `window.studio` installed, no earlier `run` script still
@@ -177,6 +226,8 @@ export function createPageBridge(
 ): PageBridge {
   const readyTimeoutMs = options.readyTimeoutMs ?? PAGE_READY_TIMEOUT_MS
   const pollMs = options.pollMs ?? PAGE_READY_POLL_MS
+  const abortGraceMs = options.abortGraceMs ?? PAGE_ABORT_GRACE_MS
+  const saveGraceMs = options.saveGraceMs ?? PAGE_SAVE_GRACE_MS
   let running: Promise<unknown> | null = null
   let everReady = false
   let workspaceSeen = false
@@ -295,9 +346,67 @@ export function createPageBridge(
     return answered?.value
   }
 
-  async function waitUntilReady(window: PageWindow, callTimeoutMs: number): Promise<void> {
-    const deadline = Date.now() + (everReady ? callTimeoutMs : readyTimeoutMs)
+  /** One script asked of the page within `graceMs`: its value, or `undefined` when it did not answer. */
+  async function askPage(
+    window: PageWindow,
+    code: string,
+    graceMs: number,
+  ): Promise<{ value: unknown } | undefined> {
+    const asked = Promise.resolve()
+      .then(() => window.webContents.executeJavaScript(code, false))
+      .then(
+        (value) => ({ value }),
+        () => undefined,
+      )
+    return (await within(asked, graceMs))?.value
+  }
+
+  /**
+   * Give back a page that a call left stuck, using only what the page can do.
+   * First the page is asked to abort the running script (an abort signal the
+   * SDK reads, and the busy flag cleared): an answer means the page is alive
+   * and the editor is as it was. No answer within the grace period means its
+   * main thread is blocked: the page is asked to save, which only a page that
+   * can answer will do, a blocked renderer is killed, and the window is
+   * reloaded, which reopens the project from its last save through the
+   * editor's own route. `null` when the window cannot be reloaded.
+   */
+  async function recoverStuckPage(window: PageWindow): Promise<PageRecovery | null> {
+    if ((await askPage(window, ABORT_SCRIPT, abortGraceMs)) !== undefined) {
+      running = null
+      return { action: 'aborted' }
+    }
+    if (typeof window.webContents.reload !== 'function') return null
+    const saved = await askPage(window, SAVE_PROJECT_SCRIPT, saveGraceMs)
+    const unsavedEditsKept =
+      saved !== undefined &&
+      typeof saved.value === 'object' &&
+      saved.value !== null &&
+      (saved.value as { kept?: unknown }).kept === true
+    running = null
+    if (window.webContents.forcefullyCrashRenderer !== undefined) {
+      // The crash is ours: the call that finds it reloads without telling it twice.
+      goneTold = true
+      window.webContents.forcefullyCrashRenderer()
+    }
+    gone = null
+    forgetReadiness()
+    window.webContents.reload()
+    const back = await waitUntilReady(window, readyTimeoutMs).then(
+      () => true,
+      () => false,
+    )
+    return { action: 'reloaded', unsavedEditsKept, back }
+  }
+
+  async function waitUntilReady(
+    window: PageWindow,
+    callTimeoutMs: number,
+    recover = false,
+  ): Promise<void> {
+    let deadline = Date.now() + (everReady ? callTimeoutMs : readyTimeoutMs)
     let last: Readiness = 'starting'
+    let triedAbort = false
     for (;;) {
       const answer = await probe(window, deadline - Date.now())
       // A crashed page rejects every probe: that is not "starting". A crash
@@ -309,7 +418,17 @@ export function createPageBridge(
         }
         break
       }
-      if (answer === 'busy') throw new PageBusyError('a previous script is still running in the editor')
+      if (answer === 'busy') {
+        // A script the page still holds: a call that can recover stops it and asks again.
+        if (recover && !triedAbort) {
+          triedAbort = true
+          if ((await askPage(window, ABORT_SCRIPT, abortGraceMs)) !== undefined) {
+            deadline = Date.now() + callTimeoutMs
+            continue
+          }
+        }
+        throw new PageBusyError('a previous script is still running in the editor')
+      }
       if (answer === 'ready') {
         everReady = true
         workspaceSeen = true
@@ -327,8 +446,34 @@ export function createPageBridge(
     throw new PageUnavailableError('the editor is still starting', 'starting')
   }
 
+  /**
+   * Wait for the page, and for a call that asked for recovery turn what would
+   * hold it (a script still held from before, or a page that does not answer
+   * the probe) into `recoverStuckPage`: the page is released, or the call fails
+   * with the timeout that says what was done.
+   */
+  async function prepare(window: PageWindow, timeoutMs: number, recover: boolean): Promise<void> {
+    if (running !== null) {
+      if (!recover) throw new PageBusyError('a previous script is still running in the editor')
+      const recovery = await recoverStuckPage(window)
+      if (recovery?.action === 'reloaded') {
+        throw new PageTimeoutError('a previous script held the editor and it did not answer', recovery)
+      }
+      if (running !== null) throw new PageBusyError('a previous script is still running in the editor')
+    }
+    try {
+      await waitUntilReady(window, timeoutMs, recover)
+    } catch (error) {
+      if (!recover || !(error instanceof PageTimeoutError)) throw error
+      const recovery = await recoverStuckPage(window)
+      throw new PageTimeoutError(error.message, recovery ?? undefined)
+    }
+    if (running !== null) throw new PageBusyError('a previous script is still running in the editor')
+  }
+
   return {
-    async execute(code, timeoutMs) {
+    async execute(code, timeoutMs, executeOptions: ExecuteOptions = {}) {
+      const recover = executeOptions.recover === true
       const window = getWindow()
       if (!window || window.isDestroyed?.() === true) {
         throw new PageUnavailableError(
@@ -338,9 +483,7 @@ export function createPageBridge(
       }
       watch(window)
       recoverIfCrashed(window)
-      if (running !== null) throw new PageBusyError('a previous script is still running in the editor')
-      await waitUntilReady(window, timeoutMs)
-      if (running !== null) throw new PageBusyError('a previous script is still running in the editor')
+      await prepare(window, timeoutMs, recover)
 
       const epoch = pageEpoch
       const execution = Promise.resolve().then(() => window.webContents.executeJavaScript(code, false))
@@ -357,11 +500,22 @@ export function createPageBridge(
         throw pageGoneError(window, epoch, error)
       })
       if (answered === undefined) {
-        // The script is still running: `running` stays set until the page settles it.
-        throw new PageTimeoutError(`the editor did not answer within ${timeoutMs} ms`)
+        // Without recovery the script is still running: `running` stays set until the page settles it.
+        const recovery = recover ? await recoverStuckPage(window) : null
+        throw new PageTimeoutError(
+          `the editor did not answer within ${timeoutMs} ms`,
+          recovery ?? undefined,
+        )
       }
       if (running === held) running = null
       return answered.value
+    },
+
+    async recover() {
+      const window = getWindow()
+      if (!window || window.isDestroyed?.() === true) return null
+      watch(window)
+      return recoverStuckPage(window)
     },
   }
 }

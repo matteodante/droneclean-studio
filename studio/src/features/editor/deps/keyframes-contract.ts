@@ -56,3 +56,4 @@ export {
 } from '@/features/keyframes/utils/motion-modifier-eval'
 export { createMotionAnimationLayer } from '@/features/keyframes/utils/motion-layer-eval'
 export { buildBakeMotionPlan } from '@/features/keyframes/utils/bake-motion'
+export { setPropertyRangeCanvas } from '@/features/keyframes/property-value-ranges'

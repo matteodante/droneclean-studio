@@ -5,7 +5,7 @@
  * private. A snapshot, not the history: the history carries internal messages and the authors' addresses.
  *
  * The snapshot replaces everything in the target but its `.git`, adds the GPL-3.0 text as `LICENSE` (Gyroflow's own
- * copy) and a README saying what the repository is and how to build it.
+ * copy) and the public repository's front page and policies from `studio/desktop/public-repo/`.
  */
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -14,38 +14,27 @@ import path from 'node:path'
 /** Paths of the two folders that are not published */
 const UNPUBLISHED = ['studio/.github', 'studio/.codex', 'studio/.claude', 'studio/.impeccable', 'studio/.vite-hooks']
 
-/** What the public repository's README says; the facts are the ones the plan measured. */
-function readme(version) {
-  return `# DroneClean Studio
+/**
+ * The public repository's own front page and policies (README, SECURITY, CONTRIBUTING, `.github/` with the issue
+ * templates and the README's picture), kept in the private repository and placed at the snapshot's root. The README's
+ * `{{version}}` becomes the release's version.
+ */
+const PUBLIC_ROOT = 'studio/desktop/public-repo'
 
-A free, local-first video editor for FPV and drone pilots: stabilization from the drone's own gyro data (Gyroflow's
-engine, compiled to WebAssembly), DJI D-Log M to Rec.709, speed ramps with motion blur, 10-bit masters (ProRes HQ,
-HEVC Main 10) with the Mac's hardware encoders, and an MCP server so an AI agent can edit with you. Removing the
-drone's own shadow is its one paid effect, done through the DroneClean cloud service.
-
-This is the source of release ${version}. Downloads are on the [releases page](../../releases).
-
-## Layout
-
-- \`studio/\`: the editor, a fork of [FreeCut](https://github.com/walterlow/freecut) (MIT), and its desktop shell
-  (\`studio/desktop/\`, Electron).
-- \`gyroflow/\`: a fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); \`gyroflow/wasm/\` builds its
-  engine for the editor.
-
-## Build (macOS, Apple silicon)
-
-Node 24, Rust with the \`wasm32-unknown-unknown\` target, \`wasm-bindgen-cli\` 0.2.130 and \`wasm-opt\` (Binaryen).
-
-\`\`\`sh
-cd studio && npm ci && cd desktop && npm ci
-npm run package        # builds the editor, Gyroflow's wasm and FFmpeg, then the app in dist/mac-arm64
-\`\`\`
-
-## Licence
-
-GPL-3.0-or-later (see \`LICENSE\`). It includes FreeCut (MIT), Gyroflow (GPL-3.0) and, in the app, FFmpeg
-(LGPL-2.1, built from its official source by \`studio/desktop/scripts/build-ffmpeg.sh\`).
-`
+/** Copies `from` into `to`, file by file, replacing `{{version}}` in Markdown files. */
+function copyPublicRoot(from, to, version) {
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const source = path.join(from, entry.name)
+    const destination = path.join(to, entry.name)
+    if (entry.isDirectory()) {
+      fs.mkdirSync(destination, { recursive: true })
+      copyPublicRoot(source, destination, version)
+    } else if (entry.name.endsWith('.md')) {
+      fs.writeFileSync(destination, fs.readFileSync(source, 'utf8').replaceAll('{{version}}', version))
+    } else {
+      fs.copyFileSync(source, destination)
+    }
+  }
 }
 
 /**
@@ -65,7 +54,9 @@ export function exportEditorSource({ repoRoot, commit, target, version }) {
   // nothing there (docs/publish-audit.md, section 3): its funding, issue templates and CI point at FreeCut's author
   for (const internal of UNPUBLISHED) fs.rmSync(path.join(target, internal), { recursive: true, force: true })
   fs.copyFileSync(path.join(target, 'gyroflow', 'LICENSE'), path.join(target, 'LICENSE'))
-  fs.writeFileSync(path.join(target, 'README.md'), readme(version))
+  const publicRoot = path.join(target, PUBLIC_ROOT)
+  copyPublicRoot(publicRoot, target, version)
+  fs.rmSync(publicRoot, { recursive: true, force: true })
 }
 
 // Run directly: node scripts/export-editor-source.mjs <target folder> [commit] — for looking at a snapshot locally

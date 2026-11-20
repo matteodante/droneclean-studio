@@ -1,4 +1,5 @@
 import type { TimelineItem } from '@/types/timeline'
+import { overlapPushAfterStretch } from '@/studio/speed'
 import { useItemsStore, type RateStretchOptions } from '../../items-store'
 import { useTransitionsStore } from '../../transitions-store'
 import { useKeyframesStore } from '../../keyframes-store'
@@ -389,9 +390,13 @@ export function rateStretchItemWithoutHistory(
   // End handle: endDelta !== 0 → shift downstream clips.
   // Start handle: fromDelta !== 0, end stays fixed → shift upstream clips.
   const newEnd = actualFrom + actualDuration
-  const endDelta = newEnd - oldEnd
   const allSynchronizedIds = new Set(synchronizedItems.map((si) => si.id))
   const freshItems = useItemsStore.getState().items
+  // A speed edit pushes only by the overlap with the next clip (task 11.3); the rest ripples by
+  // the whole change in the clip's end.
+  const endDelta = options?.rippleOverlapOnly
+    ? overlapPushAfterStretch(freshItems, allSynchronizedIds, oldEnd)
+    : newEnd - oldEnd
   const transitions = useTransitionsStore.getState().transitions
   const queue = createRippleMoveQueue()
   const touchedTrackIds = collectTouchedTrackIds(synchronizedItems, freshItems)

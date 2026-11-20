@@ -251,6 +251,54 @@ describe('transaction', () => {
     expect(outer.changes.undoSteps).toBe(1)
   })
 
+  it('reports the edits made after an await in settled, as the history counts them', async () => {
+    const depthBefore = undoDepth()
+
+    const result = transaction('ASYNC', async () => {
+      updateItem('clip-1', { volume: -6 })
+      await Promise.resolve()
+      // An awaited SDK call is an outermost transaction of its own.
+      transaction('LATER', () => {
+        addMarker(30)
+      })
+      await Promise.resolve()
+      return 'done'
+    })
+
+    // The synchronous part alone.
+    expect(result.changes.undoSteps).toBe(1)
+    expect(result.changes.added).toEqual([])
+    const settled = await result.settled
+    expect(await result.value).toBe('done')
+
+    expect(undoDepth() - depthBefore).toBe(2)
+    expect(settled?.undoSteps).toBe(2)
+    expect(settled?.updated).toEqual([{ kind: 'clip', id: 'clip-1', fields: ['volume'] }])
+    expect(settled?.added).toEqual([expect.objectContaining({ kind: 'marker' })])
+    expect(settled?.commands.map((command) => command.type)).toEqual(['UPDATE_ITEM', 'ADD_MARKER'])
+  })
+
+  it('settles with the changes made so far when the promise rejects, and stops observing', async () => {
+    const result = transaction('ASYNC_FAIL', async () => {
+      updateItem('clip-1', { volume: -6 })
+      await Promise.resolve()
+      throw new Error('later failure')
+    })
+    await expect(result.value).rejects.toThrow('later failure')
+    const settled = await result.settled
+    expect(settled?.undoSteps).toBe(1)
+
+    // A later, unrelated call is not added to the finished scope.
+    transaction('AFTER', () => {
+      addMarker(10)
+    })
+    expect((await result.settled)?.undoSteps).toBe(1)
+  })
+
+  it('gives a synchronous callback no settled', () => {
+    expect(transaction('SYNC', () => 1).settled).toBeUndefined()
+  })
+
   it('adds no entry when the callback changes nothing', () => {
     const depthBefore = undoDepth()
 

@@ -26,7 +26,11 @@
       "label": "Renk profili",
       "unset": "Ayarlanmadı",
       "suggested": "Öneri: {{profile}}?",
-      "apply": "Uygula"
+      "apply": "Uygula",
+      "askTitle": "Bu DJI klipleri D-Log M ile mi çekildi?",
+      "askBody": "Dosya bunu belirtmiyor. Evet, onlara D-Log M renk profilini uygular; her klipte değiştirebilirsiniz.",
+      "askYes": "Evet, D-Log M",
+      "askNo": "Hayır, normal"
     },
     "looks": {
       "title": "Görünümler",

@@ -33,16 +33,26 @@ export function createFakeStudio() {
         entries = before
         entries.push({ label })
       }
-      return {
-        value,
-        changes: {
-          commands: made > 0 ? Array.from({ length: made }, () => ({ type: 'EDIT' })) : [],
-          added: [],
-          removed: [],
-          updated: [],
-          undoSteps: made > 0 ? 1 : 0,
-        },
+      const changes = {
+        commands: made > 0 ? Array.from({ length: made }, () => ({ type: 'EDIT' })) : [],
+        added: [],
+        removed: [],
+        updated: [],
+        undoSteps: made > 0 ? 1 : 0,
       }
+      if (!value || typeof value.then !== 'function') return { value, changes }
+      // Like the real one: a promise's `settled` reports the whole call, so the
+      // entries each awaited edit added later count too.
+      const afterSynchronous = entries.length
+      const finish = () => {
+        const later = entries.length - afterSynchronous
+        return {
+          ...changes,
+          commands: [...changes.commands, ...Array.from({ length: later }, () => ({ type: 'EDIT' }))],
+          undoSteps: changes.undoSteps + later,
+        }
+      }
+      return { value, changes, settled: Promise.resolve(value).then(finish, finish) }
     },
     edit() {
       entries.push({ label: 'EDIT' })
@@ -60,7 +70,7 @@ export function createVmPage(studio = createFakeStudio()) {
   return {
     studio,
     execute(code) {
-      const sandbox = { studio, window: { studio }, setTimeout, clearTimeout, console }
+      const sandbox = { studio, window: { studio }, setTimeout, clearTimeout, console, AbortController }
       return Promise.resolve(vm.runInNewContext(code, sandbox))
     },
   }

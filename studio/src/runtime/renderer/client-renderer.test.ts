@@ -117,3 +117,15 @@ describe('client-renderer export matrix', () => {
     })
   })
 })
+
+describe('parseAudioBitrate', () => {
+  it('reads the export settings form and refuses anything else', async () => {
+    const { parseAudioBitrate } = await import('./client-renderer')
+    expect(parseAudioBitrate('128k')).toBe(128_000)
+    expect(parseAudioBitrate('192K')).toBe(192_000)
+    expect(parseAudioBitrate(undefined)).toBeUndefined()
+    expect(parseAudioBitrate('fast')).toBeUndefined()
+    expect(parseAudioBitrate('8k')).toBeUndefined()
+    expect(parseAudioBitrate('9000k')).toBeUndefined()
+  })
+})

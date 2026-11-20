@@ -29,7 +29,10 @@ import {
   resolveItemTransformAtFrame,
   resolveTransform,
 } from '@/features/editor/deps/composition-runtime'
-import { getAnimatablePropertyBaseValue } from '@/features/editor/deps/keyframes'
+import {
+  getAnimatablePropertyBaseValue,
+  setPropertyRangeCanvas,
+} from '@/features/editor/deps/keyframes'
 import {
   findStoredVectorKeyframe,
   getStoredVectorKeyframeId,
@@ -612,6 +615,9 @@ const MotionDopesheetContent = memo(function MotionDopesheetContent({
   onRenderedHeightChange,
   itemById,
 }: MotionDopesheetContentProps) {
+  // The graph's pixel bounds follow the project frame. Set while rendering (an idempotent
+  // module value) so the children's first render already sees the right bounds.
+  setPropertyRangeCanvas(canvas)
   const currentFrame = useSettledMotionFrame()
   const rootRef = useRef<HTMLDivElement>(null)
   const dragSnapshotRef = useRef<ReturnType<typeof captureSnapshot> | null>(null)

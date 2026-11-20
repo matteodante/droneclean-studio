@@ -21,6 +21,15 @@ export type { SpeedKey } from './curve'
 /** A clip's speed over its timeline frames, as ordered keys with linear interpolation. */
 export type { SpeedCurve } from './curve'
 
+/** The shape a speed segment follows between two keys: `linear`, `smooth`, `ease-in`, `ease-out`. */
+export type { SpeedEase } from './ease'
+
+/** Every ease, linear first. */
+export { SPEED_EASES } from './ease'
+
+/** Whether a value names an ease. */
+export { isSpeedEase } from './ease'
+
 /** Check a curve's invariants, throwing a `RangeError` that names the field that breaks one. */
 export { validateSpeedCurve } from './curve'
 
@@ -82,6 +91,12 @@ export type { ClipTimingUpdate } from './edits'
 
 /** How a rate stretch treats the clip's speed curve: `keepSpeedCurve` for an edge drag. */
 export type { RateStretchOptions } from './edits'
+
+/**
+ * The push the clips after a stretched clip need: the overlap with the next clip, zero when the
+ * clip grew into a gap that fits it (task 11.3).
+ */
+export { overlapPushAfterStretch } from './ripple'
 
 /** The speed a clip with a curve stores: the one speed of a flat curve, else the average. */
 export { speedOfCurve } from './edits'

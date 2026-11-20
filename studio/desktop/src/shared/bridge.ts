@@ -29,6 +29,7 @@ import type {
   ShadowRelayResponse,
   ShadowSessionStatus,
 } from './shadow-session'
+import type { MicrophoneAccess } from './microphone'
 import type {
   CancelRequest,
   DecodeStartRequest,
@@ -118,6 +119,12 @@ export interface DesktopShadowSession {
   signOut(): Promise<void>
 }
 
+/** The microphone's system permission, asked for by the shell (`shared/microphone.ts`). */
+export interface DesktopMicrophone {
+  /** Asks macOS when undecided, and says where it stands. */
+  request(): Promise<MicrophoneAccess>
+}
+
 export interface DesktopBridge {
   readonly version: 1
   readonly platform: 'darwin' | 'win32' | 'linux'
@@ -131,4 +138,6 @@ export interface DesktopBridge {
   readonly exportFile?: DesktopExportFile
   /** The cloud sign-in's token and relay (task 4.6); absent in a shell that predates it. */
   readonly shadowSession?: DesktopShadowSession
+  /** The microphone's permission; absent in a shell that predates it. */
+  readonly microphone?: DesktopMicrophone
 }

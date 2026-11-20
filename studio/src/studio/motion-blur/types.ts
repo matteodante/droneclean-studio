@@ -24,9 +24,14 @@ export interface MotionBlurSettings {
    */
   shutterDegrees: ShutterDegrees
   /**
-   * Smooth slow motion (19 Nov 2026): where an output frame covers less than one source frame (a clip slower than 1x,
-   * or a 30 fps file in a 60 fps project), blend the two source frames around its position, weighted by how far it is
-   * between them, instead of showing the same frame twice. Absent or false: the frame is held, as before.
+   * Smooth slow motion: where an output frame covers less than one source frame (a clip slower than 1x, or a 30 fps
+   * file in a 60 fps project), make the frame from the two source frames around its position instead of showing the
+   * same frame twice. `'blend'` (19 Nov 2026) mixes them, weighted by how far the frame is between them;
+   * `'optical-flow'` (task 11.12) moves each one's content along the motion measured between them to where it is at
+   * that moment, and mixes them only where the motion cannot be trusted. Absent: the frame is held, as before.
    */
-  blendSlowMotion?: boolean
+  smoothSlowMotion?: SmoothSlowMotion
 }
+
+/** How smooth slow motion makes a frame between two source frames (`MotionBlurSettings.smoothSlowMotion`). */
+export type SmoothSlowMotion = 'blend' | 'optical-flow'

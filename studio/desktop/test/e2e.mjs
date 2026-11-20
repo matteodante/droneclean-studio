@@ -549,7 +549,7 @@ async function main() {
         bridge.pathForInputFile === CLIP &&
         bridge.pathForDroppedFile === CLIP &&
         bridge.bridgeKeys.sort().join(',') ===
-          'exportFile,getPathForFile,mediaPaths,nativeMedia,platform,shadowSession,version',
+          'exportFile,getPathForFile,mediaPaths,microphone,nativeMedia,platform,shadowSession,version',
       bridge,
     )
     check(

@@ -688,6 +688,9 @@
       "motionBlur": "动态模糊",
       "motionBlurShutter": "快门",
       "motionBlurBlendSlow": "平滑慢动作",
+      "smoothSlowMotionOff": "关闭",
+      "smoothSlowMotionBlend": "帧混合",
+      "smoothSlowMotionFlow": "光流",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "在 {{speed}} 倍速下,这样可以消除频闪",
       "motionBlurIdentity": "在此速度下无效果"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "倒放的片段不能设置速度曲线。",
       "unsupportedComposition": "复合片段不能设置速度曲线。",
       "unsupportedKind": "此片段不能设置速度曲线。",
-      "selectOneClip": "请选择单个片段来编辑其速度曲线。"
+      "selectOneClip": "请选择单个片段来编辑其速度曲线。",
+      "ease": "缓动",
+      "easeTitle": "从这个关键帧到下一个关键帧速度如何变化",
+      "easeLinear": "线性",
+      "easeSmooth": "平滑",
+      "easeIn": "缓入",
+      "easeOut": "缓出",
+      "deliveredFps": "每秒帧数",
+      "deliveredFpsTitle": "片段在最慢处实际拥有的每秒帧数：其自身帧率乘以该速度",
+      "lowFps": "帧数不足：最慢处每秒 {{fps}} 帧，项目以 {{projectFps}} 帧播放。画面会重复。",
+      "lowFpsBlended": "帧数不足：最慢处每秒 {{fps}} 帧，项目以 {{projectFps}} 帧播放。平滑慢动作会混合中间的帧。",
+      "smoothEdit": "平滑变速 + 缩放",
+      "smoothEditTitle": "快、慢、快，带平滑慢动作和运动模糊，并在整个片段上缓慢推近",
+      "lowFpsFlow": "帧数不足：最慢处每秒 {{fps}} 帧，项目以 {{projectFps}} 帧播放。光流会根据运动生成中间的帧。"
     },
     "shadowSection": {
       "title": "DroneClean 阴影",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} 个已清理的片段在服务上已不可用。在您重新清理之前，这些秒数将播放原始画面。",
       "account": {
         "signedIn": "已登录",
-        "signedInAs": "已登录为 {{email}}",
         "signOut": "退出登录"
       },
       "pendingRunning": "帧 {{start}}–{{end}} 的付费清理正在进行,结果将添加到片段中。",
@@ -999,7 +1014,9 @@
         "starting": "正在打开片段…",
         "reading": "正在读取运动数据：{{read}} / {{total}} MB",
         "smoothing": "正在计算防抖…"
-      }
+      },
+      "framingX": "取景（左右）",
+      "framingY": "取景（上下）"
     },
     "sourceMonitor": {
       "createSubclip": "创建子片段 (Alt+S)",

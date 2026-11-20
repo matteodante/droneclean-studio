@@ -26,7 +26,11 @@
       "label": "Profil de couleur",
       "unset": "Non défini",
       "suggested": "Suggéré : {{profile}} ?",
-      "apply": "Appliquer"
+      "apply": "Appliquer",
+      "askTitle": "Ces clips DJI ont-ils été filmés en D-Log M ?",
+      "askBody": "Le fichier ne le dit pas. Oui leur applique le profil colorimétrique D-Log M ; vous pouvez le changer sur chaque clip.",
+      "askYes": "Oui, D-Log M",
+      "askNo": "Non, normal"
     },
     "looks": {
       "title": "Looks",

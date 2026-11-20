@@ -232,7 +232,7 @@ describe('the slow-motion blend (19 Nov 2026)', () => {
       timelineFrame,
       projectRate: RATE_59_94,
       shutterDegrees,
-      blendSlowMotion: true,
+      smoothSlowMotion: 'blend',
     })
 
   it('alternates a source frame and an even mix of the next two at 0.5x, for every angle', () => {
@@ -264,6 +264,48 @@ describe('the slow-motion blend (19 Nov 2026)', () => {
 
   it('is off unless asked: 0.5x without the blend holds the frame', () => {
     expect(planAt(0.5, 11, 180).samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+  })
+
+  it('carries no flow phase: the blend is the picture', () => {
+    expect(blendAt(0.5, 11).flowPhase).toBeUndefined()
+  })
+})
+
+describe('optical-flow slow motion (task 11.12)', () => {
+  const flowAt = (speed: number, timelineFrame: number, shutterDegrees: ShutterDegrees = 180) =>
+    planMotionBlur({
+      clip: clipOf(flatCurve(speed)),
+      timelineFrame,
+      projectRate: RATE_59_94,
+      shutterDegrees,
+      smoothSlowMotion: 'optical-flow',
+    })
+
+  it('gives a frame between two source frames its phase, over the blend it falls back to', () => {
+    const between = flowAt(0.5, 11)
+    expect(between.flowPhase).toBe(0.5)
+    expect(between.samples).toEqual([
+      { sourceFrame: 5, weight: 0.5 },
+      { sourceFrame: 6, weight: 0.5 },
+    ])
+    expect([1, 2, 3].map((frame) => flowAt(0.25, frame).flowPhase)).toEqual([0.25, 0.5, 0.75])
+  })
+
+  it('shows a frame that lands on a source frame as that frame, with no phase', () => {
+    for (const shutterDegrees of SHUTTERS) {
+      const on = flowAt(0.5, 10, shutterDegrees)
+      expect(on.samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+      expect(on.flowPhase).toBeUndefined()
+    }
+  })
+
+  it('changes nothing at 1x, and leaves a sped-up frame to the shutter', () => {
+    for (let frame = 0; frame < 60; frame += 1) {
+      const plan = flowAt(1, frame)
+      expect(plan.samples).toEqual([{ sourceFrame: frame, weight: 1 }])
+      expect(plan.flowPhase).toBeUndefined()
+    }
+    expect(flowAt(4, 2, 360)).toEqual(planAt(4, 2, 360))
   })
 })
 

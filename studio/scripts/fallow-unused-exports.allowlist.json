@@ -111,11 +111,6 @@
       "reason": "Intentional AI-output workspace API surface covered by storage tests."
     },
     {
-      "path": "src/infrastructure/storage/workspace-fs/exports.ts",
-      "exportName": "saveExportFile",
-      "reason": "Storage implementation exported through the indexed storage API and dynamic render queue path."
-    },
-    {
       "path": "src/shared/logging/preview-trace.ts",
       "exportName": "getPreviewTraceEvents",
       "reason": "Called by project debug utilities through the preview-trace namespace."

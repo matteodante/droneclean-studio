@@ -9,8 +9,9 @@
 //      stage awaits between the first `encode` and the submit, so a frame cannot see another frame's data.
 //
 // The failure policy is the mode's:
-//   export   a stage that is preparing or whose data is arriving is awaited; a stage that failed throws its
-//            `StageError` and the export stops with that message. No frame is ever written without its active stages.
+//   export   a stage that is preparing or whose data is arriving is awaited, for one minute at most per frame; a stage
+//            that failed, or kept the frame waiting longer, throws its `StageError` and the export stops with that
+//            message. No frame is ever written without its active stages.
 //   preview  a clip that cannot be drawn with all its stages shows its last good staged frame and says why (`onState`);
 //            when what it waited for arrives, `onReady` asks for the frame again (once). A clip with no good frame yet
 //            is drawn from its source frame with the stages that can draw (`partial`), never silently: its state says
@@ -22,6 +23,7 @@ import {
   type GatherStep,
   type MotionBlurStage,
 } from '@/studio/motion-blur/stage'
+import { createOpticalFlow, FlowGapCache, type GapFlow, type OpticalFlow } from '@/studio/optical-flow'
 import type { SourceFrame, SourceFrameProvider } from '@/studio/render/frames/types'
 import type { VideoItem } from '@/types/timeline'
 import {
@@ -63,6 +65,21 @@ const HELD_CLIPS = 8
 /** How many times an export waits for a stage's data for one frame before it calls the stage stuck. */
 const EXPORT_WAITS = 64
 
+/**
+ * How long one frame of an export waits for its stages' data before it calls the stage stuck. The longest wait that
+ * comes is an engine opening (3.0-6.5 s for clip 0020's 1.9 GB); a promise still pending after a minute is one nobody
+ * will settle, and the export (or the agent's frame, which main gives up on after 120 s) stops with the stage's name
+ * instead of holding the renderer for good.
+ */
+const EXPORT_WAIT_MS = 60_000
+
+/**
+ * How many source gaps' optical flows a pipeline keeps (task 11.12): an export frees a clip's gaps once it is past them
+ * and needs one per clip on screen (two through a transition); a preview keeps a few for scrubbing back and forth.
+ */
+const EXPORT_FLOW_GAPS = 2
+const PREVIEW_FLOW_GAPS = 4
+
 /** One clip's staged picture */
 export interface StagedFrame {
   readonly texture: GPUTexture
@@ -87,6 +104,8 @@ export interface StagePipelineOptions {
   readonly onReady?: (item: VideoItem) => void
   /** The motion-blur gather's constructor (the tests' replacement); `createMotionBlurStage` by default */
   readonly gather?: (device: GPUDevice, format: GPUTextureFormat, size: Size) => Promise<MotionBlurStage>
+  /** The optical flow's constructor (the tests' replacement); `createOpticalFlow` by default */
+  readonly flow?: (device: GPUDevice, format: GPUTextureFormat, size: Size) => Promise<OpticalFlow>
 }
 
 export interface StagePipeline {
@@ -96,10 +115,14 @@ export interface StagePipeline {
    *
    * `source` is one source frame's index, or a plan (`sourceFramePlan`): with more than one sample, each sample goes
    * through the per-source-frame stages and the gather averages them in linear light (design 7.2 B) before the
-   * per-output-frame stages. A plan with one sample is that frame, exactly as the index alone.
+   * per-output-frame stages. A plan with one sample is that frame, exactly as the index alone. A plan with `flow`
+   * (optical-flow slow motion, task 11.12) is the frame interpolated between its two source frames at that phase, from
+   * the decoded frames before any stage; it then goes through every stage as a source frame would, at its fractional
+   * source position (`first + phase`: the stabilization's data at that moment).
    *
    * @throws StageError in an export, when an active stage cannot draw the frame.
-   * @throws RangeError when a plan has no sample or a weight that is not in (0, 1].
+   * @throws RangeError when a plan has no sample or a weight that is not in (0, 1], or a flow plan is not two
+   *   consecutive frames with a phase in (0, 1).
    */
   render(item: VideoItem, source: number | SourceFramePlan): Promise<StagedFrame>
   /**
@@ -168,11 +191,38 @@ function samplesOf(source: number | SourceFramePlan): readonly SourceSample[] {
   if (Math.abs(sum - 1) > 1e-6) {
     throw new RangeError(`stage pipeline: the weights of a plan must sum to 1, got ${sum}`)
   }
+  if (source.flow !== undefined) assertFlowPlan(samples, source.flow.phase)
   return samples
+}
+
+/** An optical-flow plan is two consecutive source frames and a phase in (0, 1) */
+function assertFlowPlan(samples: readonly SourceSample[], phase: number): void {
+  if (samples.length !== 2 || samples[1]!.index !== samples[0]!.index + 1 || !(phase > 0 && phase < 1)) {
+    throw new RangeError(
+      `stage pipeline: an optical-flow plan is two consecutive source frames and a phase in (0, 1), got frames ${samples.map((sample) => sample.index).join(', ')} at ${phase}`,
+    )
+  }
 }
 
 function sameSize(a: Size, b: Size): boolean {
   return a.width === b.width && a.height === b.height
+}
+
+/** Whether every wait settled within `ms`; a wait that rejects rejects this too */
+function settledWithin(waits: readonly Promise<void>[], ms: number): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(false), ms)
+    Promise.all(waits).then(
+      () => {
+        clearTimeout(timer)
+        resolve(true)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 }
 
 /** Creates the pipeline of one renderer instance, on its device. */
@@ -386,7 +436,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     return held?.good ? { ...held, kind: 'held' } : null
   }
 
-  async function renderExport(item: VideoItem, sourceIndex: number): Promise<StagedFrame> {
+  async function renderExport(
+    item: VideoItem,
+    sourceIndex: number,
+    source: { acquire(): Promise<SourceFrame>; release(frame: SourceFrame): void },
+  ): Promise<StagedFrame> {
     const stages = registry.activeStages(item)
     if (stages.some((stage) => preparer.statusOf(item, stage.id)?.status !== 'ready')) {
       await preparer.prepareAll([item], device)
@@ -394,9 +448,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     await untilReady(item, sourceIndex, () =>
       stages.map((stage) => check(item, stage, sourceIndex)),
     )
-    const frame = await decoded(item, stages[0]?.id ?? 'motion-blur', sourceIndex, () =>
-      provider.frameAt(item, sourceIndex),
-    )
+    const frame = await decoded(item, stages[0]?.id ?? 'motion-blur', sourceIndex, () => source.acquire())
     try {
       let sizes: Size[] = []
       await untilReady(item, sourceIndex, () => {
@@ -409,7 +461,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       remember(item, texture, size, true)
       return { texture, width: size.width, height: size.height, kind: 'fresh' }
     } finally {
-      provider.release(frame)
+      source.release(frame)
     }
   }
 
@@ -419,6 +471,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     sourceIndex: number,
     answers: () => readonly Check[],
   ): Promise<void> {
+    const deadline = Date.now() + EXPORT_WAIT_MS
     for (let attempt = 0; ; attempt += 1) {
       const checks = answers()
       const failure = checks.find((answer) => answer.kind === 'fail')
@@ -433,7 +486,15 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
           reason: `what it needs for the frame did not arrive after ${EXPORT_WAITS} waits`,
         })
       }
-      await Promise.all(waits.map((answer) => answer.ready))
+      const left = deadline - Date.now()
+      if (left <= 0 || !(await settledWithin(waits.map((answer) => answer.ready), left))) {
+        throw new StageError({
+          clip: clipName(item),
+          stage: waits[0]!.stage,
+          sourceIndex,
+          reason: `what it needs for the frame did not arrive within ${EXPORT_WAIT_MS / 1000} s`,
+        })
+      }
     }
   }
 
@@ -879,6 +940,99 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
   }
 
+  // --- Optical-flow slow motion (task 11.12): the frame between two source frames, then every stage on it -------------
+
+  const flows = new Map<string, OpticalFlow>()
+  const makeFlow = options.flow ?? createOpticalFlow
+  const gapFlows = new FlowGapCache<GapFlow>(
+    mode === 'export' ? EXPORT_FLOW_GAPS : PREVIEW_FLOW_GAPS,
+    mode === 'export',
+  )
+  /** The interpolated frame of each size: one is enough, interpolated renders take turns (`exclusive`) */
+  const interpolated = new Map<string, GPUTexture>()
+
+  const flowFor = async (size: Size): Promise<OpticalFlow> => {
+    const key = `${size.width}x${size.height}`
+    const known = flows.get(key)
+    if (known !== undefined) return known
+    const made = await makeFlow(device, STAGED_FORMAT, size)
+    if (destroyed) {
+      made.destroy()
+      throw new Error('stage pipeline: destroyed while the optical flow was being built')
+    }
+    flows.set(key, made)
+    return made
+  }
+
+  const interpolatedPicture = (size: Size): GPUTexture => {
+    const key = `${size.width}x${size.height}`
+    const known = interpolated.get(key)
+    if (known !== undefined) return known
+    const made = createTexture(size, 'interpolated-frame')
+    interpolated.set(key, made)
+    return made
+  }
+
+  /**
+   * The frame at `phase` between source frames `first` and `first + 1`, as the source a render reads (`acquire`): both
+   * frames decoded, the gap's flows measured once (or taken from the cache), the frame drawn into the pipeline's own
+   * texture and both frames given back. Every failure is a `StageError` of the motion blur, naming the source frame.
+   */
+  const interpolatedSource = (item: VideoItem, first: number, phase: number) => ({
+    acquire: async (): Promise<SourceFrame> => {
+      const frames: SourceFrame[] = []
+      let measured: GapFlow | undefined
+      try {
+        const a = await decoded(item, 'motion-blur', first, () => provider.frameAt(item, first))
+        frames.push(a)
+        const b = await decoded(item, 'motion-blur', first + 1, () => provider.frameAt(item, first + 1))
+        frames.push(b)
+        if (!sameSize(a, b)) {
+          throw new StageError({
+            clip: clipName(item),
+            stage: 'motion-blur',
+            sourceIndex: first + 1,
+            reason: `its frames differ in size (${b.width}x${b.height} against ${a.width}x${a.height})`,
+          })
+        }
+        const flow = await flowFor(a)
+        const output = interpolatedPicture(a)
+        const key = `${item.id}|${item.mediaId}|${first}|${a.origin}|${b.origin}|${a.width}x${a.height}`
+        const encoder = device.createCommandEncoder({ label: 'optical flow' })
+        arena.beginFrame()
+        try {
+          let gap = gapFlows.get(key)
+          if (gap === undefined) {
+            measured = flow.measure(encoder, a.texture, b.texture)
+            gap = measured
+          }
+          flow.interpolate(encoder, arena, a.texture, b.texture, gap, phase, output.createView())
+          device.queue.submit([encoder.finish()])
+        } finally {
+          void arena.endFrame()
+        }
+        // Kept only once its commands are submitted: a gap whose recording failed holds no flow
+        if (measured !== undefined) gapFlows.set(key, item.id, first, measured)
+        measured = undefined
+        return { texture: output, index: first + phase, width: a.width, height: a.height, origin: a.origin }
+      } catch (error) {
+        measured?.destroy()
+        throw gatherError(item, first, error)
+      } finally {
+        for (const frame of frames) provider.release(frame)
+      }
+    },
+    // The interpolated frame is the pipeline's texture: nothing goes back to the provider
+    release: () => undefined,
+  })
+
+  /** The staged picture of an interpolated frame: the frame as the source, every stage at its fractional position */
+  function renderInterpolated(item: VideoItem, first: number, phase: number): Promise<StagedFrame> {
+    const position = first + phase
+    const source = interpolatedSource(item, first, phase)
+    return mode === 'export' ? renderExport(item, position, source) : renderPreview(item, position, source)
+  }
+
   return {
     render(item, source) {
       if (destroyed) return Promise.reject(new Error('stage pipeline: used after destroy'))
@@ -891,8 +1045,12 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       if (samples.length === 1) {
         const sourceIndex = samples[0]!.index
         return mode === 'export'
-          ? renderExport(item, sourceIndex)
+          ? renderExport(item, sourceIndex, fromProvider(item, sourceIndex))
           : renderPreview(item, sourceIndex, fromProvider(item, sourceIndex))
+      }
+      const flow = typeof source === 'number' ? undefined : source.flow
+      if (flow !== undefined) {
+        return exclusive(() => renderInterpolated(item, samples[0]!.index, flow.phase))
       }
       return exclusive(() =>
         mode === 'export' ? renderGatheredExport(item, samples) : renderGatheredPreview(item, samples),
@@ -916,6 +1074,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       temps.clear()
       for (const gather of gathers.values()) gather.destroy()
       gathers.clear()
+      gapFlows.clear()
+      for (const flow of flows.values()) flow.destroy()
+      flows.clear()
+      for (const texture of interpolated.values()) texture.destroy()
+      interpolated.clear()
       arena.destroy()
     },
   }

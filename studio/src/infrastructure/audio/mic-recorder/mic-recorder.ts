@@ -17,6 +17,48 @@
 
 import { createMicLevelMeter } from './meter'
 
+/**
+ * How long the microphone may take to come up. `getUserMedia` has no timeout of its own: when the system's
+ * permission prompt never shows (or never gets an answer) it waits for ever and the record button spins.
+ * The desktop app asks the system first, so a real prompt is already answered by the time this runs.
+ */
+const MIC_START_TIMEOUT_MS = 15_000
+
+/** The microphone did not come up in time ({@link MIC_START_TIMEOUT_MS}). */
+export class MicStartTimeoutError extends Error {
+  constructor(what: string) {
+    super(`${what} did not start within ${MIC_START_TIMEOUT_MS / 1000} seconds`)
+    this.name = 'MicStartTimeoutError'
+  }
+}
+
+/** `promise`'s result, or a {@link MicStartTimeoutError}; `onLate` receives a result that arrives after it. */
+async function withStartTimeout<T>(
+  promise: Promise<T>,
+  what: string,
+  timeoutMs: number,
+  onLate?: (value: T) => void,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let timedOut = false
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true
+      reject(new MicStartTimeoutError(what))
+    }, timeoutMs)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    clearTimeout(timer)
+    if (timedOut)
+      promise.then(
+        (value) => onLate?.(value),
+        () => {},
+      )
+  }
+}
+
 const MIME_CANDIDATES = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -92,6 +134,9 @@ export class MicRecorder {
   private chunks: Blob[] = []
   private mimeType = ''
 
+  /** Overridable so a test need not wait {@link MIC_START_TIMEOUT_MS}. */
+  constructor(private readonly startTimeoutMs: number = MIC_START_TIMEOUT_MS) {}
+
   private meterStop: (() => void) | null = null
   private onLevel: ((level: number) => void) | undefined
 
@@ -119,7 +164,13 @@ export class MicRecorder {
       video: false,
     }
 
-    this.stream = await navigator.mediaDevices.getUserMedia(constraints)
+    // A stream that arrives after the timeout is released at once: nobody is going to use it.
+    this.stream = await withStartTimeout(
+      navigator.mediaDevices.getUserMedia(constraints),
+      'The microphone',
+      this.startTimeoutMs,
+      (late) => late.getTracks().forEach((track) => track.stop()),
+    )
     this.startMetering(this.stream)
 
     this.mimeType = pickRecorderMimeType()
@@ -137,23 +188,27 @@ export class MicRecorder {
       }
     })
 
-    await new Promise<void>((resolve, reject) => {
-      const onStart = () => {
-        recorder.removeEventListener('error', onError)
-        this.startedAtMs = performance.now()
-        this.accumulatedMs = 0
-        this.state = 'recording'
-        resolve()
-      }
-      const onError = (event: Event) => {
-        recorder.removeEventListener('start', onStart)
-        const error = (event as unknown as { error?: DOMException }).error
-        reject(error ?? new Error('MediaRecorder failed to start'))
-      }
-      recorder.addEventListener('start', onStart, { once: true })
-      recorder.addEventListener('error', onError, { once: true })
-      recorder.start()
-    })
+    await withStartTimeout(
+      new Promise<void>((resolve, reject) => {
+        const onStart = () => {
+          recorder.removeEventListener('error', onError)
+          this.startedAtMs = performance.now()
+          this.accumulatedMs = 0
+          this.state = 'recording'
+          resolve()
+        }
+        const onError = (event: Event) => {
+          recorder.removeEventListener('start', onStart)
+          const error = (event as unknown as { error?: DOMException }).error
+          reject(error ?? new Error('MediaRecorder failed to start'))
+        }
+        recorder.addEventListener('start', onStart, { once: true })
+        recorder.addEventListener('error', onError, { once: true })
+        recorder.start()
+      }),
+      'The recorder',
+      this.startTimeoutMs,
+    )
   }
 
   pause(): void {

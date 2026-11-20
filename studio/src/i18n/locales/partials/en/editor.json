@@ -688,6 +688,9 @@
       "motionBlur": "Motion blur",
       "motionBlurShutter": "Shutter",
       "motionBlurBlendSlow": "Smooth slow motion",
+      "smoothSlowMotionOff": "Off",
+      "smoothSlowMotionBlend": "Frame blending",
+      "smoothSlowMotionFlow": "Optical flow",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "At {{speed}}x this removes the strobe",
       "motionBlurIdentity": "No effect at this speed"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "A reversed clip cannot have a speed curve.",
       "unsupportedComposition": "A compound clip cannot have a speed curve.",
       "unsupportedKind": "This clip cannot have a speed curve.",
-      "selectOneClip": "Select one clip to edit its speed curve."
+      "selectOneClip": "Select one clip to edit its speed curve.",
+      "ease": "Ease",
+      "easeTitle": "How the speed changes from this key to the next",
+      "easeLinear": "Linear",
+      "easeSmooth": "Smooth",
+      "easeIn": "Ease in",
+      "easeOut": "Ease out",
+      "deliveredFps": "Frames per second",
+      "deliveredFpsTitle": "The frames a second the clip really has at its slowest point: its own frame rate times that speed",
+      "lowFps": "Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Frames repeat.",
+      "lowFpsBlended": "Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Smooth slow motion blends the frames in between.",
+      "smoothEdit": "Smooth ramp + zoom",
+      "smoothEditTitle": "Fast, slow, fast with smooth slow motion and motion blur, and an eased zoom-in over the clip",
+      "lowFpsFlow": "Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Optical flow makes the frames in between from the motion."
     },
     "shadowSection": {
       "title": "DroneClean shadow",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} cleaned pieces are no longer available on the service. Their seconds play the original until you clean them again.",
       "account": {
         "signedIn": "Signed in",
-        "signedInAs": "Signed in as {{email}}",
         "signOut": "Sign out"
       },
       "pendingRunning": "A paid clean of frames {{start}}–{{end}} is on its way; its result will be added to the clip.",
@@ -1001,7 +1016,9 @@
         "starting": "Opening the clip…",
         "reading": "Reading motion data: {{read}} of {{total}} MB",
         "smoothing": "Computing the stabilization…"
-      }
+      },
+      "framingX": "Framing, sideways",
+      "framingY": "Framing, up and down"
     },
     "sourceMonitor": {
       "createSubclip": "Create Subclip (Alt+S)",

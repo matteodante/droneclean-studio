@@ -6,6 +6,7 @@
 // and the two horizon ranges below are the validator's too - `changes.test.ts` fails if they drift apart.
 
 import {
+  FRAMING_RANGE,
   validateStabilization,
   type SmoothingMethod,
   type SmoothingParameter,
@@ -17,6 +18,9 @@ export const HORIZON_LOCK_PERCENT_RANGE = { min: 0, max: 100 } as const
 /** The roll a locked horizon takes, in degrees: the range `validateStabilization` accepts */
 export const HORIZON_LOCK_ROLL_RANGE = { min: -180, max: 180 } as const
 
+/** The framing sliders' range: the validator's (`settings.ts`) */
+export const FRAMING_SLIDER_RANGE = FRAMING_RANGE
+
 /** The smoothing parameter the panel's smoothness control sets */
 const SMOOTHNESS_PARAMETER = 'smoothness'
 
@@ -27,6 +31,8 @@ export type StabilizationChange =
   | { kind: 'horizonLockPercent'; value: number }
   | { kind: 'horizonLockRoll'; value: number }
   | { kind: 'adaptiveZoomSeconds'; value: number }
+  | { kind: 'framingX'; value: number }
+  | { kind: 'framingY'; value: number }
 
 /** The engine's description of the smoothness parameter of the clip's smoothing method, or `null` when it has none */
 export function smoothnessParameter(
@@ -70,6 +76,12 @@ export function applyChange(
       break
     case 'adaptiveZoomSeconds':
       next = { ...settings, adaptiveZoomSeconds: change.value }
+      break
+    case 'framingX':
+      next = { ...settings, framingX: change.value }
+      break
+    case 'framingY':
+      next = { ...settings, framingY: change.value }
       break
   }
   try {

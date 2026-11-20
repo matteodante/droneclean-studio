@@ -1,8 +1,9 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { ProjectMarker } from '@/types/timeline'
 import {
+  makeTimelineAudioItem,
   makeTimelineTrack,
   makeTimelineVideoItem,
   resetTimelineCompositionTestState,
@@ -14,7 +15,11 @@ import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-se
 import { buildTimelineFromStores } from '@/features/timeline/stores/timeline-persistence'
 import { useProjectStore } from '@/features/projects/stores/project-store'
 import { StudioError } from '../errors'
+import { analyzeMediaBeats } from '@/studio/beats/analyze'
 import { createMarkersApi } from './markers'
+
+vi.mock('@/studio/beats/analyze', () => ({ analyzeMediaBeats: vi.fn() }))
+const analyze = vi.mocked(analyzeMediaBeats)
 
 /** The namespace as the examples write it; the entry installs it on `studio`. */
 const studio = { markers: createMarkersApi() }
@@ -49,6 +54,34 @@ function seedMarker(overrides: Partial<ProjectMarker> & { id: string }): void {
       ...useMarkersStore.getState().markers,
       { frame: 0, color: DEFAULT_COLOR, ...overrides },
     ])
+}
+
+/** An audio clip at frame 100 (300 frames, 10 s of media at 30 fps) to analyse. */
+function seedSong(overrides: Partial<ReturnType<typeof makeTimelineAudioItem>> = {}): void {
+  useItemsStore
+    .getState()
+    .setTracks([
+      makeTimelineTrack({ id: 'track-a1', name: 'A1', kind: 'audio', order: 0 }),
+      makeTimelineTrack({ id: 'track-v1', name: 'V1', kind: 'video', order: 1 }),
+    ])
+  useItemsStore.getState().setItems([
+    makeTimelineAudioItem({
+      id: 'song',
+      from: 100,
+      durationInFrames: 300,
+      sourceStart: 0,
+      sourceEnd: 300,
+      ...overrides,
+    }),
+    makeTimelineVideoItem({ id: 'v', trackId: 'track-v1', mediaId: undefined, src: '' }),
+  ])
+}
+
+function markedFrames(): number[] {
+  return useMarkersStore
+    .getState()
+    .markers.map((marker) => marker.frame)
+    .toSorted((a, b) => a - b)
 }
 
 function undoDepth(): number {
@@ -546,5 +579,72 @@ describe('the @example of every method', () => {
     studio.markers.clearRange()
 
     expect(studio.markers.range()).toStrictEqual({ in: null, out: null })
+  })
+
+  describe('addBeats', () => {
+    beforeEach(() => {
+      analyze.mockReset()
+      seedSong()
+    })
+
+    it('marks every beat in one undo step and returns the frames', async () => {
+      analyze.mockResolvedValue([0.5, 1, 1.5, 2])
+      const depth = useTimelineCommandStore.getState().undoStack.length
+
+      const frames = await studio.markers.addBeats('song', { strength: 0.7 })
+
+      expect(frames).toEqual([115, 130, 145, 160])
+      expect(markedFrames()).toEqual([115, 130, 145, 160])
+      expect(useTimelineCommandStore.getState().undoStack.length).toBe(depth + 1)
+      expect(analyze).toHaveBeenCalledWith('media-1', { start: 0, end: 10 }, { strength: 0.7 })
+    })
+
+    it('analyses only the trimmed span of the media', async () => {
+      seedSong({ sourceStart: 60, sourceEnd: 150 })
+      analyze.mockResolvedValue([2.5, 3])
+
+      const frames = await studio.markers.addBeats('song')
+
+      expect(analyze).toHaveBeenCalledWith('media-1', { start: 2, end: 5 }, { strength: 0.5 })
+      expect(frames).toEqual([115, 130])
+    })
+
+    it('keeps a marker that is already there and does not add a second one', async () => {
+      useMarkersStore.getState().setMarkers([{ id: 'old', frame: 130, color: '#3B82F6' }])
+      analyze.mockResolvedValue([0.5, 1])
+
+      const frames = await studio.markers.addBeats('song')
+
+      expect(frames).toEqual([115, 130])
+      expect(markedFrames()).toEqual([115, 130])
+    })
+
+    it('adds nothing, and no undo step, when no hit is found', async () => {
+      analyze.mockResolvedValue([])
+      const depth = useTimelineCommandStore.getState().undoStack.length
+
+      expect(await studio.markers.addBeats('song')).toEqual([])
+      expect(useTimelineCommandStore.getState().undoStack.length).toBe(depth)
+    })
+
+    it('rejects an unknown clip, a clip without audio and a bad strength', async () => {
+      await expect(studio.markers.addBeats('nope')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+      await expect(studio.markers.addBeats('v')).rejects.toMatchObject({ code: 'UNSUPPORTED' })
+      await expect(studio.markers.addBeats('song', { strength: 2 })).rejects.toMatchObject({
+        code: 'INVALID_ARGUMENT',
+        argument: 'strength',
+      })
+      expect(analyze).not.toHaveBeenCalled()
+    })
+
+    it('reports an audio that cannot be decoded as MEDIA_UNAVAILABLE', async () => {
+      analyze.mockRejectedValue(new Error('decode failed'))
+
+      const error = await studio.markers.addBeats('song').catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(StudioError)
+      expect(error).toMatchObject({ code: 'MEDIA_UNAVAILABLE' })
+      expect(markedFrames()).toEqual([])
+    })
   })
 })

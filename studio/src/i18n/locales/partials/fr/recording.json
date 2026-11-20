@@ -30,7 +30,9 @@
       "deviceBusy": "Le microphone est utilisé par une autre application.",
       "startFailed": "Impossible de démarrer l’enregistrement. Veuillez réessayer.",
       "failed": "Échec de l’enregistrement. Veuillez réessayer.",
-      "saveFailed": "Impossible d’enregistrer la prise."
+      "saveFailed": "Impossible d’enregistrer la prise.",
+      "systemBlocked": "DroneClean Studio ne peut pas utiliser le micro. Autorisez-le dans Réglages Système › Confidentialité et sécurité › Microphone, puis réessayez.",
+      "startTimeout": "Le micro n'a pas démarré. Vérifiez qu'il est branché et autorisé (Réglages Système › Confidentialité et sécurité › Microphone), puis réessayez."
     }
   }
 }

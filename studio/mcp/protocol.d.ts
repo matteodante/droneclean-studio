@@ -94,7 +94,7 @@ export interface ChangesJson {
   removed: EntityRefJson[]
   /** Entities that changed, with the fields that changed. */
   updated: UpdatedEntityJson[]
-  /** Number of undo entries the synchronous part added: 1 or 0. */
+  /** Number of undo entries the call added: 1 or 0 for a synchronous script, more when awaited SDK calls added their own. */
   undoSteps: number
 }
 
@@ -187,14 +187,16 @@ export type MaxRunLabelChars = 120
  * scope, inside `studio.transaction('agent: <label>', …)`.
  *
  * A call that is not answered within `timeoutMs`, or that the client cancels
- * with an MCP `notifications/cancelled`, is treated as `TIMEOUT` and the tool
- * stops waiting; JavaScript in the page cannot be interrupted, so the script
- * keeps running (design §4.4: the tool stops waiting, not the script). MCP does
- * not deliver a response for a cancelled request; the agent log records the
- * `TIMEOUT`. The edits the synchronous part already made are **kept** — not
- * rolled back — as the one `agent: <label>` undo entry, and any edit the script
- * makes after that answer appears as its own later undo entry.
- * `studio.history.undo()` or Ctrl+Z takes the kept entry back.
+ * with an MCP `notifications/cancelled`, is `TIMEOUT`: the tool stops waiting,
+ * tells the script to stop (its next SDK call fails; JavaScript in the page
+ * cannot be interrupted) and releases the editor. A page that does not answer
+ * at all is asked to save and its window is reloaded, and the `TIMEOUT` says
+ * whether unsaved edits were kept. MCP does not deliver a response for a
+ * cancelled request; the agent log records the `TIMEOUT`. The edits the
+ * synchronous part already made are **kept** — not rolled back — as the one
+ * `agent: <label>` undo entry. `studio.history.undo()` or Ctrl+Z takes the kept
+ * entry back. `changes` and `undoSteps` cover the whole call, edits after an
+ * `await` included.
  */
 export interface RunRequest {
   /**
@@ -218,14 +220,15 @@ export interface RunRequest {
 }
 
 /**
- * Result of `run`, JSON-serialised as the tool's text content. The synchronous
- * part is one undo entry (`changes.undoSteps` is 1 or 0); `undoSteps` counts
- * every entry the whole call added, including the ones awaited SDK calls made.
+ * Result of `run`, JSON-serialised as the tool's text content. `changes`
+ * describes the whole call, the edits made after an `await` included, and
+ * `undoSteps` counts every entry the whole call added (the synchronous part's
+ * one, plus the ones awaited SDK calls made).
  */
 export interface RunResult {
   /** What the script returned; `null` when it returned nothing. */
   value: JsonValue
-  /** What the synchronous part of the call changed. */
+  /** What the whole call changed, edits after an `await` included. */
   changes: ChangesJson
   /** Undo entries the whole call added (`history.depth()` after minus before). */
   undoSteps: number
@@ -328,7 +331,7 @@ export interface FramePngResult {
 
 /** A PNG written to the workspace (`full: true`). */
 export interface FramePathResult {
-  /** Workspace-relative path of the written PNG, e.g. `projects/p1/frames/frame-42.png`. */
+  /** Workspace-relative path of the written PNG, e.g. `projects/p1/frames/frame-42-mhx3k9z1-0.png`; every render is a new file. */
   path: string
   /** Size of the written PNG in bytes. */
   bytes: number

@@ -84,6 +84,7 @@
       "regenerateCaptions": "Regenerer Sous-titres",
       "removeFillerWords": "Supprimer tic mots",
       "removeSilence": "Supprimer silence",
+      "markBeats": "Marquer les temps forts",
       "reverse": "Inverser",
       "rippleDelete": "Ripple Supprimer",
       "unlinkClips": "Delier clips",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "Applied effet a clips",
-      "selectAvClipFirst": "Selectionner AV clip d abord"
+      "selectAvClipFirst": "Selectionner AV clip d abord",
+      "beatsAnalysing": "Recherche des temps forts…",
+      "beatsNone": "Aucun coup de basse marqué dans ce clip",
+      "beatsMarked_one": "{{count}} temps fort marqué",
+      "beatsMarked_other": "{{count}} temps forts marqués",
+      "beatsFailed": "Impossible de trouver les temps forts de ce clip"
     },
     "joinIndicators": {
       "canJoinNext": "Peut Joindre suivant",

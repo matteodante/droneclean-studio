@@ -36,6 +36,7 @@ import {
 } from '@/studio/time'
 import { averageSpeed, constantSpeed, MAX_CURVE_SPEED, MIN_CURVE_SPEED } from './curve'
 import type { SpeedCurve, SpeedKey } from './curve'
+import { coalesceEaseSlices, easeFieldsForWindow, scaledEaseFields } from './ease-cut'
 import { exactAreaAt, exactSpeedAt } from './exact-curve'
 import { normalizeSpeedCurve } from './normalize'
 import {
@@ -84,6 +85,13 @@ export interface RateStretchOptions {
    * speed (the clip panel's slider, the SDK's `clips.setSpeed`, a speed reset) leaves it off.
    */
   readonly keepSpeedCurve?: boolean
+  /**
+   * Push the clips after the stretched clip only by how far it now passes the next clip's
+   * start on its track (`overlapPushAfterStretch`), not by the whole growth, and never pull
+   * them back when the clip gets shorter. What a speed edit does (task 11.3); FreeCut's own
+   * callers leave it off and keep its ripple.
+   */
+  readonly rippleOverlapOnly?: boolean
 }
 
 /** Whether a clip's edits are computed here: a forward video or audio clip of a media source. */
@@ -117,7 +125,9 @@ function cutSpeed(curve: SpeedCurve, frame: number): number {
  * The part of `curve` over the clip frames `[fromFrame, toFrame]`, rebased to start at frame 0
  * (design 7.1, section 4.6): the keys strictly inside keep their speed and a key is placed on
  * both ends with the speed the curve holds there, so the window's integral is the parent's less
- * the integral before `fromFrame`, exactly (see the module comment).
+ * the integral before `fromFrame`, exactly (see the module comment). An eased segment the window
+ * cuts keeps the parent's ramp as a slice (`ease-cut.ts`), so the window still shows the parent's
+ * frames.
  */
 export function windowSpeedCurve(
   curve: SpeedCurve,
@@ -127,11 +137,17 @@ export function windowSpeedCurve(
   const from = Math.round(fromFrame)
   const to = Math.round(toFrame)
   const length = Math.max(1, to - from)
-  const keys: SpeedKey[] = curve.keys
-    .filter((key) => key.frame > from && key.frame < to)
-    .map((key) => ({ frame: key.frame - from, speed: key.speed }))
-  keys.unshift({ frame: 0, speed: cutSpeed(curve, from) })
-  keys.push({ frame: length, speed: cutSpeed(curve, to) })
+  const inner = curve.keys.filter((key) => key.frame > from && key.frame < to)
+  const cutFrames = [from, ...inner.map((key) => key.frame), to]
+  const keys: SpeedKey[] = [
+    { frame: 0, speed: cutSpeed(curve, from) },
+    ...inner.map((key) => ({ frame: key.frame - from, speed: key.speed })),
+    { frame: length, speed: cutSpeed(curve, to) },
+  ].map((key, index) =>
+    index < cutFrames.length - 1
+      ? { ...key, ...easeFieldsForWindow(curve, cutFrames[index]!, cutFrames[index + 1]!) }
+      : key,
+  )
   // `length >= 1`, at least two keys and speeds on the parent's lines: the normaliser keeps it.
   return normalizeSpeedCurve({ keys }, length) ?? curve
 }
@@ -144,7 +160,7 @@ export function windowSpeedCurve(
 function extendSpeedCurveStart(curve: SpeedCurve, frames: number, duration: number): SpeedCurve {
   const keys: SpeedKey[] = [
     { frame: 0, speed: curve.keys[0]!.speed },
-    ...curve.keys.map((key) => ({ frame: key.frame + frames, speed: key.speed })),
+    ...curve.keys.map((key) => ({ ...key, frame: key.frame + frames })),
   ]
   return normalizeSpeedCurve({ keys }, duration) ?? curve
 }
@@ -166,7 +182,11 @@ export function stretchSpeedCurve(
   for (const key of curve.keys) {
     const speed = key.speed / factor
     if (!(speed >= MIN_CURVE_SPEED && speed <= MAX_CURVE_SPEED)) return undefined
-    keys.push({ frame: key.frame * factor, speed: Math.round(speed * 100) / 100 })
+    keys.push({
+      frame: key.frame * factor,
+      speed: Math.round(speed * 100) / 100,
+      ...scaledEaseFields(key, factor, factor),
+    })
   }
   return normalizeSpeedCurve({ keys }, toDuration)
 }
@@ -177,12 +197,15 @@ function placePartKeys(keys: SpeedKey[], curve: SpeedCurve, offset: number): voi
     const frame = offset + key.frame
     const previous = keys[keys.length - 1]
     if (previous === undefined || frame > previous.frame) {
-      keys.push({ frame, speed: key.speed })
+      keys.push({ ...key, frame })
     } else if (key.speed !== previous.speed) {
       // The seam: the same frame from both parts is one key when the speed agrees (two halves
       // of a split always agree, the cut's key being one double), and a one-frame ramp when it
       // does not, because a linear speed cannot hold a step.
-      keys.push({ frame: previous.frame + 1, speed: key.speed })
+      keys.push({ ...key, frame: previous.frame + 1 })
+    } else {
+      // One key: the part that starts there owns the segment that follows, and so its ease.
+      keys[keys.length - 1] = { ...key, frame: previous.frame }
     }
   }
 }
@@ -210,7 +233,8 @@ function joinSpeedCurves(
     if (curve === undefined) continue
     placePartKeys(keys, curve, Math.round(part.from) - Math.round(firstFrom))
   }
-  return normalizeSpeedCurve({ keys }, totalDuration)
+  const joined = normalizeSpeedCurve({ keys }, totalDuration)
+  return joined === undefined ? undefined : { keys: coalesceEaseSlices(joined.keys) }
 }
 
 /** The whole source frame and the remainder of an exact position past `floor(sourceStart)`. */

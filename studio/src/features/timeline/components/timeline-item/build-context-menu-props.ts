@@ -2,6 +2,7 @@ import type { TimelineItem as TimelineItemType } from '@/types/timeline'
 import type { AnimatableProperty, PropertyKeyframes } from '@/types/keyframe'
 import type { SceneDetectionMethod, VerificationModel } from '@/features/timeline/deps/analysis'
 import { usePlaybackStore } from '@/shared/state/playback'
+import { markBeatsFromMenu } from '@/studio/beats/menu-action'
 import type { CaptionDialogState } from './use-caption-dialog-state'
 import type { ItemContextMenuProps } from './item-context-menu'
 
@@ -132,6 +133,8 @@ export function buildTimelineItemContextMenuProps({
       canRemoveSilence:
         (item.type === 'video' || item.type === 'audio') && !!item.mediaId && !isBroken,
       onRemoveSilence: handleRemoveSilence,
+      canMarkBeats: (item.type === 'video' || item.type === 'audio') && !!item.mediaId && !isBroken,
+      onMarkBeats: () => void markBeatsFromMenu(item.id),
       canRemoveFillers:
         (item.type === 'video' || item.type === 'audio') && !!item.mediaId && !isBroken,
       isRemovingFillers,

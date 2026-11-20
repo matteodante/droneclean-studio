@@ -688,6 +688,9 @@
       "motionBlur": "Bewegungsunschärfe",
       "motionBlurShutter": "Verschluss",
       "motionBlurBlendSlow": "Flüssige Zeitlupe",
+      "smoothSlowMotionOff": "Aus",
+      "smoothSlowMotionBlend": "Bildmischung",
+      "smoothSlowMotionFlow": "Optischer Fluss",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "Bei {{speed}}x entfernt das den Stroboskop-Effekt",
       "motionBlurIdentity": "Bei dieser Geschwindigkeit ohne Wirkung"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "Ein umgekehrter Clip kann keine Geschwindigkeitskurve haben.",
       "unsupportedComposition": "Ein verschachtelter Clip kann keine Geschwindigkeitskurve haben.",
       "unsupportedKind": "Dieser Clip kann keine Geschwindigkeitskurve haben.",
-      "selectOneClip": "Wähle einen einzelnen Clip aus, um seine Geschwindigkeitskurve zu bearbeiten."
+      "selectOneClip": "Wähle einen einzelnen Clip aus, um seine Geschwindigkeitskurve zu bearbeiten.",
+      "ease": "Übergang",
+      "easeTitle": "Wie sich die Geschwindigkeit von diesem Schlüssel zum nächsten ändert",
+      "easeLinear": "Linear",
+      "easeSmooth": "Weich",
+      "easeIn": "Langsam beginnen",
+      "easeOut": "Langsam enden",
+      "deliveredFps": "Bilder pro Sekunde",
+      "deliveredFpsTitle": "Die Bilder pro Sekunde, die der Clip an seiner langsamsten Stelle wirklich hat: seine eigene Bildrate mal diese Geschwindigkeit",
+      "lowFps": "Zu wenige Bilder: {{fps}} pro Sekunde an der langsamsten Stelle, das Projekt spielt {{projectFps}}. Bilder wiederholen sich.",
+      "lowFpsBlended": "Zu wenige Bilder: {{fps}} pro Sekunde an der langsamsten Stelle, das Projekt spielt {{projectFps}}. Weiche Zeitlupe überblendet die Bilder dazwischen.",
+      "smoothEdit": "Weiche Rampe + Zoom",
+      "smoothEditTitle": "Schnell, langsam, schnell mit weicher Zeitlupe und Bewegungsunschärfe, dazu ein sanfter Zoom über den Clip",
+      "lowFpsFlow": "Zu wenige Bilder: {{fps}} pro Sekunde an der langsamsten Stelle, das Projekt spielt {{projectFps}}. Der optische Fluss errechnet die Bilder dazwischen aus der Bewegung."
     },
     "shadowSection": {
       "title": "DroneClean-Schatten",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} bereinigte Teilstücke sind beim Dienst nicht mehr verfügbar. Ihre Sekunden zeigen das Original, bis du sie erneut bereinigst.",
       "account": {
         "signedIn": "Angemeldet",
-        "signedInAs": "Angemeldet als {{email}}",
         "signOut": "Abmelden"
       },
       "pendingRunning": "Eine kostenpflichtige Bereinigung der Frames {{start}}–{{end}} ist unterwegs; ihr Ergebnis wird dem Clip hinzugefügt.",
@@ -999,7 +1014,9 @@
         "starting": "Clip wird geöffnet…",
         "reading": "Bewegungsdaten werden gelesen: {{read}} von {{total}} MB",
         "smoothing": "Stabilisierung wird berechnet…"
-      }
+      },
+      "framingX": "Ausschnitt, seitlich",
+      "framingY": "Ausschnitt, vertikal"
     },
     "sourceMonitor": {
       "createSubclip": "Subclip erstellen (Alt+S)",

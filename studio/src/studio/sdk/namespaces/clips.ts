@@ -7,9 +7,10 @@
  * is one undo entry and a rejected argument leaves the project untouched.
  *
  * Placement follows the editor's drop path: `clips.add` builds the item with
- * `buildDroppedMediaTimelineItem` and `addItem` places it, which may move it to
- * avoid an overlap (`actions/item-placement.ts:28`). The returned id names the
- * placed clip, so its final position is `clips.get(id).from` (design §4.3).
+ * `buildDroppedMediaTimelineItem` and `addItem` places it. A drop that overlaps a clip
+ * of its track is moved to the first free frame (`actions/item-placement.ts:28`); `clips.add`
+ * does that only when asked (`onOverlap: 'move'`, and then it answers the frame it chose) and
+ * otherwise throws CONFLICT, so a clip never lands somewhere the caller did not say.
  */
 
 import type { MediaMetadata } from '@/types/storage'
@@ -17,16 +18,20 @@ import type { TimelineItem, TimelineTrack } from '@/types/timeline'
 import type { TransformProperties } from '@/types/transform'
 import {
   averageSpeed,
+  isSpeedEase,
+  SPEED_EASES,
   SPEED_PRESET_NAMES,
   speedAt as speedAtOnCurve,
   speedPresetCurve,
+  type SpeedEase,
   type SpeedPresetName,
 } from '@/studio/speed'
-import { canHoldMotionBlur, isShutterDegrees, SHUTTER_DEGREES } from '@/studio/motion-blur'
+import { canHoldMotionBlur, isShutterDegrees, isSmoothSlowMotion, SHUTTER_DEGREES } from '@/studio/motion-blur'
 import { setMotionBlur as setMotionBlurAction } from '@/studio/motion-blur/ui/actions'
 import { canHoldSpeedCurve, setSpeedCurve as setSpeedCurveAction } from '@/studio/speed/actions'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import * as grade from './clips-grade'
+import { applySmoothEdit } from './clips-smooth'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import { useProjectStore } from '@/features/projects/stores/project-store'
 import {
@@ -42,6 +47,7 @@ import {
   updateItem,
 } from '@/features/timeline/stores/timeline-actions'
 import { isInTransitionOverlap } from '@/features/timeline/stores/actions/edit/shared'
+import { placeItemsWithoutTimelineOverlap } from '@/features/timeline/stores/actions/item-placement'
 import {
   getDroppedMediaDurationInFrames,
   type DroppableMediaType,
@@ -70,7 +76,7 @@ import {
   requireSourceRange,
   requireTrack,
 } from '../context'
-import { formatValue, invalidArgumentError, studioError } from '../errors'
+import { formatValue, invalidArgumentError, studioError, type StudioError } from '../errors'
 import { transaction } from '../transaction'
 import type {
   ClipAddInput,
@@ -79,6 +85,7 @@ import type {
   ClipId,
   ClipInfo,
   ClipPatch,
+  ClipPlacement,
   ClipRemoveOptions,
   ClipSpeedCurve,
   ClipTransform,
@@ -291,20 +298,45 @@ function fieldOf(value: unknown, field: string): unknown {
     : undefined
 }
 
-/** The settings `clips.setMotionBlur` accepts: null, or an object with one of the four angles and an optional blend. */
+/**
+ * The smooth slow motion a settings object asks for: its `smoothSlowMotion`, or the deprecated `blendSlowMotion`
+ * (`true` is `'blend'`, `false` is off) when only that is given; `null` when the one given is not valid.
+ */
+function requestedSmoothSlowMotion(value: unknown): { mode: MotionBlurSettings['smoothSlowMotion'] } | null {
+  const smooth = fieldOf(value, 'smoothSlowMotion')
+  const legacy = fieldOf(value, 'blendSlowMotion')
+  if (legacy === undefined) return smooth === undefined || isSmoothSlowMotion(smooth) ? { mode: smooth } : null
+  if (typeof legacy !== 'boolean') return null
+  return { mode: legacy ? 'blend' : undefined }
+}
+
+/**
+ * The settings `clips.setMotionBlur` accepts: null, or an object with one of the four angles and an optional smooth slow
+ * motion mode, given as `smoothSlowMotion` or as the deprecated `blendSlowMotion`, never both.
+ */
 function requireMotionBlurSettings(value: unknown, method: string): MotionBlurSettings | null {
   if (value === null) return null
+  if (fieldOf(value, 'smoothSlowMotion') !== undefined && fieldOf(value, 'blendSlowMotion') !== undefined) {
+    throw invalidArgumentError({
+      method,
+      argument: 'settings',
+      expectation: 'either "smoothSlowMotion" or the deprecated "blendSlowMotion", not both',
+      value,
+      hint: 'Pass only smoothSlowMotion: "blend" or "optical-flow", or leave it out for off.',
+    })
+  }
   const degrees = fieldOf(value, 'shutterDegrees')
-  const blend = fieldOf(value, 'blendSlowMotion')
-  const blendValid = blend === undefined || typeof blend === 'boolean'
-  if (isShutterDegrees(degrees) && blendValid) {
-    return blend === true ? { shutterDegrees: degrees, blendSlowMotion: true } : { shutterDegrees: degrees }
+  const requested = requestedSmoothSlowMotion(value)
+  if (isShutterDegrees(degrees) && requested !== null) {
+    return requested.mode === undefined
+      ? { shutterDegrees: degrees }
+      : { shutterDegrees: degrees, smoothSlowMotion: requested.mode }
   }
   throw invalidArgumentError({
     method,
     argument: 'settings',
     expectation:
-      'null, or an object whose "shutterDegrees" is 90, 180, 270 or 360 and whose optional "blendSlowMotion" is a boolean',
+      'null, or an object whose "shutterDegrees" is 90, 180, 270 or 360 and whose optional "smoothSlowMotion" is "blend" or "optical-flow" (or the deprecated "blendSlowMotion" a boolean)',
     value,
     valid: SHUTTER_DEGREES.map(String),
     hint: 'Pass null to switch the blur off.',
@@ -385,6 +417,18 @@ function requireKeyEndFrame(
   }
 }
 
+/** A key's ease: absent (linear) or one of the names of `SPEED_EASES`. */
+function requireKeyEase(value: unknown, index: number, method: string): SpeedEase {
+  if (value === undefined) return 'linear'
+  if (isSpeedEase(value)) return value
+  throw invalidArgumentError({
+    method,
+    argument: `keys[${index}].ease`,
+    expectation: `one of ${SPEED_EASES.join(', ')}`,
+    value,
+  })
+}
+
 /**
  * A speed curve's keys as the SDK accepts them: at least two, the first at frame
  * 0, the last at the clip's last frame, strictly increasing frames between them,
@@ -422,12 +466,17 @@ function requireSpeedKeys(value: unknown, item: TimelineItem, method: string): S
         value: raw,
       })
     }
-    const { frame, speed } = raw as { frame?: unknown; speed?: unknown }
+    const { frame, speed, ease } = raw as { frame?: unknown; speed?: unknown; ease?: unknown }
     const checkedFrame = requireKeyFrameValue(frame, index, method)
     requireKeyFrameOrder(checkedFrame, index, previousFrame, method)
     requireKeyEndFrame(checkedFrame, index, value.length - 1, duration, method)
     const checkedSpeed = requireKeySpeed(speed, index, method)
-    keys.push({ frame: checkedFrame, speed: checkedSpeed })
+    const checkedEase = requireKeyEase(ease, index, method)
+    keys.push(
+      checkedEase === 'linear'
+        ? { frame: checkedFrame, speed: checkedSpeed }
+        : { frame: checkedFrame, speed: checkedSpeed, ease: checkedEase },
+    )
     previousFrame = checkedFrame
   }
   return keys
@@ -625,6 +674,51 @@ function buildClipItem(input: ClipAddInput, method: string): TimelineItem {
   return item
 }
 
+/** What `clips.add` does with a clip that overlaps another: `fail` unless the input says `move`. */
+function requireOnOverlap(input: ClipAddInput, method: string): 'move' | 'fail' {
+  const { onOverlap } = input
+  if (onOverlap === undefined) return 'fail'
+  if (onOverlap === 'move' || onOverlap === 'fail') return onOverlap
+  throw invalidArgumentError({
+    method,
+    argument: 'onOverlap',
+    expectation: '"fail" (the default) or "move"',
+    value: onOverlap,
+  })
+}
+
+/**
+ * The CONFLICT of a clip that would overlap another on its track: it names the clip in the way
+ * and the first free frame where this one fits.
+ */
+function overlapError(
+  item: TimelineItem,
+  firstFree: number,
+  method: string,
+  index?: number,
+): StudioError {
+  const end = item.from + item.durationInFrames
+  const blocker = useItemsStore
+    .getState()
+    .items.find(
+      (other) =>
+        other.trackId === item.trackId &&
+        other.from < end &&
+        other.from + other.durationInFrames > item.from,
+    )
+  const where = blocker
+    ? `clip "${blocker.id}" (frames ${blocker.from}..${blocker.from + blocker.durationInFrames})`
+    : 'another clip'
+  return studioError({
+    code: 'CONFLICT',
+    method,
+    argument: index === undefined ? 'from' : `inputs[${index}].from`,
+    message: `${index === undefined ? '' : `inputs[${index}]: `}a clip of ${item.durationInFrames} frames at frame ${item.from} overlaps ${where} on track "${item.trackId}"; the first free frame where it fits is ${firstFree}`,
+    ...(blocker && { entity: { kind: 'clip' as const, id: blocker.id } }),
+    hint: `Use from: ${firstFree}, or pass onOverlap: 'move' to let the clip be placed there and read its frame in the result.`,
+  })
+}
+
 /**
  * The source range a `clips.add` input names, or undefined when it names none.
  * The two bounds come as a pair, only for video and audio, and lie inside the
@@ -807,18 +901,26 @@ export function createClipsApi(): ClipsApi {
       return item ? toClipInfo(item) : null
     },
 
-    add(input: ClipAddInput): ClipId {
-      const item = buildClipItem(input, 'clips.add')
+    add: ((input: ClipAddInput): ClipId | ClipPlacement => {
+      const method = 'clips.add'
+      const onOverlap = requireOnOverlap(input, method)
+      const item = buildClipItem(input, method)
+      const firstFree = placeItemsWithoutTimelineOverlap([item])[0]?.from ?? item.from
+      if (firstFree !== item.from && onOverlap === 'fail') {
+        throw overlapError(item, firstFree, method)
+      }
       transaction('CLIPS_ADD', () => {
         addItem(item)
       })
-      return item.id
-    },
+      if (onOverlap === 'fail') return item.id
+      return { id: item.id, from: firstFree, requestedFrom: item.from, moved: firstFree !== item.from }
+    }) as ClipsApi['add'],
 
-    addMany(inputs: ClipAddInput[]): ClipId[] {
+    addMany: ((inputs: ClipAddInput[]): Array<ClipId | ClipPlacement> => {
+      const method = 'clips.addMany'
       if (!Array.isArray(inputs)) {
         throw invalidArgumentError({
-          method: 'clips.addMany',
+          method,
           argument: 'inputs',
           expectation: 'an array of clip inputs',
           value: inputs,
@@ -826,13 +928,30 @@ export function createClipsApi(): ClipsApi {
       }
       // Validate and build every item first: a rejected input must leave the
       // project untouched. Placement still runs per item, in order, so each
-      // clip avoids the ones added before it — as two `add` calls would.
-      const items = inputs.map((input) => buildClipItem(input, 'clips.addMany'))
-      transaction('CLIPS_ADD_MANY', () => {
-        for (const item of items) addItem(item)
-      })
-      return items.map((item) => item.id)
-    },
+      // clip is checked against the ones added before it — as two `add` calls would.
+      const modes = inputs.map((input) => requireOnOverlap(input, method))
+      const items = inputs.map((input) => buildClipItem(input, method))
+      // An overlap with `fail` throws inside the transaction, which restores the project and
+      // adds no undo entry: the call changes nothing.
+      const { value: results } = transaction('CLIPS_ADD_MANY', () =>
+        items.map((item, index): ClipId | ClipPlacement => {
+          const firstFree = placeItemsWithoutTimelineOverlap([item])[0]?.from ?? item.from
+          const mode = modes[index]!
+          if (firstFree !== item.from && mode === 'fail') {
+            throw overlapError(item, firstFree, method, index)
+          }
+          addItem(item)
+          if (mode === 'fail') return item.id
+          return {
+            id: item.id,
+            from: firstFree,
+            requestedFrom: item.from,
+            moved: firstFree !== item.from,
+          }
+        }),
+      )
+      return results
+    }) as ClipsApi['addMany'],
 
     update(id: ClipId, patch: ClipPatch): void {
       const item = requireClip(id, 'clips.update', 'id')
@@ -989,7 +1108,9 @@ export function createClipsApi(): ClipsApi {
       const resolved = resolveDurationAndSpeed(sourceSpan, proposedDuration, sourceFps, timelineFps)
 
       transaction('CLIPS_SET_SPEED', () => {
-        rateStretchItem(id, item.from, resolved.duration, resolved.speed)
+        rateStretchItem(id, item.from, resolved.duration, resolved.speed, {
+          rippleOverlapOnly: true,
+        })
       })
     },
 
@@ -998,7 +1119,11 @@ export function createClipsApi(): ClipsApi {
       const curve = item.speedCurve
       if (curve === undefined) return null
       return {
-        keys: curve.keys.map((key) => ({ frame: key.frame, speed: key.speed })),
+        keys: curve.keys.map((key) =>
+          key.ease === undefined || key.ease === 'linear'
+            ? { frame: key.frame, speed: key.speed }
+            : { frame: key.frame, speed: key.speed, ease: key.ease },
+        ),
         averageSpeed: averageSpeed(curve),
       }
     },
@@ -1014,9 +1139,9 @@ export function createClipsApi(): ClipsApi {
       const item = requireMotionBlurClip(id, 'clips.getMotionBlur')
       const settings = item.type === 'video' ? item.motionBlur : undefined
       if (settings === undefined) return null
-      return settings.blendSlowMotion === true
-        ? { shutterDegrees: settings.shutterDegrees, blendSlowMotion: true }
-        : { shutterDegrees: settings.shutterDegrees }
+      return settings.smoothSlowMotion === undefined
+        ? { shutterDegrees: settings.shutterDegrees }
+        : { shutterDegrees: settings.shutterDegrees, smoothSlowMotion: settings.smoothSlowMotion }
     },
 
     setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void {
@@ -1032,6 +1157,8 @@ export function createClipsApi(): ClipsApi {
       const curve = speedPresetCurve(name, item.durationInFrames, peak, rampFrames)
       transaction('CLIPS_SET_SPEED_PRESET', () => setSpeedCurveAction(id, curve))
     },
+
+    applySmoothEdit,
 
     getColorProfile: grade.getColorProfile,
     setColorProfile: grade.setColorProfile,

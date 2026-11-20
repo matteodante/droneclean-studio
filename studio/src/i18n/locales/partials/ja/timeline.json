@@ -84,6 +84,7 @@
       "regenerateCaptions": "キャプションを再生成",
       "removeFillerWords": "フィラー語を削除",
       "removeSilence": "無音を削除",
+      "markBeats": "ビートをマーク",
       "reverse": "反転",
       "rippleDelete": "リップル削除",
       "unlinkClips": "クリップのリンクを解除",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "クリップにエフェクトを適用しました",
-      "selectAvClipFirst": "先にAVクリップを選択してください"
+      "selectAvClipFirst": "先にAVクリップを選択してください",
+      "beatsAnalysing": "ビートを検出中…",
+      "beatsNone": "このクリップに強い低音のヒットは見つかりませんでした",
+      "beatsMarked_one": "{{count}} 個のビートをマークしました",
+      "beatsMarked_other": "{{count}} 個のビートをマークしました",
+      "beatsFailed": "このクリップのビートを検出できませんでした"
     },
     "joinIndicators": {
       "canJoinNext": "次と結合できます",

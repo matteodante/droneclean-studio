@@ -688,6 +688,9 @@
       "motionBlur": "Hareket bulanıklığı",
       "motionBlurShutter": "Perde",
       "motionBlurBlendSlow": "Akıcı ağır çekim",
+      "smoothSlowMotionOff": "Kapalı",
+      "smoothSlowMotionBlend": "Kare harmanlama",
+      "smoothSlowMotionFlow": "Optik akış",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "{{speed}}x hızda bu, strobo etkisini ortadan kaldırır",
       "motionBlurIdentity": "Bu hızda etkisi yok"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "Tersine çevrilmiş bir klipte hız eğrisi olamaz.",
       "unsupportedComposition": "Birleşik bir klipte hız eğrisi olamaz.",
       "unsupportedKind": "Bu klipte hız eğrisi olamaz.",
-      "selectOneClip": "Hız eğrisini düzenlemek için tek bir klip seçin."
+      "selectOneClip": "Hız eğrisini düzenlemek için tek bir klip seçin.",
+      "ease": "Yumuşatma",
+      "easeTitle": "Hızın bu anahtardan bir sonrakine nasıl değiştiği",
+      "easeLinear": "Doğrusal",
+      "easeSmooth": "Yumuşak",
+      "easeIn": "Yavaş başla",
+      "easeOut": "Yavaş bitir",
+      "deliveredFps": "Saniyedeki kare",
+      "deliveredFpsTitle": "Klibin en yavaş noktasında gerçekten sahip olduğu saniyedeki kare: kendi kare hızı çarpı o hız",
+      "lowFps": "Kare sayısı az: en yavaş noktada saniyede {{fps}}, proje {{projectFps}} oynatıyor. Kareler tekrarlanır.",
+      "lowFpsBlended": "Kare sayısı az: en yavaş noktada saniyede {{fps}}, proje {{projectFps}} oynatıyor. Yumuşak ağır çekim aradaki kareleri harmanlar.",
+      "smoothEdit": "Yumuşak rampa + yakınlaştırma",
+      "smoothEditTitle": "Hızlı, yavaş, hızlı; yumuşak ağır çekim ve hareket bulanıklığıyla, klip boyunca yumuşak bir yakınlaştırma",
+      "lowFpsFlow": "Kare sayısı az: en yavaş noktada saniyede {{fps}}, proje {{projectFps}} oynatıyor. Optik akış aradaki kareleri hareketten oluşturur."
     },
     "shadowSection": {
       "title": "DroneClean gölgesi",
@@ -754,7 +770,6 @@
       "piecesGone_other": "Temizlenmiş {{count}} parça artık hizmette mevcut değil. Bu saniyeler, yeniden temizleyene kadar orijinali oynatır.",
       "account": {
         "signedIn": "Oturum açıldı",
-        "signedInAs": "{{email}} olarak oturum açıldı",
         "signOut": "Oturumu kapat"
       },
       "pendingRunning": "{{start}}–{{end}} karelerinin ücretli temizliği yolda; sonucu klibe eklenecek.",
@@ -999,7 +1014,9 @@
         "starting": "Klip açılıyor…",
         "reading": "Hareket verisi okunuyor: {{read}} / {{total}} MB",
         "smoothing": "Sabitleme hesaplanıyor…"
-      }
+      },
+      "framingX": "Kadraj, yatay",
+      "framingY": "Kadraj, dikey"
     },
     "sourceMonitor": {
       "createSubclip": "Alt klip oluştur (Alt+S)",

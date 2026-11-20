@@ -30,7 +30,9 @@
       "deviceBusy": "The microphone is being used by another app.",
       "startFailed": "Could not start recording. Please try again.",
       "failed": "Recording failed. Please try again.",
-      "saveFailed": "Could not save the recording."
+      "saveFailed": "Could not save the recording.",
+      "systemBlocked": "DroneClean Studio cannot use the microphone. Allow it in System Settings › Privacy & Security › Microphone, then try again.",
+      "startTimeout": "The microphone did not start. Check that it is connected and allowed (System Settings › Privacy & Security › Microphone), then try again."
     }
   }
 }

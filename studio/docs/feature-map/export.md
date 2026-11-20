@@ -74,7 +74,7 @@ read the same store).
 
 ### Instagram Reel
 - Where: Editor › Export dialog › Preset
-- Does: H.264 MP4 at the project's frame rate, fitted in 1440x2560 for a project at least that large (else 1080x1920), at 25 Mbps (2K, above 30 fps) down to 10 Mbps (1080, 30 fps): what Instagram ingests best, scaled down by Instagram itself.
+- Does: Meta's Reel frame: H.264 MP4 at the project's frame rate, 1080x1920 (1920x1080 for a landscape project), 20 Mbps above 30 fps and 12 Mbps at or below, under Meta's 25 Mbps maximum.
 - SDK: `studio.export.presets`
 - Code: `src/studio/export/presets.ts`
 

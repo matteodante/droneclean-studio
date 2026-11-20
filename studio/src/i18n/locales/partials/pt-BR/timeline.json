@@ -84,6 +84,7 @@
       "regenerateCaptions": "Gerar legendas novamente",
       "removeFillerWords": "Remover vicios de fala",
       "removeSilence": "Remover silencio",
+      "markBeats": "Marcar batidas",
       "reverse": "Reverter",
       "rippleDelete": "Exclusao ripple",
       "unlinkClips": "Desvincular clipes",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "Efeito aplicado aos clipes",
-      "selectAvClipFirst": "Selecione primeiro um clipe de audio/video"
+      "selectAvClipFirst": "Selecione primeiro um clipe de audio/video",
+      "beatsAnalysing": "Procurando as batidas…",
+      "beatsNone": "Nenhuma batida forte de grave encontrada neste clipe",
+      "beatsMarked_one": "{{count}} batida marcada",
+      "beatsMarked_other": "{{count}} batidas marcadas",
+      "beatsFailed": "Não foi possível encontrar as batidas deste clipe"
     },
     "joinIndicators": {
       "canJoinNext": "Pode unir ao proximo",

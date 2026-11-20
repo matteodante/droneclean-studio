@@ -30,7 +30,9 @@
       "deviceBusy": "麦克风正被其他应用程序使用。",
       "startFailed": "无法开始录制。请重试。",
       "failed": "录制失败。请重试。",
-      "saveFailed": "无法保存录制内容。"
+      "saveFailed": "无法保存录制内容。",
+      "systemBlocked": "DroneClean Studio 无法使用麦克风。请在“系统设置 › 隐私与安全性 › 麦克风”中允许，然后重试。",
+      "startTimeout": "麦克风没有启动。请检查它已连接并获得允许（系统设置 › 隐私与安全性 › 麦克风），然后重试。"
     }
   }
 }

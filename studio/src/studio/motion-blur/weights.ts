@@ -26,7 +26,7 @@
 
 import { clipSourcePosition, type ClipTiming } from '@/studio/speed'
 import { ceilFraction, fractionToNumber, type Rate } from '@/studio/time'
-import type { ShutterDegrees } from './types'
+import type { ShutterDegrees, SmoothSlowMotion } from './types'
 
 /** One source frame of an output frame's blend: its index and its share of the shutter window. */
 export interface MotionBlurSample {
@@ -49,6 +49,13 @@ export interface MotionBlurPlan {
   readonly frameCount: number
   /** The frames inside the shutter window, by increasing index; never empty. */
   readonly samples: readonly MotionBlurSample[]
+  /**
+   * Optical-flow slow motion only (task 11.12): the frame lies strictly between `samples[0]` and `samples[1]`, at this
+   * phase in (0, 1) of the gap from the first to the second, and is made by moving both along the motion between them.
+   * The samples are then the blend of the two, `1 - phase` and `phase`, which the flow falls back to where it cannot
+   * trust the motion. Absent on every other plan.
+   */
+  readonly flowPhase?: number
 }
 
 /** A source span as real source frame indices, `sourceStart` included. */
@@ -72,8 +79,8 @@ export interface MotionBlurQuery {
   projectRate: Rate
   /** The shutter angle in degrees: one of 90, 180, 270, 360. */
   shutterDegrees: ShutterDegrees
-  /** Blend the two source frames around a slow-motion frame (`MotionBlurSettings.blendSlowMotion`). */
-  blendSlowMotion?: boolean
+  /** Make a slow-motion frame from the two source frames around it, and how (`MotionBlurSettings.smoothSlowMotion`). */
+  smoothSlowMotion?: SmoothSlowMotion
 }
 
 /** The fraction of the span the shutter is open, `shutterDegrees / 360`; throws on any other value. */
@@ -126,7 +133,8 @@ export function motionBlurFrameCount(span: SourceFrameSpan): number {
  * The frame blend of a slow-motion output frame (19 Nov 2026): it sits at `position` between source frames `first` and
  * `first + 1`, and takes each in proportion to how near it is, `1 - t` and `t` for `t = position - first`. A frame
  * that lands on a whole source frame (within 1e-6) is that frame alone, so a 2x slow-down alternates a source frame
- * and an even mix of two, and a clip at 1x with equal rates never blends.
+ * and an even mix of two, and a clip at 1x with equal rates never blends. The optical-flow mode starts from the same
+ * two samples: `t` is its phase, and the blend is what it falls back to.
  */
 function slowMotionBlend(position: number, first: number): MotionBlurSample[] {
   const t = position - first
@@ -168,8 +176,12 @@ export function planMotionBlur(query: MotionBlurQuery): MotionBlurPlan {
   const firstFrame = start.frame
   const lastFrame = Number(ceilFraction(end.position)) - 1
   const frameCount = lastFrame - firstFrame + 1
-  if (query.blendSlowMotion === true && endFrame - startFrame < 1) {
-    return { startFrame, endFrame, frameCount, samples: slowMotionBlend(startFrame, firstFrame) }
+  if (query.smoothSlowMotion !== undefined && endFrame - startFrame < 1) {
+    const samples = slowMotionBlend(startFrame, firstFrame)
+    // A frame between two source frames is interpolated in flow mode; one on a source frame is that frame.
+    const flowPhase =
+      query.smoothSlowMotion === 'optical-flow' && samples.length === 2 ? samples[1]!.weight : undefined
+    return { startFrame, endFrame, frameCount, samples, ...(flowPhase !== undefined ? { flowPhase } : {}) }
   }
   const duration = fraction * (endFrame - startFrame)
   const open = startFrame

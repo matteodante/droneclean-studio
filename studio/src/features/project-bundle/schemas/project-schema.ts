@@ -455,6 +455,16 @@ const compositionControlSchema = z.object({
 const speedKeySchema = z.object({
   frame: z.number().int().min(0),
   speed: z.number().min(0.1).max(10),
+  // How the speed moves to the next key; absent is linear (task 11.11).
+  ease: z.enum(['linear', 'smooth', 'ease-in', 'ease-out']).optional(),
+  easeSlice: z
+    .object({
+      offset: z.number().int().min(0),
+      length: z.number().int().min(1),
+      from: z.number().min(0.1).max(10),
+      to: z.number().min(0.1).max(10),
+    })
+    .optional(),
 })
 
 /**

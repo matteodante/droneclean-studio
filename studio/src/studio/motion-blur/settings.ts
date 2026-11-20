@@ -7,7 +7,7 @@
  */
 
 import type { TimelineItem } from '@/types/timeline'
-import type { MotionBlurSettings, ShutterDegrees } from './types'
+import type { MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from './types'
 
 /** The shutter angles the panel's select offers, in the order it lists them. */
 export const SHUTTER_DEGREES: readonly ShutterDegrees[] = [90, 180, 270, 360]
@@ -20,18 +20,38 @@ export function isShutterDegrees(value: unknown): value is ShutterDegrees {
   return SHUTTER_DEGREES.some((degrees) => degrees === value)
 }
 
+/** The ways smooth slow motion can make a frame, in the order the panel's select lists them after "Off". */
+export const SMOOTH_SLOW_MOTION: readonly SmoothSlowMotion[] = ['blend', 'optical-flow']
+
+/** Whether a value is one of the smooth slow motion modes. */
+export function isSmoothSlowMotion(value: unknown): value is SmoothSlowMotion {
+  return SMOOTH_SLOW_MOTION.some((mode) => mode === value)
+}
+
+/**
+ * The stored smooth slow motion mode: a known `smoothSlowMotion`, else the field it replaced, `blendSlowMotion: true`
+ * (projects saved on 19 Nov 2026, before the optical-flow mode), as `'blend'`, so an old project keeps its mode. The old
+ * field is never written back.
+ */
+function storedSmoothSlowMotion(value: { smoothSlowMotion?: unknown; blendSlowMotion?: unknown }): SmoothSlowMotion | undefined {
+  if (isSmoothSlowMotion(value.smoothSlowMotion)) return value.smoothSlowMotion
+  return value.blendSlowMotion === true ? 'blend' : undefined
+}
+
 /**
  * A stored `motionBlur` value made safe for the renderer: an object with an unknown or missing
- * angle falls to 360 (design 7.2, section 4.7), anything that is not an object is no blur. A
- * hand-edited file can therefore never put a broken number in front of a shader.
+ * angle falls to 360 (design 7.2, section 4.7), an unknown smooth slow motion mode is none, anything
+ * that is not an object is no blur. A hand-edited file can therefore never put a broken number in
+ * front of a shader.
  */
 function normalizeMotionBlur(value: unknown): MotionBlurSettings | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const { shutterDegrees: degrees, blendSlowMotion } = value as { shutterDegrees?: unknown; blendSlowMotion?: unknown }
+  const stored = value as { shutterDegrees?: unknown; smoothSlowMotion?: unknown; blendSlowMotion?: unknown }
+  const smoothSlowMotion = storedSmoothSlowMotion(stored)
   return {
-    shutterDegrees: isShutterDegrees(degrees) ? degrees : DEFAULT_SHUTTER_DEGREES,
-    // Only a stored `true` turns the blend on; anything else is the hold, and is not written back.
-    ...(blendSlowMotion === true ? { blendSlowMotion: true } : {}),
+    shutterDegrees: isShutterDegrees(stored.shutterDegrees) ? stored.shutterDegrees : DEFAULT_SHUTTER_DEGREES,
+    // Only a known mode turns smooth slow motion on; anything else is the hold, and is not written back.
+    ...(smoothSlowMotion !== undefined ? { smoothSlowMotion } : {}),
   }
 }
 

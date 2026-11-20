@@ -688,6 +688,9 @@
       "motionBlur": "Desenfoque de movimiento",
       "motionBlurShutter": "Obturador",
       "motionBlurBlendSlow": "Cámara lenta fluida",
+      "smoothSlowMotionOff": "Desactivado",
+      "smoothSlowMotionBlend": "Fusión de fotogramas",
+      "smoothSlowMotionFlow": "Flujo óptico",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "A {{speed}}x esto elimina el efecto estroboscópico",
       "motionBlurIdentity": "Sin efecto a esta velocidad"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "Un clip invertido no puede tener una curva de velocidad.",
       "unsupportedComposition": "Un clip compuesto no puede tener una curva de velocidad.",
       "unsupportedKind": "Este clip no puede tener una curva de velocidad.",
-      "selectOneClip": "Selecciona un solo clip para editar su curva de velocidad."
+      "selectOneClip": "Selecciona un solo clip para editar su curva de velocidad.",
+      "ease": "Suavizado",
+      "easeTitle": "Cómo cambia la velocidad de esta clave a la siguiente",
+      "easeLinear": "Lineal",
+      "easeSmooth": "Suave",
+      "easeIn": "Entrada suave",
+      "easeOut": "Salida suave",
+      "deliveredFps": "Fotogramas por segundo",
+      "deliveredFpsTitle": "Los fotogramas por segundo que el clip tiene de verdad en su punto más lento: su propia frecuencia por esa velocidad",
+      "lowFps": "Pocos fotogramas: {{fps}} por segundo en el punto más lento y el proyecto reproduce {{projectFps}}. Los fotogramas se repiten.",
+      "lowFpsBlended": "Pocos fotogramas: {{fps}} por segundo en el punto más lento y el proyecto reproduce {{projectFps}}. La cámara lenta suave mezcla los fotogramas intermedios.",
+      "smoothEdit": "Rampa suave + zoom",
+      "smoothEditTitle": "Rápido, lento, rápido con cámara lenta suave y desenfoque de movimiento, y un zoom suave a lo largo del clip",
+      "lowFpsFlow": "Pocos fotogramas: {{fps}} por segundo en el punto más lento y el proyecto reproduce {{projectFps}}. El flujo óptico crea los fotogramas intermedios a partir del movimiento."
     },
     "shadowSection": {
       "title": "Sombra de DroneClean",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} fragmentos limpiados ya no están disponibles en el servicio. Sus segundos reproducen el original hasta que los limpies de nuevo.",
       "account": {
         "signedIn": "Sesión iniciada",
-        "signedInAs": "Sesión iniciada como {{email}}",
         "signOut": "Cerrar sesión"
       },
       "pendingRunning": "Una limpieza de pago de los fotogramas {{start}}–{{end}} está en camino; su resultado se añadirá al clip.",
@@ -999,7 +1014,9 @@
         "starting": "Abriendo el clip…",
         "reading": "Leyendo datos de movimiento: {{read}} de {{total}} MB",
         "smoothing": "Calculando la estabilización…"
-      }
+      },
+      "framingX": "Encuadre, lateral",
+      "framingY": "Encuadre, vertical"
     },
     "sourceMonitor": {
       "createSubclip": "Crear subclip (Alt+S)",

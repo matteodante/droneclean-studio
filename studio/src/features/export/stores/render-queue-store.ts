@@ -85,7 +85,10 @@ interface RenderQueueActions {
   // Runner-internal mutators
   markRendering: (id: string) => void
   updateJobProgress: (id: string, progress: RenderProgress) => void
-  markCompleted: (id: string, info: { savedPath: string; fileSize: number }) => void
+  markCompleted: (
+    id: string,
+    info: { savedPath: string; fileSize: number; fileName?: string },
+  ) => void
   markFailed: (id: string, error: string) => void
   markCancelled: (id: string) => void
 }
@@ -222,6 +225,8 @@ export const useRenderQueueStore = create<RenderQueueState & RenderQueueActions>
         progress: 100,
         savedPath: info.savedPath,
         fileSize: info.fileSize,
+        // The name the file really got (a taken name is numbered), not the one asked for.
+        ...(info.fileName !== undefined && { fileName: info.fileName }),
         finishedAt: Date.now(),
       })),
     })),

@@ -22,8 +22,8 @@
 import type { FrameRequest, FrameResult, StudioErrorJson } from '../../../../../mcp/protocol'
 import { DEFAULT_FRAME_WIDTH, MAX_FRAME_COUNT } from '../protocol'
 import { agentError, isStudioErrorJson } from '../errors'
-import { PageTimeoutError, PageUnavailableError } from '../page'
-import { pageFailureOutcome } from './page-failure'
+import { PageTimeoutError, PageUnavailableError, RUN_ABORT_GLOBAL } from '../page'
+import { pageFailureOutcome, timeoutOutcome } from './page-failure'
 import type { PageBridge, ToolOutcome } from '../types'
 
 /** Narrowest and widest long edge a caller may ask for (the server's schema agrees). */
@@ -40,6 +40,9 @@ const MAX_FRAME_BASE64_BYTES = 8 * 1024 * 1024
 
 /** How long main waits for the page: a full frame and a sheet are seconds, not minutes. */
 const FRAME_TIMEOUT_MS = 120000
+
+/** What `frame` advises after a timeout. */
+const FRAME_RETRY = 'try a smaller width or a single frame.'
 
 /**
  * The plan the page renders. It mirrors `FramePlan` in
@@ -274,6 +277,7 @@ export function buildFrameScript(plan: FramePlanJson): string {
   if (!frame || typeof frame.render !== 'function') {
     return { error: { name: 'StudioError', code: 'UNSUPPORTED', message: 'frame: this editor page has no frame renderer installed', hint: 'Reload the editor; if it keeps happening, the app build is older than the tool.' } }
   }
+  globalThis.${RUN_ABORT_GLOBAL} = new AbortController()
   return await frame.render(${JSON.stringify(plan)})
 })()`
 }
@@ -288,17 +292,6 @@ function isFrameResult(value: unknown): value is FrameResult {
     typeof candidate.height === 'number'
   if (!sized) return false
   return typeof candidate.png === 'string' || typeof candidate.path === 'string'
-}
-
-/** The `TIMEOUT` a page that never answered maps to. */
-function timeoutError(): StudioErrorJson {
-  return agentError(
-    'TIMEOUT',
-    `frame: the editor did not answer within ${FRAME_TIMEOUT_MS} ms; its main thread is busy or the render is stuck`,
-    {
-      hint: 'The app may be encoding an export; try a smaller width or a single frame, and reload it from the Agent access panel if it stays unresponsive.',
-    },
-  ).json
 }
 
 /**
@@ -347,9 +340,11 @@ export async function frameTool(
 
   let answer: unknown
   try {
-    answer = await page.execute(buildFrameScript(plan), FRAME_TIMEOUT_MS)
+    answer = await page.execute(buildFrameScript(plan), FRAME_TIMEOUT_MS, { recover: true })
   } catch (error) {
-    if (error instanceof PageTimeoutError) return { error: timeoutError() }
+    if (error instanceof PageTimeoutError) {
+      return timeoutOutcome('frame', error, FRAME_TIMEOUT_MS, FRAME_RETRY)
+    }
     const failure = pageFailureOutcome('frame', error)
     if (failure !== null) return failure
     throw error

@@ -19,6 +19,12 @@ export interface SourceSample {
 /** The source frames one output frame is made of: weights above 0 that sum to 1, by increasing index. */
 export interface SourceFramePlan {
   readonly samples: readonly SourceSample[]
+  /**
+   * Optical-flow slow motion (task 11.12): the frame is interpolated at `phase` (in (0, 1)) of the gap from
+   * `samples[0]` to `samples[1]`, two consecutive source frames, whose weights are then the blend `1 - phase`, `phase`
+   * the flow falls back to where it cannot trust the motion. Absent: the samples are blended (or the one is shown).
+   */
+  readonly flow?: { readonly phase: number }
 }
 
 /** What the plan needs from the time code. */
@@ -68,7 +74,11 @@ export function sourceFramePlan(
       count !== undefined && Number.isSafeInteger(count) && count >= 1
         ? restrictToSourceRange(plan.samples, count)
         : plan.samples
-    return { samples: samples.map((s) => ({ index: s.sourceFrame, weight: s.weight })) }
+    const mapped = samples.map((s) => ({ index: s.sourceFrame, weight: s.weight }))
+    // A gap whose second frame is past the file's end leaves one sample: that frame, shown as it is.
+    return plan.flowPhase !== undefined && mapped.length === 2
+      ? { samples: mapped, flow: { phase: plan.flowPhase } }
+      : { samples: mapped }
   }
   const { frame } = sources.position(item, clipFrame)
   if (!Number.isSafeInteger(frame) || frame < 0) {

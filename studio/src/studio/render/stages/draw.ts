@@ -102,7 +102,7 @@ function stagedSourcePlan(
             timelineFrame: clipFrame,
             projectRate: toRate(rctx.fps),
             shutterDegrees: item.motionBlur.shutterDegrees,
-            blendSlowMotion: item.motionBlur.blendSlowMotion,
+            smoothSlowMotion: item.motionBlur.smoothSlowMotion,
           }
         : undefined,
   })

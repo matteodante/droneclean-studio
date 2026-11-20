@@ -103,7 +103,10 @@ export interface StabilizationSeat {
   outputSizeOf(key: string): StabilizationOutputSize | null
   /** Resolves when the key's engine next settles (opens, fails, or finishes a move): when it is worth asking again */
   whenSettled(key: string): Promise<void>
-  /** The key's data for a source frame if the host holds it */
+  /**
+   * The key's data for a source frame if the host holds it. `sourceFrame` may be a position between two frames (an
+   * interpolated frame, task 11.12): the engine's correction at that moment.
+   */
   frame(key: string, sourceFrame: number): StabilizationFrameData | undefined
   /**
    * Starts fetching the key's data for a source frame (once) and resolves when the fetch is over; it never rejects: a
@@ -116,6 +119,12 @@ export interface StabilizationSeat {
   stageAssets(key: string): Promise<StabilizationAssets>
   /** The assets `stageAssets` last read for the key, or `undefined` (a move to other settings forgets them) */
   loadedAssets(key: string): StabilizationAssets | undefined
+  /**
+   * Resolves when `loadedAssets(key)` stops answering the assets it answers now: the key's engine was closed (by
+   * `release`, `close`, `sync`) or moved to other settings. At once when it answers none. A warp prepared for the key
+   * lasts until then (the stage's `lost`): a new engine of the key starts with no assets, and is prepared again.
+   */
+  whenAssetsGone(key: string): Promise<void>
   /** The engine's smoothing methods and their limits (the clip panel's form and a new clip's defaults) */
   smoothingMethods(): Promise<SmoothingMethod[]>
   /**
@@ -125,9 +134,10 @@ export interface StabilizationSeat {
    */
   setSettings(item: VideoItem, settings: StabilizationSettings): Promise<void>
   /**
-   * The timeline's items as they are now: a clip the host serves that is gone, switched off or put on another media
-   * lets its engine go when no other clip uses it; a clip whose settings changed has its engine moved to them. An
-   * engine still opening is left alone (the clip panel opens one before the clip is switched on).
+   * The timeline's items as they are now: every stabilized clip of an open key uses its engine; a clip the host serves
+   * that is gone, switched off or put on another media lets its engine go when no other clip uses it; a clip whose
+   * settings changed has its engine moved to them. An engine still opening is left alone (the clip panel opens one
+   * before the clip is switched on).
    */
   sync(items: readonly TimelineItem[]): void
   /** Closes a key's engine whoever uses it (the preparer calls it for a key no clip wants) */
@@ -155,6 +165,8 @@ interface Entry {
   info: StabilizationInfo | null
   /** The warp assets last read for this engine */
   assets: StabilizationAssets | undefined
+  /** Resolved when the entry stops serving `key` with its assets: closed, or moved to another key (then renewed) */
+  gone: Signal
   /** Whether the client holds the clip open (a failed open closes it; a refused move leaves it) */
   engineLive: boolean
   closed: boolean
@@ -164,6 +176,20 @@ interface Entry {
   readonly frames: Map<number, StabilizationFrameData>
   readonly inflight: Map<number, Promise<void>>
   readonly frameFailures: Map<number, Error>
+}
+
+/** A promise and the call that resolves it */
+interface Signal {
+  readonly promise: Promise<void>
+  readonly resolve: () => void
+}
+
+function signal(): Signal {
+  let resolve!: () => void
+  const promise = new Promise<void>((settle) => {
+    resolve = settle
+  })
+  return { promise, resolve }
 }
 
 function toError(error: unknown): Error {
@@ -366,6 +392,11 @@ class Seat implements StabilizationSeat {
     return this.entries.get(key)?.assets
   }
 
+  whenAssetsGone(key: string): Promise<void> {
+    const entry = this.entries.get(key)
+    return entry?.assets === undefined ? Promise.resolve() : entry.gone.promise
+  }
+
   smoothingMethods(): Promise<SmoothingMethod[]> {
     return this.client.smoothingMethods()
   }
@@ -384,6 +415,7 @@ class Seat implements StabilizationSeat {
   sync(items: readonly TimelineItem[]): void {
     if (this.itemEntries.size === 0) return
     const live = new Map(items.map((item) => [item.id, item]))
+    this.claimClipsOfOpenKeys(items)
     for (const [itemId, entry] of [...this.itemEntries]) {
       // An engine still opening or moving is left alone: a probe's, or a gesture's
       if (entry.result === null) continue
@@ -411,7 +443,10 @@ class Seat implements StabilizationSeat {
   }
 
   destroy(): void {
-    for (const entry of this.entries.values()) entry.closed = true
+    for (const entry of this.entries.values()) {
+      entry.closed = true
+      entry.gone.resolve()
+    }
     this.entries.clear()
     this.itemEntries.clear()
     this.waiters.clear()
@@ -462,6 +497,19 @@ class Seat implements StabilizationSeat {
     )
   }
 
+  /**
+   * Every clip of a key uses its engine, not only the one that opened it: a copy, the other half of a split, a clip that
+   * replaced another keep it open, and it moves to another clip's new settings only when no other clip is on it
+   */
+  private claimClipsOfOpenKeys(items: readonly TimelineItem[]): void {
+    for (const item of items) {
+      if (item.type !== 'video' || !isStabilized(item) || this.itemEntries.has(item.id)) continue
+      const key = stabilizationEngineKey(item)
+      const entry = key === null ? undefined : this.entries.get(key)
+      if (entry) this.claim(item.id, entry)
+    }
+  }
+
   private claim(itemId: string, entry: Entry): void {
     const previous = this.itemEntries.get(itemId)
     if (previous && previous !== entry) previous.users.delete(itemId)
@@ -494,6 +542,7 @@ class Seat implements StabilizationSeat {
       pending: Promise.resolve({ kind: 'failed', error: new Error('not started') }),
       info: null,
       assets: undefined,
+      gone: signal(),
       engineLive: false,
       closed: false,
       generation: 0,
@@ -590,6 +639,9 @@ class Seat implements StabilizationSeat {
     entry.settings = settings
     entry.generation += 1
     entry.assets = undefined
+    // The old key's assets go with it: what was prepared for that key is prepared again if a clip still wants it
+    entry.gone.resolve()
+    entry.gone = signal()
     entry.frames.clear()
     entry.inflight.clear()
     entry.frameFailures.clear()
@@ -620,6 +672,7 @@ class Seat implements StabilizationSeat {
     entry.closed = true
     entry.generation += 1
     entry.frames.clear()
+    entry.gone.resolve()
     if (this.entries.get(entry.key) === entry) this.entries.delete(entry.key)
     for (const itemId of entry.users) {
       if (this.itemEntries.get(itemId) === entry) this.itemEntries.delete(itemId)

@@ -15,6 +15,13 @@
  * token, cannot send it to another host through this relay and cannot make the relay call another
  * route.
  *
+ * **The keychain is touched only when the token is needed.** `status()` (which the page asks as soon as a
+ * clip is selected) never reads the secret: "signed in" is read from the token file's existence, which is
+ * the non-secret flag written when the sign-in is saved and removed on sign-out, on a 401 and when the file
+ * turns out to be unreadable. The token is decrypted on the first `/v1/*` call or sign-out, that is, when
+ * the pilot presses Follow, Clean, Sign in or Sign out. On an unsigned app macOS may ask for keychain access
+ * at every update, so a pilot who never uses shadow removal must never see that question.
+ *
  * **A 401** from `/v1/*` means the session is gone (Better Auth): the stored token is deleted.
  * **Sign-out** deletes it and, best effort, tells the cloud to end the session
  * (`POST /api/auth/sign-out`, Better Auth's own route, which the `bearer` plugin accepts).
@@ -134,13 +141,34 @@ export class ShadowSession {
     await fs.rm(this.file, { force: true })
   }
 
+  /** Whether the encrypted token file is there: the flag, read without touching the secret store. */
+  private async hasTokenFile(): Promise<boolean> {
+    try {
+      await fs.access(this.file)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * What the page may know, without reading the secret. `persistent` is true when the token is on disk
+   * (and, while signed out, assumed true: asking the secret store would touch the keychain).
+   */
   async status(): Promise<ShadowSessionStatus> {
-    const token = await this.load()
-    return { signedIn: token !== null, persistent: this.canEncrypt() }
+    const onDisk = await this.hasTokenFile()
+    if (this.token !== null) return { signedIn: true, persistent: onDisk }
+    // Once the file was read (or found unreadable) the memory is the truth; before, the file is.
+    return { signedIn: !this.loaded && onDisk, persistent: true }
   }
 
   /** Ends the session: the token is deleted first, then the cloud is told, if it answers. */
   async signOut(): Promise<void> {
+    // Signed out already: nothing to end, and no reason to read the secret.
+    if (this.token === null && !(await this.hasTokenFile())) {
+      await this.forget()
+      return
+    }
     const token = await this.load()
     await this.forget()
     if (token === null) return

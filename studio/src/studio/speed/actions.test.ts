@@ -218,6 +218,70 @@ describe('setSpeedCurve', () => {
     expect(storedVideo().speedCurve?.keys).toEqual(RAMP_600.keys)
   })
 
+  describe('ripple (task 11.3)', () => {
+    /** The ramp clip, with a clip `gap` frames after its end on the same track and one more behind it. */
+    function withClipsAfter(gap: number): void {
+      useItemsStore.getState().setItems([
+        makeRampItem(),
+        makeTimelineVideoItem({ id: 'next', from: 600 + gap, durationInFrames: 100 }),
+        makeTimelineVideoItem({ id: 'later', from: 800 + gap, durationInFrames: 100 }),
+      ])
+    }
+
+    it('moves nothing when the clip grows into a gap that fits it', () => {
+      withClipsAfter(500)
+      // A flat 2.3x shape spends the 2,310 source frames in 1,004 frames, so the clip ends at
+      // 1,004: inside the gap that runs to the next clip at 1,100.
+      setSpeedCurve('ramp', { keys: [{ frame: 0, speed: 2.3 }] })
+
+      expect(storedVideo().durationInFrames).toBe(1_004)
+      expect(storedItem('next').from).toBe(1_100)
+      expect(storedItem('later').from).toBe(1_300)
+    })
+
+    it('pushes the clips after it only by how far it passes the next clip', () => {
+      withClipsAfter(100)
+      // The clip now ends at 1,155 and the next one starts at 700: it passes it by 455.
+      setSpeedCurve('ramp', { keys: [{ frame: 0, speed: 2 }] })
+
+      expect(storedVideo().durationInFrames).toBe(1_155)
+      expect(storedItem('next').from).toBe(1_155)
+      expect(storedItem('later').from).toBe(1_355)
+    })
+
+    it('leaves the clips after it where they are when the clip gets shorter', () => {
+      withClipsAfter(100)
+      setSpeedCurve('ramp', { keys: [{ frame: 0, speed: 8 }] })
+
+      expect(storedVideo().durationInFrames).toBeLessThan(600)
+      expect(storedItem('next').from).toBe(700)
+      expect(storedItem('later').from).toBe(900)
+    })
+  })
+
+  it('stores the ease of a segment and sizes the clip by the eased average', () => {
+    useItemsStore.getState().setItems([makeRampItem()])
+    // 1x to 4x smooth over 600 frames averages 2.5x (smoothstep is symmetric), then holds: the
+    // same 2,310 source frames take 2,310 / 2.5 frames.
+    const eased: SpeedCurve = {
+      keys: [
+        { frame: 0, speed: 1, ease: 'smooth' },
+        { frame: 600, speed: 4 },
+      ],
+    }
+
+    setSpeedCurve('ramp', eased)
+
+    const edited = storedVideo()
+    expect(edited.speedCurve?.keys[0]?.ease).toBe('smooth')
+    expect(edited.speed).toBeCloseTo(2.5, 12)
+    expect(edited.durationInFrames).toBe(Math.round(RAMP_SOURCE_FRAMES / 2.5))
+    expect(edited.sourceEnd).toBe(RAMP_SOURCE_FRAMES)
+
+    useTimelineCommandStore.getState().undo()
+    expect(storedVideo().speedCurve?.keys).toEqual(RAMP_600.keys)
+  })
+
   it('leaves a reversed clip alone: v1 hides a curve there, it does not map it', () => {
     useItemsStore.getState().setItems([makeRampItem({ isReversed: true })])
     expect(storedItem().speedCurve).toBeUndefined()

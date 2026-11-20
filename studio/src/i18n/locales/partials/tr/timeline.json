@@ -84,6 +84,7 @@
       "regenerateCaptions": "Altyazıları yeniden oluştur",
       "removeFillerWords": "Dolgu sözcüklerini kaldır",
       "removeSilence": "Sessizliği kaldır",
+      "markBeats": "Vuruşları işaretle",
       "reverse": "Ters çevir",
       "rippleDelete": "Ripple sil",
       "unlinkClips": "Kliplerin bağını kaldır",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "Efekt kliplere uygulandı",
-      "selectAvClipFirst": "Önce bir ses/video klibi seçin"
+      "selectAvClipFirst": "Önce bir ses/video klibi seçin",
+      "beatsAnalysing": "Vuruşlar aranıyor…",
+      "beatsNone": "Bu klipte güçlü bas vuruşu bulunamadı",
+      "beatsMarked_one": "{{count}} vuruş işaretlendi",
+      "beatsMarked_other": "{{count}} vuruş işaretlendi",
+      "beatsFailed": "Bu klibin vuruşları bulunamadı"
     },
     "joinIndicators": {
       "canJoinNext": "Sonrakiyle birleştirilebilir",

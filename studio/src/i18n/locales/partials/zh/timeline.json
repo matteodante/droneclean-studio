@@ -84,6 +84,7 @@
       "regenerateCaptions": "重新生成字幕",
       "removeFillerWords": "移除填充词",
       "removeSilence": "移除静音",
+      "markBeats": "标记节拍",
       "reverse": "反向",
       "rippleDelete": "波纹删除",
       "unlinkClips": "取消链接剪辑",
@@ -213,7 +214,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "已将效果应用到剪辑",
-      "selectAvClipFirst": "请先选择音视频剪辑"
+      "selectAvClipFirst": "请先选择音视频剪辑",
+      "beatsAnalysing": "正在查找节拍…",
+      "beatsNone": "此剪辑中未找到明显的低音节拍",
+      "beatsMarked_one": "已标记 {{count}} 个节拍",
+      "beatsMarked_other": "已标记 {{count}} 个节拍",
+      "beatsFailed": "无法找到此剪辑的节拍"
     },
     "joinIndicators": {
       "canJoinNext": "可与下一个合并",

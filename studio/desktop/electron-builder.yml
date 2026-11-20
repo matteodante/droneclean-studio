@@ -49,6 +49,10 @@ extraResources:
 
 mac:
   category: public.app-category.video
+  # Without this string macOS never shows the microphone prompt: the voice-over recording would wait for ever
+  # (src/main/microphone.ts asks, and the page says what to do when the answer is no).
+  extendInfo:
+    NSMicrophoneUsageDescription: DroneClean Studio records your voice-over from the microphone, only when you press Record.
   icon: resources/icon.icns
   target:
     - target: dir

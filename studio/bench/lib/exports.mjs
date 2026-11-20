@@ -15,7 +15,7 @@ import { startMemorySampler, openBenchPage } from './browser.mjs'
  * @property {boolean} [timings] Record the stage marks (src/studio/render/timings.ts) and return them in `export.timingMarks`.
  * @property {number} [speed]      A constant speed for the clip (4 = 4x). Off by default.
  * @property {boolean} [wholeSpans] With `speed`: cut the source end to a multiple of the speed (the last blurred frame would ask for a frame past the file).
- * @property {{shutterDegrees: 90|180|270|360}} [motionBlur] Motion blur on the clip (design 7.2); the page turns the hidden switch on.
+ * @property {{shutterDegrees: 90|180|270|360, smoothSlowMotion?: 'blend'|'optical-flow'}} [motionBlur] Motion blur on the clip (design 7.2), with its smooth slow motion (task 11.12); the page turns the hidden switch on.
  * @property {object} [stabilization] Stabilization settings over the engine's defaults, `enabled` true. Off by default.
  * @property {number} [fileLastModified] The file's modification time as the page should see it (the motion cache's key holds it).
  * @property {{startFrame:number, frames:number}} [sourceWindow] Show only these source frames of the clip, at speed 1.

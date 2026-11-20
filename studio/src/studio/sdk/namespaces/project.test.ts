@@ -769,6 +769,67 @@ describe('project.open', () => {
   })
 })
 
+describe('project.delete', () => {
+  it('removes a stored project: its folder and its entry in the list', async () => {
+    await openStoredProject('p-keep')
+    await createStoredProject(makeProject('p-throwaway', { name: 'Throwaway' }))
+    await createStoredMedia(makeMediaItem('m-1', 'coast.jpg'))
+    await associateMediaWithProject('p-throwaway', 'm-1')
+    expect(await readFileText(root, 'projects', 'p-throwaway', 'project.json')).not.toBeNull()
+
+    const result = await api.delete('p-throwaway')
+
+    expect(result).toMatchObject({ id: 'p-throwaway', name: 'Throwaway', undoable: false })
+    expect(result.message).toContain('cannot be undone')
+    expect(await readFileText(root, 'projects', 'p-throwaway', 'project.json')).toBeNull()
+    expect((await api.list()).map((project) => project.id)).toEqual(['p-keep'])
+    expect(api.current()?.id).toBe('p-keep')
+    // Not left in the trash either: nothing is left to restore.
+    expect(await readFileText(root, 'projects', 'p-throwaway', '.freecut-trashed.json')).toBeNull()
+  })
+
+  it('keeps the media another project still uses', async () => {
+    await openStoredProject('p-keep')
+    await createStoredProject(makeProject('p-throwaway'))
+    await createStoredMedia(makeMediaItem('m-shared', 'tower.jpg'))
+    await associateMediaWithProject('p-throwaway', 'm-shared')
+    await associateMediaWithProject('p-keep', 'm-shared')
+
+    await api.delete('p-throwaway')
+
+    await api.open('p-keep')
+    expect(useMediaLibraryStore.getState().mediaItems.map((item) => item.id)).toEqual(['m-shared'])
+  })
+
+  it('rejects CONFLICT for the open project and deletes nothing', async () => {
+    await openStoredProject('p-open')
+
+    const error = await rejection(api.delete('p-open'))
+
+    expect(error.code).toBe('CONFLICT')
+    expect(error.argument).toBe('id')
+    expect(error.entity).toEqual({ kind: 'project', id: 'p-open' })
+    expect(await readFileText(root, 'projects', 'p-open', 'project.json')).not.toBeNull()
+    expect(api.current()?.id).toBe('p-open')
+  })
+
+  it('rejects NOT_FOUND for an id no project has', async () => {
+    const error = await rejection(api.delete('nope'))
+
+    expect(error.code).toBe('NOT_FOUND')
+    expect(error.entity).toEqual({ kind: 'project', id: 'nope' })
+  })
+
+  it('rejects INTERNAL when the workspace cannot be read', async () => {
+    setWorkspaceRoot(null)
+
+    const error = await rejection(api.delete('p1'))
+
+    expect(error.code).toBe('INTERNAL')
+    expect(error.message).toContain('project.delete: the project could not be read')
+  })
+})
+
 // ---------------------------------------------------------------------------
 // The @example of every method, run as written. The other namespaces belong to
 // the slices beside this one; the examples only reach `studio.project`.
@@ -803,5 +864,9 @@ describe('the @example of every method', () => {
 
     await studio.project.open('p-8f21')
     expect(studio.project.current()?.id).toBe('p-8f21')
+
+    await studio.project.open(created.id)
+    await studio.project.delete('p-8f21')
+    expect((await studio.project.list()).map((project) => project.id)).toEqual([created.id])
   })
 })

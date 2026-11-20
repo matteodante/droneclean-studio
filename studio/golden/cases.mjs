@@ -22,6 +22,7 @@ import {
   checkFourTimes180,
   checkFourTimes360,
 } from './lib/blur.mjs'
+import { checkFlowHalfway, FLOW_HEIGHT, FLOW_SOURCE_FRAMES, FLOW_WIDTH } from './lib/flow.mjs'
 import { LOOK_ID, lookOf, linearLookText } from './lib/look.mjs'
 import { STAGE_WARP_CASE, STAGE_WARP_FLOAT_CASE } from './lib/stage-warp.mjs'
 
@@ -187,6 +188,13 @@ graded(
 graded('color-saturation', 'colour', `saturation 1.6 (${GRADE_NOTE}).`, [
   effect('gpu-saturation', { amount: 1.6 }),
 ])
+graded(
+  'color-sky',
+  'colour',
+  'the sky tool on an overcast frame: the white sky takes the steel-blue gradient (horizon 0.58, protection 0.85), the hills and the orange kite stay as they were.',
+  [effect('gpu-sky', { horizon: 0.58 })],
+  'overcast',
+)
 graded('color-vibrance', 'colour', `vibrance +0.6 (${GRADE_NOTE}).`, [
   effect('gpu-vibrance', { amount: 0.6 }),
 ])
@@ -664,6 +672,35 @@ addBlur({
   frames: [5],
   sameAsCase: 'blur-1x-off',
 })
+
+// --- Optical-flow slow motion (task 11.12) -------------------------------------------------------------------------
+// A raw 6-frame clip (`lib/flow.mjs`): a smooth grey texture moving 6 px right and 2 px down a frame, at 0.5x with smooth
+// slow motion in optical-flow mode. The motion blur switch is turned on for the case, as for the blur cases above.
+add({
+  id: 'flow-half-speed',
+  group: 'motion blur',
+  protects:
+    'optical-flow slow motion at 0.5x, output frames 1, 2 and 3: frames 1 and 3 lie halfway between two source frames and are interpolated on the GPU from the flow measured both ways between them, so each is the texture moved halfway (within 1.5 levels of 1023 on average, and under a tenth of the plain blend\'s error, which doubles every edge); frame 2 is source frame 1 exactly. A kernel that reads a frame or a flow wrong, a phase off, a flow of the wrong size or the blend shown instead changes the frames in between.',
+  items: [
+    videoItem({
+      id: 'clip',
+      video: 'raw-flow-pattern',
+      track: 0,
+      frames: 8,
+      sourceFrames: FLOW_SOURCE_FRAMES,
+      speed: 0.5,
+      motionBlur: { shutterDegrees: 360, smoothSlowMotion: 'optical-flow' },
+      width: FLOW_WIDTH,
+      height: FLOW_HEIGHT,
+    }),
+  ],
+  frames: [1, 2, 3],
+  float: true,
+  width: FLOW_WIDTH,
+  height: FLOW_HEIGHT,
+})
+Object.assign(cases.at(-1), { check: checkFlowHalfway })
+cases.at(-1).raw.features = ['motionBlur']
 
 // --- The creative look (design 3.6 section 3 row 5.2 look-hook, task 5.2) --------------------------------------
 // The raw grey ramp with a 65 point look on the clip (`lib/look.mjs`: a linear cross-channel map, so every pixel has an

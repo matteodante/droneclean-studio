@@ -9,11 +9,14 @@
 //               `StageError` (S3: a failure is a named state, never a silent raw frame);
 //   encode      records the warp, the frame's bytes going into the frame arena, so N warps in one encoder each keep
 //               their own (S8).
-// Everything is keyed by (media, settings fingerprint): `stabilizationEngineKey`.
+// Everything is keyed by (media, settings fingerprint): `stabilizationEngineKey`. A frame interpolated between two
+// source frames (optical-flow slow motion, task 11.12) comes with its fractional source position, and gets the engine's
+// correction at that moment (`StabilizationClient.getFrameData`), not a neighbour's.
 
 import { stabilizationEngineKey } from '@/studio/stabilization/engine-key'
 import { stabilizationSeat, type StabilizationSeat } from '@/studio/stabilization/seat'
 import { builtStabilizationStage, stabilizationStageFor } from '@/studio/stabilization/stage-cache'
+import { framingOf } from '@/studio/stabilization/reframe'
 import type { StabilizationFormats } from '@/studio/stabilization/stage'
 import type { VideoItem } from '@/types/timeline'
 import { derivedSizeKey, type DerivedSizeStore } from './derived-sizes'
@@ -37,6 +40,8 @@ function clipName(item: VideoItem): string {
 export function createStabilizeStage(deps: StabilizeStageDeps): SourceStage & {
   /** Closes the engine of a key no clip wants any more (the preparer calls it) */
   release(key: string): Promise<void>
+  /** Resolves when the key's engine and the assets its warp was built on are gone (the host closed or moved it) */
+  lost(key: string): Promise<void>
 } {
   const host = (): StabilizationSeat => (deps.host ?? stabilizationSeat)()
 
@@ -155,12 +160,15 @@ export function createStabilizeStage(deps: StabilizeStageDeps): SourceStage & {
       const stage = assets && builtStabilizationStage(env.device, assets, FLOAT_FORMATS)
       if (!stage) return fail('the warp was not prepared on this device')
       try {
-        stage.warp(encoder, input, output, frame, env.arena)
+        stage.warp(encoder, input, output, frame, env.arena, framingOf(item.stabilization))
       } catch (error) {
         return fail(error instanceof Error ? error.message : String(error), error)
       }
     },
 
     release: (key) => host().release(key),
+    // What `prepare` made is the engine's assets and the warp built on them; a key's new engine has none, so a key whose
+    // engine the host closed on its own (its last clip went, it moved to other settings) is prepared again.
+    lost: (key) => host().whenAssetsGone(key),
   }
 }

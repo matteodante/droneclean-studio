@@ -4,8 +4,10 @@
 // An export calls `prepareAll(items, device)` before frame 0 and gets the first failure as a `StageError`.
 //
 // A failed prepare is state, kept under its key and not tried again by every later change (that would be a retry storm):
-// new settings are a new key and prepare afresh, and `retry(item)` is the click on Retry. The preparer imports no store:
-// the timeline's items arrive through `watchItems`, and the device through `getDevice`, both wired in `session.ts`.
+// new settings are a new key and prepare afresh, and `retry(item)` is the click on Retry. A ready key stays ready only as
+// long as what its stage made (`lost`): a key whose engine its host closed on its own is not ready any more, and the next
+// frame or change that needs it prepares it again. The preparer imports no store: the timeline's items arrive through
+// `watchItems`, and the device through `getDevice`, both wired in `session.ts`.
 
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { derivedSizeKey, type DerivedSizeStore } from './derived-sizes'
@@ -71,6 +73,8 @@ function asStageError(error: unknown, stage: StageId, item: VideoItem): StageErr
 export function createPreparer(options: PreparerOptions): Preparer {
   const { registry, sizes } = options
   const prepared = new Map<string, Prepared>()
+  /** Keys forgotten when their stage lost what it made: their sizes stay while a clip may be on them */
+  const orphanSizes = new Set<string>()
   const listeners = new Set<PrepareListener>()
   let latest: readonly TimelineItem[] = []
   let syncId = 0
@@ -127,10 +131,11 @@ export function createPreparer(options: PreparerOptions): Preparer {
     // `prepare` runs its synchronous part now (a stage that knows its size sets it before it awaits)
     entry.promise = stage.prepare(item, device).then(
       () => {
-        if (prepared.get(derived) === entry) {
-          entry.state = { status: 'ready' }
-          notify(derived)
-        }
+        if (prepared.get(derived) !== entry) return
+        entry.state = { status: 'ready' }
+        notify(derived)
+        const lost = stage.lost?.(key)
+        if (lost) void lost.then(() => forget(derived, entry), () => forget(derived, entry))
       },
       (error: unknown) => {
         if (prepared.get(derived) === entry) {
@@ -140,8 +145,21 @@ export function createPreparer(options: PreparerOptions): Preparer {
       },
     )
     prepared.set(derived, entry)
+    orphanSizes.delete(derived)
     notify(derived)
     return entry
+  }
+
+  /**
+   * A ready key whose stage lost what it made: no longer prepared, so the pipeline's next frame of a clip on it (`ensure`,
+   * `prepareAll`) or the next change prepares it again. The size stays meanwhile: it is the key's, and a clip still on
+   * the key keeps its layout while its engine reopens.
+   */
+  function forget(derived: string, entry: Prepared): void {
+    if (prepared.get(derived) !== entry) return
+    prepared.delete(derived)
+    orphanSizes.add(derived)
+    notify(derived)
   }
 
   function release(derived: string, entry: Prepared): void {
@@ -169,6 +187,16 @@ export function createPreparer(options: PreparerOptions): Preparer {
     // Releases come after the starts: an engine that moves to new settings is found by the new key first
     for (const [derived, entry] of [...prepared]) {
       if (!wants.has(derived)) release(derived, entry)
+    }
+    dropOrphanSizes(wants)
+  }
+
+  /** Forgets the kept sizes of lost keys that no clip wants any more */
+  function dropOrphanSizes(wants: ReadonlyMap<string, unknown>): void {
+    for (const derived of [...orphanSizes]) {
+      if (wants.has(derived)) continue
+      orphanSizes.delete(derived)
+      sizes.delete(derived)
     }
   }
 

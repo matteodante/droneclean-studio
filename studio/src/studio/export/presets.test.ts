@@ -129,26 +129,26 @@ describe('Instagram Reel', () => {
   const vertical = (width: number, height: number, fps: number) =>
     context({ project: { width, height, fps }, source: undefined })
 
-  it('is 1440x2560 H.264 at 25 Mbps for a 2K vertical project at 59.94 fps', () => {
+  it("is Meta's Reel frame for a 2K vertical project at 59.94 fps: 1080x1920 H.264 at 20 Mbps, under the 25 cap", () => {
     const { resolved, client } = exported('instagram-reel', vertical(1440, 2560, 59.94))
-    expect(client.resolution).toEqual({ width: 1440, height: 2560 })
+    expect(client.resolution).toEqual({ width: 1080, height: 1920 })
     expect(client.codec).toBe('avc')
     expect(client.container).toBe('mp4')
-    expect(resolved.numbers).toMatchObject({ fps: 59.94, bitrate: 25_000_000, bitDepth: 8 })
+    expect(resolved.numbers).toMatchObject({ fps: 59.94, bitrate: 20_000_000, bitDepth: 8 })
   })
 
-  it('is 1080x1920 at 15 Mbps (60 fps) or 10 Mbps (30 fps) for a 1080 project, never scaled up', () => {
+  it('is 1080x1920 at 20 Mbps (60 fps) or 12 Mbps (30 fps) for a 1080 project', () => {
     expect(exported('instagram-reel', vertical(1080, 1920, 60)).resolved.numbers).toMatchObject({
       width: 1080,
       height: 1920,
-      bitrate: 15_000_000,
+      bitrate: 20_000_000,
     })
-    expect(exported('instagram-reel', vertical(1080, 1920, 30)).resolved.numbers.bitrate).toBe(10_000_000)
+    expect(exported('instagram-reel', vertical(1080, 1920, 30)).resolved.numbers.bitrate).toBe(12_000_000)
   })
 
-  it('scales a 4K vertical project down to 1440x2560 and turns the box for a landscape one', () => {
-    expect(exported('instagram-reel', vertical(2160, 3840, 30)).client.resolution).toEqual({ width: 1440, height: 2560 })
-    expect(exported('instagram-reel', context()).client.resolution).toEqual({ width: 2560, height: 1440 })
+  it('scales a 4K vertical project to 1080x1920 and turns the frame for a landscape one', () => {
+    expect(exported('instagram-reel', vertical(2160, 3840, 30)).client.resolution).toEqual({ width: 1080, height: 1920 })
+    expect(exported('instagram-reel', context()).client.resolution).toEqual({ width: 1920, height: 1080 })
   })
 })
 
@@ -257,5 +257,18 @@ describe('Custom detection', () => {
     ).toBeNull()
     expect(findActivePilotPresetId('mp4', { ...base, codec: 'h264' }, ctx)).toBeNull()
     expect(findActivePilotPresetId('mp4', { ...base, rateControl: 'auto' }, ctx)).toBeNull()
+  })
+})
+
+describe('audio bitrate of the presets', () => {
+  it('the Instagram Reel states AAC at 128 kbps (Meta) and every other preset states none', () => {
+    for (const { id } of getPilotPresets(context())) {
+      const { resolved, client } = exported(id, context())
+      expect(resolved.settings.audioBitrate).toBe(id === 'instagram-reel' ? '128k' : undefined)
+      // ...and the renderer reads it: 128 kbps for the Reel, the usual 192 kbps otherwise.
+      expect(client.audioBitrate).toBe(id === 'instagram-reel' ? 128_000 : 192_000)
+      // The key is present either way, so the dialog's merge clears an earlier preset's 128k.
+      expect(Object.keys(resolved.settings)).toContain('audioBitrate')
+    }
   })
 })

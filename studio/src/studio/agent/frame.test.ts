@@ -83,14 +83,29 @@ describe('renderFramePlan: one frame', () => {
     const { environment, faked } = fakeEnvironment()
     const answer = await renderFramePlan({ ...SINGLE, frame: 42, full: true }, environment)
     expect(faked.renders).toEqual([{ frames: [42], width: 1920, height: 1080 }])
-    expect(faked.writes).toEqual([{ projectId: 'p1', fileName: 'frame-42.png', bytes: 4 }])
+    expect(faked.writes).toEqual([
+      { projectId: 'p1', fileName: expect.stringMatching(/^frame-42-[0-9a-z]+-\d+\.png$/), bytes: 4 },
+    ])
     if (!('result' in answer)) throw new Error('expected a result')
     expect(answer.result).toEqual({
-      path: 'projects/p1/frames/frame-42.png',
+      path: `projects/p1/frames/${faked.writes[0]?.fileName}`,
       bytes: 4,
       width: 1920,
       height: 1080,
     })
+  })
+
+  it('full keeps every render: the same frame twice writes two files', async () => {
+    const { environment, faked } = fakeEnvironment()
+    const plan = { ...SINGLE, frame: 42, full: true }
+    const first = await renderFramePlan(plan, environment)
+    const second = await renderFramePlan(plan, environment)
+    if (!('result' in first) || !('result' in second)) throw new Error('expected results')
+    expect(faked.writes).toHaveLength(2)
+    expect(faked.writes[0]?.fileName).not.toBe(faked.writes[1]?.fileName)
+    expect('path' in first.result && 'path' in second.result && first.result.path).not.toBe(
+      'path' in second.result ? second.result.path : undefined,
+    )
   })
 
   it('accepts the last frame and refuses one past it, naming frame', async () => {

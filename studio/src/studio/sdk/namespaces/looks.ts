@@ -5,6 +5,7 @@
 
 import { useLooksStore, type LooksFailure } from '@/studio/looks/store'
 import type { LookEntry } from '@/studio/looks/types'
+import { clipIdsUsingLook } from '@/studio/looks/usage'
 import { studioError } from '../errors'
 import type { LookAddInput, LookInfo, LooksApi } from '../types'
 
@@ -61,6 +62,45 @@ function addFailure(failure: LooksFailure | null) {
   return invalid('text', failureMessage(failure))
 }
 
+/** The library with the stored list read, or the error of a library the workspace cannot give. */
+async function readLibrary(method: string): Promise<readonly LookEntry[]> {
+  await useLooksStore.getState().load()
+  const { status, looks } = useLooksStore.getState()
+  if (status !== 'ready') {
+    throw studioError({
+      code: 'INTERNAL',
+      method,
+      message: 'the looks library could not be read from the workspace',
+      hint: 'Open a workspace folder in the app; the library lives in it.',
+    })
+  }
+  return looks
+}
+
+/** The look an id names. @throws NOT_FOUND when the library has no such look. */
+function requireLook(looks: readonly LookEntry[], id: unknown, method: string): LookEntry {
+  const found = typeof id === 'string' ? looks.find((look) => look.id === id) : undefined
+  if (found !== undefined) return found
+  throw studioError({
+    code: 'NOT_FOUND',
+    method,
+    argument: 'id',
+    message: `no look of the library has the id ${JSON.stringify(id)}`,
+    valid: looks.map((look) => look.id),
+    hint: 'The ids come from studio.looks.list().',
+  })
+}
+
+/** The error of a change the library accepted but the workspace did not store. */
+function storeFailure(method: string) {
+  return studioError({
+    code: 'INTERNAL',
+    method,
+    message: 'the looks library could not be written in the workspace',
+    hint: 'Open a workspace folder in the app; the library lives in it.',
+  })
+}
+
 /**
  * Create the `studio.looks` namespace over the looks store.
  * @example const looks = createLooksApi()
@@ -88,6 +128,39 @@ export function createLooksApi(): LooksApi {
       if (name !== undefined && name !== entry.name) await useLooksStore.getState().rename(entry.id, name)
       const stored = useLooksStore.getState().looks.find((look) => look.id === entry.id) ?? entry
       return info(stored)
+    },
+
+    async rename(id: string, name: string): Promise<LookInfo> {
+      const method = 'looks.rename'
+      const look = requireLook(await readLibrary(method), id, method)
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        throw studioError({
+          code: 'INVALID_ARGUMENT',
+          method,
+          argument: 'name',
+          message: '"name" must be a non-empty string',
+        })
+      }
+      if (!(await useLooksStore.getState().rename(look.id, name))) throw storeFailure(method)
+      const stored = useLooksStore.getState().looks.find((entry) => entry.id === look.id)
+      return info(stored ?? { ...look, name: name.trim() })
+    },
+
+    async remove(id: string): Promise<LookInfo> {
+      const method = 'looks.remove'
+      const look = requireLook(await readLibrary(method), id, method)
+      const using = clipIdsUsingLook(look.id)
+      if (using.length > 0) {
+        throw studioError({
+          code: 'CONFLICT',
+          method,
+          argument: 'id',
+          message: `the look "${look.name}" is still used by ${using.length} clip${using.length === 1 ? '' : 's'}: ${using.join(', ')}`,
+          hint: 'Clear it first with studio.clips.setLook(clipId, null) on each of those clips.',
+        })
+      }
+      if (!(await useLooksStore.getState().remove(look.id))) throw storeFailure(method)
+      return info(look)
     },
   }
 }

@@ -122,7 +122,8 @@ export const TOOLS_LIST_RESULT = {
         description:
           "Render one timeline frame, or a contact sheet of up to 12 sampled frames, from the editor's own renderer. " +
           'Returns the PNG as base64 with its size (default 1280 px long edge), or with full: true writes ' +
-          'projects/{id}/frames/frame-N.png into the workspace and returns its path and size.',
+          'projects/{id}/frames/frame-N-<time>-<counter>.png into the workspace (a new file each render, so a before and ' +
+          'an after both stay) and returns its path and size.',
         inputSchema: { type: 'object', properties: { frame: { type: 'integer' }, contactSheet: { type: 'object' }, width: { type: 'integer' }, full: { type: 'boolean' } } },
       },
       {

@@ -31,6 +31,7 @@
 // and the size to the texture instead would zoom the output plane and pick the wrong row's matrix.
 
 import { assembleKernel, type KernelAssets } from './kernel'
+import { applyFraming, type Framing } from './reframe'
 
 /** The bytes of Gyroflow's `KernelParams`, the kernel's uniform (design 6.3 §4.1) */
 const KERNEL_PARAMS_BYTES = 416
@@ -119,6 +120,7 @@ export interface StabilizationStage {
     output: GPUTexture,
     frame: StabilizationFrame,
     uploads?: StageUploads,
+    framing?: Framing,
   ): void
 }
 
@@ -180,11 +182,13 @@ export interface PreparedFrame {
  * wants (transform 7), and the checks that would otherwise become a draw of garbage: the struct's size and the matrix
  * count against the matrices' length. With `source`, the size of the texture the frame is read from: when it is not
  * the frame's own size the texture is read through the source rect (`readThroughSourceRect`); at the frame's own size,
- * or without `source`, nothing else changes.
+ * or without `source`, nothing else changes. With `framing` the window is moved inside the source picture
+ * (`reframe.ts`); without it, or at 0 and 0, the bytes are what they were.
  */
 export function prepareFrame(
   frame: StabilizationFrame,
   source?: { width: number; height: number },
+  framing?: Framing,
 ): PreparedFrame {
   const { matrices, params, mesh } = frame
   if (params.byteLength !== KERNEL_PARAMS_BYTES) {
@@ -208,6 +212,7 @@ export function prepareFrame(
   }
   view.setFloat32(MAX_PIXEL_VALUE, 1, true)
   view.setFloat32(PIXEL_VALUE_LIMIT, 1, true)
+  applyFraming(uniform, matrices, framing)
   const inputSize: [number, number] = [view.getInt32(WIDTH, true), view.getInt32(HEIGHT, true)]
   if (source && (source.width !== inputSize[0] || source.height !== inputSize[1])) {
     readThroughSourceRect(view, inputSize, source)
@@ -381,8 +386,8 @@ export async function createStabilizationStage(
   }
 
   return {
-    warp(encoder, input, output, frame, uploads = ownUploads()) {
-      const prepared = prepareFrame(frame, input)
+    warp(encoder, input, output, frame, uploads = ownUploads(), framing) {
+      const prepared = prepareFrame(frame, input, framing)
       if (output.width !== prepared.outputSize[0] || output.height !== prepared.outputSize[1]) {
         throw new Error(
           `the output is ${output.width}x${output.height}, but the frame's kernel parameters are for a stabilized ` +

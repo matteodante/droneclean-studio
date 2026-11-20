@@ -50,7 +50,8 @@ export function parseSdkMethods(source) {
   while ((match = interfacePattern.exec(source))) {
     const namespace = match[1][0].toLowerCase() + match[1].slice(1)
     const body = match[2]
-    const methodPattern = /^ {2}([A-Za-z_$][\w$]*)\(/gm
+    // `(` for a method, `<` for a generic one such as `clips.add<T extends ClipAddInput>(...)`.
+    const methodPattern = /^ {2}([A-Za-z_$][\w$]*)[(<]/gm
     let method
     while ((method = methodPattern.exec(body))) {
       methods.add(`studio.${namespace}.${method[1]}`)

@@ -412,6 +412,70 @@ describe('frames', () => {
   })
 })
 
+describe('the assets a warp was prepared on', () => {
+  /** Whether the promise has resolved, after the microtasks queued so far */
+  async function resolved(promise: Promise<void>): Promise<boolean> {
+    let done = false
+    void promise.then(() => (done = true))
+    for (let turn = 0; turn < 5; turn += 1) await Promise.resolve()
+    return done
+  }
+
+  it('are gone at once for a key with no engine, or an engine whose assets were not read', async () => {
+    const seat = host(fakeClient().client)
+    const key = stabilizationEngineKey(clip())!
+    expect(await resolved(seat.whenAssetsGone(key))).toBe(true)
+    await seat.open(clip())
+    expect(await resolved(seat.whenAssetsGone(key))).toBe(true)
+    await seat.stageAssets(key)
+    expect(await resolved(seat.whenAssetsGone(key))).toBe(false)
+  })
+
+  it('go when the timeline lets the engine go, not before', async () => {
+    const seat = host(fakeClient().client)
+    const key = stabilizationEngineKey(clip())!
+    await seat.open(clip())
+    await seat.stageAssets(key)
+    const gone = seat.whenAssetsGone(key)
+    seat.sync([clip()])
+    expect(await resolved(gone)).toBe(false)
+    seat.sync([])
+    expect(await resolved(gone)).toBe(true)
+  })
+
+  it('go when the engine moves to other settings; the new key has none until they are read', async () => {
+    const seat = host(fakeClient().client)
+    const key = stabilizationEngineKey(clip())!
+    await seat.open(clip())
+    await seat.stageAssets(key)
+    const gone = seat.whenAssetsGone(key)
+    const moved = withFov(clip(), 1.3)
+    await seat.open(moved)
+    expect(await resolved(gone)).toBe(true)
+    const newKey = stabilizationEngineKey(moved)!
+    expect(await resolved(seat.whenAssetsGone(newKey))).toBe(true)
+    await seat.stageAssets(newKey)
+    expect(await resolved(seat.whenAssetsGone(newKey))).toBe(false)
+  })
+
+  it('go when the key is released or the host destroyed', async () => {
+    const seat = host(fakeClient().client)
+    const first = clip()
+    const second = clip({ id: 'clip-2', mediaId: 'media-2' })
+    await seat.open(first)
+    await seat.open(second)
+    await seat.stageAssets(stabilizationEngineKey(first)!)
+    await seat.stageAssets(stabilizationEngineKey(second)!)
+    const released = seat.whenAssetsGone(stabilizationEngineKey(first)!)
+    const destroyed = seat.whenAssetsGone(stabilizationEngineKey(second)!)
+    await seat.release(stabilizationEngineKey(first)!)
+    expect(await resolved(released)).toBe(true)
+    expect(await resolved(destroyed)).toBe(false)
+    seat.destroy()
+    expect(await resolved(destroyed)).toBe(true)
+  })
+})
+
 describe('an engine no clip uses', () => {
   it('is closed when its clip is deleted from the timeline', async () => {
     const { client, close } = fakeClient()
@@ -439,6 +503,31 @@ describe('an engine no clip uses', () => {
     expect(close).not.toHaveBeenCalled()
     seat.sync([])
     await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1))
+  })
+
+  it('stays open for a clip of the same key the timeline brings when the clip that opened it goes', async () => {
+    const { client, close, open } = fakeClient()
+    const seat = host(client)
+    await seat.open(clip({ id: 'a' }))
+    seat.sync([clip({ id: 'b' })])
+    await Promise.resolve()
+    expect(close).not.toHaveBeenCalled()
+    expect(seat.engineState(stabilizationEngineKey(clip())!).status).toBe('ready')
+    expect((await seat.open(clip({ id: 'b' }))).kind).toBe('ready')
+    expect(open).toHaveBeenCalledTimes(1)
+    seat.sync([])
+    await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1))
+  })
+
+  it('is not moved to one clip’s new settings while another clip of its key is on the timeline (a split clip)', async () => {
+    const { client, open, setSettings } = fakeClient()
+    const seat = host(client)
+    await seat.open(clip({ id: 'a' }))
+    seat.sync([clip({ id: 'a' }), clip({ id: 'b' })])
+    expect((await seat.open(withFov(clip({ id: 'a' }), 1.3))).kind).toBe('ready')
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(setSettings).not.toHaveBeenCalled()
+    expect(seat.engineState(stabilizationEngineKey(clip())!).status).toBe('ready')
   })
 
   it('is left alone while it is still opening (a probe before the clip is switched on)', async () => {

@@ -32,7 +32,7 @@ import { getPacketRemuxPlan } from '@/runtime/renderer/packet-remux-plan'
 import { sourceFrameAt, sourceFramesAt, type SpeedCurve } from '@/studio/speed'
 import { timelineFramesForSource, toRate } from '@/studio/time'
 import { setFeatureOverride } from '@/studio/feature-switches'
-import { planMotionBlur, type ShutterDegrees } from '@/studio/motion-blur'
+import { planMotionBlur, type MotionBlurSettings } from '@/studio/motion-blur'
 import type { StabilizationSettings } from '@/studio/stabilization/settings'
 import { setStabilizationProjectFrame, stabilizationEngineKey } from '@/studio/stabilization/engine-key'
 import {
@@ -97,10 +97,10 @@ interface PrepareInput {
    */
   wholeSpans?: boolean
   /**
-   * Motion blur on the clip (design 7.2): the field is set and the hidden `motionBlur` switch is turned on for this
-   * page, as the golden kit does. Off by default.
+   * Motion blur on the clip (design 7.2), with its smooth slow motion when given (task 11.12): the field is set and the
+   * hidden `motionBlur` switch is turned on for this page, as the golden kit does. Off by default.
    */
-  motionBlur?: { shutterDegrees: ShutterDegrees }
+  motionBlur?: MotionBlurSettings
   /**
    * Stabilization on the clip, a later slice's proof of a stabilized export: these fields over the engine's defaults
    * (method Default, smoothness 0.5, fov 1, no horizon lock, 4 s adaptive zoom), with `enabled` true. Off by default.

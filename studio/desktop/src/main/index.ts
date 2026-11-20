@@ -20,7 +20,7 @@
  * `DRONECLEAN_DEV_URL` and `DRONECLEAN_FFMPEG` are read only by an unpackaged
  * run (`launch-env.ts`).
  */
-import { app, BrowserWindow, protocol, safeStorage, session, shell, type Session } from 'electron'
+import { app, BrowserWindow, protocol, safeStorage, session, shell, systemPreferences, type Session } from 'electron'
 import path from 'node:path'
 import { installAgentAccess } from './mcp'
 import { installAgentAccessIpc } from './mcp/ipc'
@@ -33,6 +33,7 @@ import { resolveLaunchEnvironment } from './launch-env'
 import { APP_HOST, APP_SCHEME, APP_URL } from './protocol'
 import { registerAppProtocol } from './protocol-handler'
 import { isAppUrl, trustDevUrl } from './sender'
+import { installMicrophoneIpc } from './microphone'
 import { ShadowSession, installShadowSessionIpc } from './shadow-session'
 import { installWorkspaceOwnerLock, observeWorkspaceAccess } from './workspace-lock'
 
@@ -256,6 +257,7 @@ if (!app.requestSingleInstanceLock()) {
     installShadowSessionIpc(
       new ShadowSession({ dir: app.getPath('userData'), storage: safeStorage }),
     )
+    installMicrophoneIpc(systemPreferences)
     installPermissionPolicy(session.defaultSession)
     installAgentAccessPreload(session.defaultSession)
     installWorkspaceOwnerLock(session.defaultSession)
@@ -266,7 +268,9 @@ if (!app.requestSingleInstanceLock()) {
     // handler (finding D9). A tool called before the page exists already answers
     // "the editor is still starting".
     try {
-      installAgentAccessIpc(await installAgentAccess(() => mainWindow, showMainWindow))
+      installAgentAccessIpc(
+        await installAgentAccess(() => mainWindow, showMainWindow, { startedForAgent: STARTED_FOR_MCP }),
+      )
     } catch (error) {
       // The editor works without agent access; the window must still open.
       console.error('[desktop] agent access did not start:', error)

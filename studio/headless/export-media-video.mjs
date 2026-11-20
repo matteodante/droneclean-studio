@@ -23,6 +23,7 @@ import { promisify } from 'node:util'
 import { chromium } from 'playwright'
 import { createHarnessServer } from './server.mjs'
 import { chromeLaunchArgs } from './lib/cli.mjs'
+import { describeMp4 } from './lib/mp4-boxes.mjs'
 
 const execFileAsync = promisify(execFile)
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -81,7 +82,14 @@ async function generateClip(filePath) {
   )
 }
 
-function renderInput(videoUrl, audioUrl) {
+/** What differs between the WebM contract export and the MP4 (Reel container) one. */
+const VARIANTS = {
+  webm: { codec: 'vp9', audioCodec: 'opus', container: 'webm', toneVolume: 0 },
+  mp4: { codec: 'avc', audioCodec: 'aac', container: 'mp4', toneVolume: 1 },
+}
+
+function renderInput(videoUrl, audioUrl, variant = 'webm') {
+  const { codec, audioCodec, container, toneVolume } = VARIANTS[variant]
   return {
     tracks: [
       {
@@ -137,7 +145,7 @@ function renderInput(videoUrl, audioUrl) {
         label: 'Generated tone',
         mediaId: AUDIO_MEDIA_ID,
         src: '',
-        volume: 0,
+        volume: toneVolume,
         sourceStart: 0,
         sourceEnd: DURATION_FRAMES,
         sourceDuration: DURATION_FRAMES,
@@ -181,16 +189,16 @@ function renderInput(videoUrl, audioUrl) {
     ],
     settings: {
       mode: 'video',
-      codec: 'vp9',
-      audioCodec: 'opus',
-      container: 'webm',
+      codec,
+      audioCodec,
+      container,
       quality: 'medium',
       resolution: { width: WIDTH, height: HEIGHT },
       fps: FPS,
       videoBitrate: 2_000_000,
       audioBitrate: 128_000,
     },
-    outputFileName: 'export-contract.webm',
+    outputFileName: `export-contract.${container}`,
   }
 }
 
@@ -356,6 +364,33 @@ async function main() {
       'exported audio is silent',
     )
 
+    // Meta's Reel container rules, walked box by box in an MP4 export (task 11.19): the moov atom ahead of
+    // the media, no edit list on any track, AAC at about 128 kbps, and the first sound at time 0.
+    const reelPath = path.join(tempDir, 'export-contract.mp4')
+    const reelDownload = page.waitForEvent('download', { timeout: 180_000 })
+    reelDownload.catch(() => {})
+    const reelSummary = await page.evaluate(
+      (input) => window.freecut.renderTimeline(input),
+      renderInput(server.mediaUrl(VIDEO_MEDIA_ID), server.mediaUrl(AUDIO_MEDIA_ID), 'mp4'),
+    )
+    assert.equal(reelSummary.ok, true, `MP4 render failed: ${JSON.stringify(reelSummary.warnings)}`)
+    await (await reelDownload).saveAs(reelPath)
+    const reel = describeMp4(fs.readFileSync(reelPath))
+    assert.equal(reel.moovBeforeMdat, true, `moov is not before mdat: ${reel.topLevel.join(' ')}`)
+    assert.equal(reel.editListBoxes, 0, 'the MP4 has an edit list (edts/elst)')
+    assert.ok(reel.audio, 'the MP4 has no audio track')
+    assert.equal(reel.audio.firstSampleTime, 0, `first audio sample at ${reel.audio.firstSampleTime} s`)
+    // The encoder's rate is variable: on this test's pure tone it spends about 35 kbps whatever the target, so only
+    // the ceiling Meta cares about is checked here. That the preset's 128 kbps reaches the encoder is a unit test
+    // (client-renderer.test.ts, export.test.ts); the rate on real music was measured on the Sunday reel's song.
+    assert.ok(
+      reel.audio.bitrate > 0 && reel.audio.bitrate <= 150_000,
+      `AAC bitrate ${Math.round(reel.audio.bitrate)} bit/s is above Meta's 128 kbps`,
+    )
+
+    process.stdout.write(
+      `Reel container passed (moov first, no edit list, AAC ${Math.round(reel.audio.bitrate / 1000)} kbps)\n`,
+    )
     process.stdout.write(
       `Export contract passed (${size} bytes, ${videos.length}v/${audios.length}a, ` +
         `${video.width}x${video.height}@${video.avg_frame_rate}, ${durationSeconds.toFixed(2)}s)\n`,

@@ -157,14 +157,19 @@ describe('motion blur and the playback rates', () => {
   })
 })
 
-describe('the slow-motion blend', () => {
+describe('smooth slow motion (blend, or optical flow: task 11.12)', () => {
   const blended = (extra: Record<string, unknown> = {}) =>
-    clip({ motionBlur: { shutterDegrees: 180, blendSlowMotion: true }, ...extra })
+    clip({ motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'blend' }, ...extra })
+  const flowed = (extra: Record<string, unknown> = {}) =>
+    clip({ motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' }, ...extra })
   const equal = { source: toRate(60), project: toRate(60) }
 
-  it('a clip below 1x blends two frames, so it is drawn through the stages from exact frames', () => {
-    expect(hasMotionBlurSpan(blended({ speed: 0.5 }), equal)).toBe(true)
-    expect(needsSourceStages(blended({ speed: 0.5 }), equal)).toBe(true)
+  it('a clip below 1x is made from two frames, so it is drawn through the stages from exact frames', () => {
+    for (const smooth of [blended, flowed]) {
+      expect(hasMotionBlurSpan(smooth({ speed: 0.5 }), equal)).toBe(true)
+      expect(needsSourceStages(smooth({ speed: 0.5 }), equal)).toBe(true)
+      expect(needsExactSourceFrame(smooth({ speed: 0.5 }), equal)).toBe(true)
+    }
   })
 
   it('a 30 fps file in a 60 fps project blends at 1x, a 60 fps one does not', () => {

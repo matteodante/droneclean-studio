@@ -23,6 +23,7 @@
     "check:unused-exports": "node scripts/check-fallow-unused-exports.mjs",
     "check:unused-class-members": "node scripts/check-fallow-unused-class-members.mjs",
     "check:changed-health": "node scripts/check-fallow-changed-health.mjs",
+    "check:live-web": "node checks/live-studio-web.mjs",
     "check:feature-map": "node docs/feature-map/check.mjs && node --test docs/feature-map/check.test.mjs",
     "check:secrets": "node checks/secrets.mjs",
     "check:no-cdn": "node checks/no-cdn.mjs",

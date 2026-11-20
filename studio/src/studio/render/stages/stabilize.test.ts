@@ -55,6 +55,7 @@ interface FakeHost {
   open: ReturnType<typeof vi.fn>
   requestFrame: ReturnType<typeof vi.fn>
   size: { width: number; height: number } | null
+  gone: Promise<void>
 }
 
 function fakeHost(overrides: Partial<FakeHost> = {}): { host: StabilizationSeat; fake: FakeHost } {
@@ -65,6 +66,7 @@ function fakeHost(overrides: Partial<FakeHost> = {}): { host: StabilizationSeat;
     open: vi.fn(async () => ({ kind: 'ready', info: INFO, lens: { name: 'l', model: null } })),
     requestFrame: vi.fn(async () => undefined),
     size: { width: 3840, height: 2160 },
+    gone: new Promise(() => undefined),
     ...overrides,
   }
   const host = {
@@ -81,6 +83,7 @@ function fakeHost(overrides: Partial<FakeHost> = {}): { host: StabilizationSeat;
     },
     stageAssets: async () => ASSETS,
     loadedAssets: () => ASSETS,
+    whenAssetsGone: vi.fn(() => fake.gone),
     release: vi.fn(async () => undefined),
   } as unknown as StabilizationSeat
   return { host, fake }
@@ -242,7 +245,12 @@ describe('the stabilization stage', () => {
     const input = { format: 'rgba16float' } as GPUTexture
     const output = { format: 'rgba16float' } as GPUTexture
     stage.encode(env, encoder, item(), 9, input, output)
-    expect(warp).toHaveBeenCalledWith(encoder, input, output, frame, env.arena)
+    expect(warp).toHaveBeenCalledWith(encoder, input, output, frame, env.arena, undefined)
+    // The clip's own framing goes to the warp (a clip that never set one passed none, above)
+    const framed = item()
+    framed.stabilization = { ...framed.stabilization!, framingX: -0.5 }
+    stage.encode(env, encoder, framed, 9, input, output)
+    expect(warp).toHaveBeenLastCalledWith(encoder, input, output, frame, env.arena, { x: -0.5, y: 0 })
   })
 
   it('encode names the clip, stage and frame when the data or the warp is missing, or the warp throws', () => {
@@ -271,5 +279,12 @@ describe('the stabilization stage', () => {
     const { stage, host } = make()
     await stage.release('k')
     expect(host.release).toHaveBeenCalledWith('k')
+  })
+
+  it('counts what it prepared lost when the host’s engine and its assets for the key are gone', async () => {
+    const { stage, host, fake } = make({ gone: Promise.resolve() })
+    await expect(stage.lost('k')).resolves.toBeUndefined()
+    expect(host.whenAssetsGone).toHaveBeenCalledWith('k')
+    expect(stage.lost('k')).toBe(fake.gone)
   })
 })

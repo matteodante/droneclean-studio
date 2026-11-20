@@ -14,7 +14,9 @@ import { PropertyRow, PropertySection, SliderInput } from '@/shared/ui/property-
 import { NumberInput } from '@/shared/ui/property-controls/number-input'
 import { isFeatureShown } from '@/studio/feature-switches'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
+import type { StabilizationSettings } from '../settings'
 import {
+  FRAMING_SLIDER_RANGE,
   HORIZON_LOCK_PERCENT_RANGE,
   HORIZON_LOCK_ROLL_RANGE,
   smoothnessParameter,
@@ -119,6 +121,39 @@ function NumberControl({
   )
 }
 
+/** The two framing sliders: where the stabilized window sits in the source picture (`reframe.ts`) */
+function FramingSliders({
+  settings,
+  onChange,
+}: {
+  settings: StabilizationSettings
+  onChange: StabilizationControls['change']
+}) {
+  const { t } = useTranslation()
+  const sliders = [
+    { kind: 'framingX', testId: 'stabilization-framing-x', value: settings.framingX, label: t('editor.stabilization.framingX', { defaultValue: 'Framing, sideways' }) },
+    { kind: 'framingY', testId: 'stabilization-framing-y', value: settings.framingY, label: t('editor.stabilization.framingY', { defaultValue: 'Framing, up and down' }) },
+  ] as const
+  return (
+    <>
+      {sliders.map(({ kind, testId, value, label }) => (
+        <PropertyRow key={kind} label={label}>
+          <div className="flex-1 min-w-0" data-testid={testId}>
+            <SliderInput
+              value={value ?? 0}
+              min={FRAMING_SLIDER_RANGE.min}
+              max={FRAMING_SLIDER_RANGE.max}
+              step={0.01}
+              onLiveChange={NO_LIVE_CHANGE}
+              onChange={(next) => onChange({ kind, value: next })}
+            />
+          </div>
+        </PropertyRow>
+      ))}
+    </>
+  )
+}
+
 /** The controls of a clip that is switched on */
 function Controls({
   item,
@@ -181,6 +216,7 @@ function Controls({
           />
         </div>
       </PropertyRow>
+      <FramingSliders settings={settings} onChange={controls.change} />
       <NumberControl
         label={t('editor.stabilization.zoom')}
         testId="stabilization-fov"

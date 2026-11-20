@@ -194,16 +194,40 @@ describe('studio.export', () => {
   })
 
   describe('presets', () => {
-    it('resolves the Instagram Reel preset for a 2K vertical project at 59.94 fps', () => {
+    it("resolves the Instagram Reel preset for a 2K vertical project at 59.94 fps: Meta's 1080x1920 at 20 Mbps", () => {
       useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1440, height: 2560, fps: 59.94 } }) })
 
       const reel = api.presets().find((preset) => preset.id === 'instagram-reel')
 
       expect(reel).toMatchObject({
         label: 'Instagram Reel',
-        settings: { codec: 'h264', videoContainer: 'mp4', resolution: { width: 1440, height: 2560 }, videoBitrate: 25_000_000 },
-        numbers: { width: 1440, height: 2560, fps: 59.94, codec: 'h264', bitrate: 25_000_000 },
+        settings: { codec: 'h264', videoContainer: 'mp4', resolution: { width: 1080, height: 1920 }, videoBitrate: 20_000_000 },
+        numbers: { width: 1080, height: 1920, fps: 59.94, codec: 'h264', bitrate: 20_000_000 },
       })
+    })
+
+    it('shows the preset audio bitrate read-only, and only on the preset that states one', () => {
+      useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1080, height: 1920, fps: 30 } }) })
+
+      const presets = api.presets()
+
+      expect(presets.find((preset) => preset.id === 'instagram-reel')?.audioBitrate).toBe('128k')
+      expect(presets.filter((preset) => preset.id !== 'instagram-reel').every((p) => p.audioBitrate === undefined)).toBe(true)
+      expect(presets.find((preset) => preset.id === 'instagram-reel')?.settings).not.toHaveProperty('audioBitrate')
+    })
+
+    it('an export started with the Instagram Reel preset gets its 128 kbps AAC; any other gets the usual 192', async () => {
+      useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1920, height: 1080, fps: 30 } }) })
+      seedSmartCopyProject()
+      const reel = api.presets().find((preset) => preset.id === 'instagram-reel')!
+
+      // Smart copy stays on only so the test needs no WebCodecs probe; the preset is matched on codec, frame and bitrate.
+      await api.start({ settings: { ...reel.settings, smartCopy: true } })
+      await api.start({ settings: { quality: 'high' } })
+
+      const [reelJob, plainJob] = useRenderQueueStore.getState().jobs
+      expect(reelJob!.clientSettings.audioBitrate).toBe(128_000)
+      expect(plainJob!.clientSettings.audioBitrate).toBe(192_000)
     })
 
     it('offers settings export.setSettings accepts as they are', () => {
@@ -398,6 +422,43 @@ describe('studio.export', () => {
         outPoint: null,
         durationFrames: 60,
         exportMode: 'video',
+      })
+    })
+
+    it('names the file after the given name, with the container as its extension', async () => {
+      seedSmartCopyProject()
+      const info = await api.start({ name: 'Reel Domenica - finale' })
+
+      expect(info.name).toBe('Reel Domenica - finale')
+      expect(info.fileName).toBe('Reel Domenica - finale.mp4')
+    })
+
+    it('does not double an extension the name already carries', async () => {
+      seedSmartCopyProject()
+      const info = await api.start({ name: 'finale.mp4' })
+
+      expect(info.fileName).toBe('finale.mp4')
+    })
+
+    it('names the file after the project when the call gives no name', async () => {
+      seedSmartCopyProject()
+      const info = await api.start()
+
+      expect(info.fileName).toBe('Flight.mp4')
+    })
+
+    it('tells the name the file really got once it is saved (a taken name is numbered)', async () => {
+      seedSmartCopyProject()
+      const info = await api.start({ name: 'finale' })
+      useRenderQueueStore.getState().markCompleted(info.id, {
+        savedPath: 'projects/p/exports/finale (2).mp4',
+        fileName: 'finale (2).mp4',
+        fileSize: 5,
+      })
+
+      expect(api.status(info.id)).toMatchObject({
+        fileName: 'finale (2).mp4',
+        savedPath: 'projects/p/exports/finale (2).mp4',
       })
     })
 

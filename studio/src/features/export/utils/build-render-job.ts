@@ -88,6 +88,15 @@ function captureTimeline(sequence?: ExportableSequence): TimelineCapture {
   }
 }
 
+/** `Reel.mp4` named for an mp4 export is the stem `Reel`: the file is not `Reel.mp4.mp4`. */
+function stripExtension(stem: string, container: string): string {
+  const suffix = `.${container}`
+  const trimmed = stem.trim()
+  return trimmed.toLowerCase().endsWith(suffix) && trimmed.length > suffix.length
+    ? trimmed.slice(0, -suffix.length)
+    : trimmed
+}
+
 function rangeLabel(inPoint: number | null, outPoint: number | null, fps: number): string {
   if (inPoint == null || outPoint == null) return ''
   const startSec = Math.round(inPoint / fps)
@@ -102,6 +111,12 @@ export interface BuildRenderJobOptions {
   outPoint?: number | null
   /** Overrides the auto-generated display name. */
   name?: string
+  /**
+   * The file's name without its extension, when the caller names the file (the SDK's `export.start({ name })`):
+   * the file is then `<fileStem>.<container>`, and gets ` (2)` only if that file already exists. Absent: the
+   * project's name and the range, as the dialog has always named it.
+   */
+  fileStem?: string
   /** Reuse a single capture across many segment jobs (avoids re-cloning). */
   capture?: TimelineCapture
   /** Which sequence to export (Main or a standalone tab). Defaults to active. */
@@ -120,13 +135,14 @@ function assembleJob(
   inPoint: number | null,
   outPoint: number | null,
   name?: string,
+  fileStem?: string,
 ): RenderJob {
   const hasRange = inPoint != null && outPoint != null
   const durationFrames = hasRange ? outPoint - inPoint : capture.durationFrames
 
   const label = rangeLabel(inPoint, outPoint, capture.fps)
   const displayName = name ?? `${capture.projectName}${label}`
-  const fileName = `${capture.projectName}${label}.${clientSettings.container}`
+  const fileName = `${fileStem === undefined ? `${capture.projectName}${label}` : stripExtension(fileStem, clientSettings.container)}.${clientSettings.container}`
 
   return {
     id: crypto.randomUUID(),
@@ -151,6 +167,7 @@ export async function buildRenderJob({
   inPoint = null,
   outPoint = null,
   name,
+  fileStem,
   capture,
   sequence,
 }: BuildRenderJobOptions): Promise<RenderJob> {
@@ -173,7 +190,7 @@ export async function buildRenderJob({
   const { clientSettings, exportMode } = smartCopy.eligible
     ? requested
     : await resolveClientSettings(settings, cap.fps)
-  return assembleJob(cap, clientSettings, exportMode, inPoint, outPoint, name)
+  return assembleJob(cap, clientSettings, exportMode, inPoint, outPoint, name, fileStem)
 }
 
 /* ─────────────────────────── Segment generators ─────────────────────────── */

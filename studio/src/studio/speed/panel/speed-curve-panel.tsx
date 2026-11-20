@@ -26,23 +26,31 @@ import { useZoomStore } from '@/features/timeline/stores/zoom-store'
 import { useSettledTimelineGeometry } from '@/features/timeline/components/use-settled-timeline-scroll-left'
 import { useThrottledFrame } from '@/features/preview/hooks/use-throttled-frame'
 import { useSelectionStore } from '@/shared/state/selection'
+import { isFeatureShown } from '@/studio/feature-switches'
+import type { SmoothSlowMotion } from '@/studio/motion-blur'
 import {
   MAX_CURVE_SPEED,
   MIN_CURVE_SPEED,
+  SPEED_EASES,
   SPEED_PRESET_NAMES,
   speedPresetCurve,
   type SpeedCurve,
+  type SpeedEase,
   type SpeedPresetName,
 } from '@/studio/speed'
+import { canHoldSmoothEdit, smoothEditClip } from '@/studio/smooth-edit/action'
 import { canHoldSpeedCurve, setSpeedCurve } from '../actions'
 import {
   clampCurveSpeed,
   curveKeyRows,
   curveOnItem,
+  isBelowProjectRate,
   keySourceFrame,
   roundCurveSpeed,
+  slowestFrameRate,
   sourceFramesUsed,
   speedAtPlayhead,
+  withKeyEase,
   withKeyFrame,
   withKeySpeed,
 } from './curve-on-item'
@@ -98,6 +106,9 @@ const LABELS = {
   'editor.speedCurve.rampOut': 'Ramp out',
   'editor.speedCurve.rampInOut': 'Ramp in and out',
   'editor.speedCurve.flat': 'Flat',
+  'editor.speedCurve.smoothEdit': 'Smooth ramp + zoom',
+  'editor.speedCurve.smoothEditTitle':
+    'Fast, slow, fast with smooth slow motion and motion blur, and an eased zoom-in over the clip',
   'editor.speedCurve.peakSpeed': 'Peak speed',
   'editor.speedCurve.rampLength': 'Ramp length',
   'editor.speedCurve.close': 'Close',
@@ -111,14 +122,52 @@ const LABELS = {
   'editor.speedCurve.unsupportedComposition': 'A compound clip cannot have a speed curve.',
   'editor.speedCurve.unsupportedKind': 'This clip cannot have a speed curve.',
   'editor.speedCurve.selectOneClip': 'Select one clip to edit its speed curve.',
+  'editor.speedCurve.ease': 'Ease',
+  'editor.speedCurve.easeTitle': 'How the speed changes from this key to the next',
+  'editor.speedCurve.easeLinear': 'Linear',
+  'editor.speedCurve.easeSmooth': 'Smooth',
+  'editor.speedCurve.easeIn': 'Ease in',
+  'editor.speedCurve.easeOut': 'Ease out',
+  'editor.speedCurve.deliveredFps': 'Frames per second',
+  'editor.speedCurve.deliveredFpsTitle':
+    "The frames a second the clip really has at its slowest point: its own frame rate times that speed",
+  'editor.speedCurve.lowFps':
+    'Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Frames repeat.',
+  'editor.speedCurve.lowFpsBlended':
+    'Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Smooth slow motion blends the frames in between.',
+  'editor.speedCurve.lowFpsFlow':
+    'Too few frames: {{fps}} a second at the slowest point, the project plays {{projectFps}}. Optical flow makes the frames in between from the motion.',
 } as const
+
+/** The warning's key for a clip's smooth slow motion: frames repeat, are blended, or are made by optical flow. */
+const LOW_FPS_KEYS: Record<SmoothSlowMotion | 'off', SpeedCurveLabelKey> = {
+  off: 'editor.speedCurve.lowFps',
+  blend: 'editor.speedCurve.lowFpsBlended',
+  'optical-flow': 'editor.speedCurve.lowFpsFlow',
+}
+
+/** The label key of each ease's name in the key row's menu. */
+const EASE_LABEL_KEYS: Record<SpeedEase, SpeedCurveLabelKey> = {
+  linear: 'editor.speedCurve.easeLinear',
+  smooth: 'editor.speedCurve.easeSmooth',
+  'ease-in': 'editor.speedCurve.easeIn',
+  'ease-out': 'editor.speedCurve.easeOut',
+}
 
 type SpeedCurveLabelKey = keyof typeof LABELS
 
 /** The panel's translated text, with the English default until the language files carry the key. */
-function useSpeedCurveLabels(): (key: SpeedCurveLabelKey) => string {
+function useSpeedCurveLabels(): (
+  key: SpeedCurveLabelKey,
+  values?: Record<string, string | number>,
+) => string {
   const { t } = useTranslation()
-  return (key) => t(key, { defaultValue: LABELS[key] })
+  return (key, values) => t(key, { defaultValue: LABELS[key], ...values })
+}
+
+/** A frame rate for the readout: up to two decimals, no trailing zeros (14.99, 30, 59.94). */
+function formatFps(fps: number): string {
+  return String(Number(fps.toFixed(2)))
 }
 
 /** Why a clip cannot hold a curve, or null when it can: the design's two hidden cases. */
@@ -180,6 +229,52 @@ function PanelNumberField({
   )
 }
 
+/** The frames a second the clip really has at its slowest point, and the warning below the project's rate. */
+function FrameRateReadout({
+  curve,
+  item,
+  fps,
+  label,
+}: {
+  curve: SpeedCurve
+  item: TimelineItem
+  fps: number
+  label: ReturnType<typeof useSpeedCurveLabels>
+}) {
+  if (item.type !== 'video') return null
+  const delivered = slowestFrameRate(curve, item, fps)
+  const tooFew = isBelowProjectRate(delivered, fps)
+  const smooth = (isFeatureShown('motionBlur') ? item.motionBlur?.smoothSlowMotion : undefined) ?? 'off'
+  return (
+    <>
+      <div
+        className="flex items-center justify-between gap-2"
+        title={label('editor.speedCurve.deliveredFpsTitle')}
+      >
+        <span>{label('editor.speedCurve.deliveredFps')}</span>
+        <output
+          className={`font-mono tabular-nums ${tooFew ? 'text-amber-500' : 'text-foreground'}`}
+          data-testid="speed-readout-fps"
+        >
+          {formatFps(delivered)}
+        </output>
+      </div>
+      {tooFew && (
+        <p
+          className="mt-0.5 text-[10px] leading-3 text-amber-500"
+          data-testid="speed-low-fps-warning"
+          role="status"
+        >
+          {label(LOW_FPS_KEYS[smooth], {
+            fps: formatFps(delivered),
+            projectFps: formatFps(fps),
+          })}
+        </p>
+      )}
+    </>
+  )
+}
+
 /** One key's row: its clip-relative frame, its speed and the source frame it shows. */
 function CurveKeyRow({
   index,
@@ -187,16 +282,22 @@ function CurveKeyRow({
   speed,
   sourceFrame,
   pinned,
+  ease,
+  last,
   onFrameCommit,
   onSpeedCommit,
+  onEaseCommit,
 }: {
   index: number
   frame: number
   speed: number
   sourceFrame: number
   pinned: boolean
+  ease: SpeedEase
+  last: boolean
   onFrameCommit: (frame: number) => void
   onSpeedCommit: (speed: number) => void
+  onEaseCommit: (ease: SpeedEase) => void
 }) {
   const label = useSpeedCurveLabels()
   const frameLabel = `${label('editor.speedCurve.keyFrame')} ${index + 1}`
@@ -224,6 +325,21 @@ function CurveKeyRow({
         step={0.01}
         onCommit={onSpeedCommit}
       />
+      <select
+        aria-label={`${label('editor.speedCurve.ease')} ${index + 1}`}
+        className="h-6 w-[4.5rem] min-w-0 shrink rounded border border-border/60 bg-background/80 px-0.5 text-[10px] text-foreground outline-none disabled:opacity-40"
+        data-testid={`speed-key-ease-${index}`}
+        disabled={last}
+        title={label('editor.speedCurve.easeTitle')}
+        value={ease}
+        onChange={(event) => onEaseCommit(event.target.value as SpeedEase)}
+      >
+        {SPEED_EASES.map((name) => (
+          <option key={name} value={name}>
+            {label(EASE_LABEL_KEYS[name])}
+          </option>
+        ))}
+      </select>
       <span
         className="ml-auto shrink-0 tabular-nums"
         title={label('editor.speedCurve.sourceFrame')}
@@ -383,6 +499,12 @@ function SpeedCurvePanelBody({
     commitCurve(withKeyFrame(curveOnItem(current), index, frame))
   }
 
+  const commitEase = (index: number, ease: SpeedEase) => {
+    const current = useItemsStore.getState().itemById[item.id]
+    if (!current) return
+    commitCurve(withKeyEase(curveOnItem(current), index, ease))
+  }
+
   const applyPreset = (preset: SpeedPresetName) => {
     commitCurve(speedPresetCurve(preset, duration, peak, rampFrames))
   }
@@ -427,6 +549,16 @@ function SpeedCurvePanelBody({
             {label(PRESET_LABEL_KEYS[preset])}
           </Button>
         ))}
+        <Button
+          className="h-6 shrink-0 px-2 text-[11px]"
+          disabled={!canHoldSmoothEdit(item)}
+          onClick={() => smoothEditClip(item.id, { peak: Math.max(1, peak) })}
+          size="sm"
+          title={label('editor.speedCurve.smoothEditTitle')}
+          variant="secondary"
+        >
+          {label('editor.speedCurve.smoothEdit')}
+        </Button>
         <Button className="h-6 shrink-0 px-2 text-[11px]" onClick={flat} size="sm" variant="ghost">
           {label('editor.speedCurve.flat')}
         </Button>
@@ -475,6 +607,7 @@ function SpeedCurvePanelBody({
                 {sourceFrames}
               </output>
             </div>
+            <FrameRateReadout curve={curve} item={item} fps={fps} label={label} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto" data-testid="speed-curve-keys">
             {rows.map((row, index) => (
@@ -485,8 +618,11 @@ function SpeedCurvePanelBody({
                 pinned={row.pinned}
                 sourceFrame={row.sourceFrame}
                 speed={row.speed}
+                ease={row.ease}
+                last={index === rows.length - 1}
                 onFrameCommit={(frame) => commitFrame(index, frame)}
                 onSpeedCommit={(speed) => commitSpeed(index, speed)}
+                onEaseCommit={(ease) => commitEase(index, ease)}
               />
             ))}
           </div>

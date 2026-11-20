@@ -7,7 +7,7 @@ import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import type { VideoItem } from '@/types/timeline'
 import { NoLensProfileError, NoMotionDataError, type StabilizationProgress } from '../client'
-import { engineSettingsKey, type SmoothingMethod, type StabilizationSettings } from '../settings'
+import { type SmoothingMethod, type StabilizationSettings } from '../settings'
 import { applyChange, lensProfileName, type StabilizationChange } from './changes'
 import type { StabilizationEngine } from './engine'
 import { openStabilization, storeStabilization } from './switch'
@@ -131,8 +131,9 @@ export function useStabilizationControls(
       const next = applyChange(current, requested, methods)
       if (!next) return false
       // A number box commits on Enter and again on blur: the second commit says the same and is not a change, so it
-      // adds no undo step and does not ask the engine for a recompute
-      if (engineSettingsKey(next) === engineSettingsKey(current)) return true
+      // adds no undo step and does not ask the engine for a recompute. The framing is not in the engine's key, so
+      // the whole settings are compared (a framing change is a change, and its store asks the engine for nothing)
+      if (JSON.stringify(next) === JSON.stringify(current)) return true
       store(next)
       return true
     },

@@ -84,6 +84,7 @@ async function renderQueuedJob(job: RenderJob): Promise<void> {
       const saved = await saveExportFile(job.projectId, job.fileName, smartCopy.result.blob)
       useRenderQueueStore.getState().markCompleted(job.id, {
         savedPath: saved.relPath,
+        fileName: saved.fileName,
         fileSize: smartCopy.result.fileSize,
       })
       event.set('renderPath', 'smart-copy')
@@ -126,6 +127,7 @@ async function renderQueuedJob(job: RenderJob): Promise<void> {
     const saved = await saveExportFile(job.projectId, job.fileName, result.blob)
     useRenderQueueStore.getState().markCompleted(job.id, {
       savedPath: saved.relPath,
+      fileName: saved.fileName,
       fileSize: result.fileSize,
     })
 

@@ -791,7 +791,7 @@ export const LayoutSection = memo(function LayoutSection({
 
       {/* Dimensions */}
       <PropertyRow label={t('editor.layoutSection.size')}>
-        <div className="flex items-center gap-1 w-full">
+        <div className="flex flex-wrap items-center gap-1 w-full">
           <NumberInput
             value={width}
             onChange={handleWidthChange}
@@ -885,7 +885,7 @@ export const LayoutSection = memo(function LayoutSection({
 
       {mediaTransformItems.length > 0 && (
         <PropertyRow label={t('editor.layoutSection.anchor')}>
-          <div className="flex items-center gap-1 w-full">
+          <div className="flex flex-wrap items-center gap-1 w-full">
             <div className="flex items-center gap-0.5 flex-1 min-w-0">
               <NumberInput
                 value={mediaAnchorX}

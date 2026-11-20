@@ -26,7 +26,11 @@
       "label": "色彩配置",
       "unset": "未设置",
       "suggested": "建议: {{profile}}?",
-      "apply": "应用"
+      "apply": "应用",
+      "askTitle": "这些 DJI 片段是用 D-Log M 拍摄的吗？",
+      "askBody": "文件里没有记录。选择“是”会为它们设置 D-Log M 色彩配置，你可以在任意片段上更改。",
+      "askYes": "是，D-Log M",
+      "askNo": "不，普通"
     },
     "looks": {
       "title": "调色",

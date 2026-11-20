@@ -197,6 +197,9 @@ interface RelayedEntry {
   frameCount: number | null
   assets: StabilizationAssets | undefined
   assetsPending: Promise<StabilizationAssets> | undefined
+  /** Resolved when the worker lets the entry go (`release`, `destroy`): its assets go with it */
+  readonly gone: Promise<void>
+  readonly letGo: () => void
   readonly frames: Map<number, StabilizationFrameData>
   readonly inflight: Map<number, Promise<void>>
   readonly failures: Map<number, Error>
@@ -246,6 +249,10 @@ class RelayedHost implements StabilizationSeat {
     if (known && !(options.retry === true && known.result !== null && !isUsable(known.result))) {
       return known.pending
     }
+    let letGo!: () => void
+    const gone = new Promise<void>((resolve) => {
+      letGo = resolve
+    })
     const entry: RelayedEntry = {
       result: null,
       pending: Promise.resolve({ kind: 'failed', error: new Error('not started') }),
@@ -253,6 +260,8 @@ class RelayedHost implements StabilizationSeat {
       frameCount: null,
       assets: undefined,
       assetsPending: undefined,
+      gone,
+      letGo,
       frames: new Map(),
       inflight: new Map(),
       failures: new Map(),
@@ -379,6 +388,11 @@ class RelayedHost implements StabilizationSeat {
     return this.entries.get(key)?.assets
   }
 
+  whenAssetsGone(key: string): Promise<void> {
+    const entry = this.entries.get(key)
+    return entry?.assets === undefined ? Promise.resolve() : entry.gone
+  }
+
   smoothingMethods(): Promise<SmoothingMethod[]> {
     return Promise.reject(new Error('the export worker reads the page’s engines; it has no clip panel'))
   }
@@ -392,6 +406,7 @@ class RelayedHost implements StabilizationSeat {
   }
 
   release(key: string): Promise<void> {
+    this.entries.get(key)?.letGo()
     this.entries.delete(key)
     return Promise.resolve()
   }
@@ -409,6 +424,7 @@ class RelayedHost implements StabilizationSeat {
     const closed = new ClipUnreadableError('the export worker’s host is closed')
     for (const call of this.calls.values()) call.reject(closed)
     this.calls.clear()
+    for (const entry of this.entries.values()) entry.letGo()
     this.entries.clear()
     for (const list of this.waiters.values()) for (const resolve of list) resolve()
     this.waiters.clear()

@@ -30,7 +30,9 @@
       "deviceBusy": "Das Mikrofon wird von einer anderen App verwendet.",
       "startFailed": "Die Aufnahme konnte nicht gestartet werden. Bitte versuche es erneut.",
       "failed": "Die Aufnahme ist fehlgeschlagen. Bitte versuche es erneut.",
-      "saveFailed": "Die Aufnahme konnte nicht gespeichert werden."
+      "saveFailed": "Die Aufnahme konnte nicht gespeichert werden.",
+      "systemBlocked": "DroneClean Studio kann das Mikrofon nicht verwenden. Erlaube es unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon und versuche es erneut.",
+      "startTimeout": "Das Mikrofon ist nicht gestartet. Prüfe, ob es angeschlossen und erlaubt ist (Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon), und versuche es erneut."
     }
   }
 }

@@ -10,12 +10,12 @@ import { useLooksStore } from '@/studio/looks/store'
 import { DEFAULT_LOOK_INTENSITY } from '@/studio/looks/types'
 import { NoLensProfileError, NoMotionDataError } from '@/studio/stabilization/client'
 import {
-  engineSettingsKey,
   type SmoothingMethod,
   type StabilizationSettings,
 } from '@/studio/stabilization/settings'
 import {
   applyChange,
+  FRAMING_SLIDER_RANGE,
   HORIZON_LOCK_PERCENT_RANGE,
   HORIZON_LOCK_ROLL_RANGE,
   smoothnessParameter,
@@ -86,7 +86,7 @@ export function getLook(id: ClipId): ClipLookInfo | null {
 }
 
 /** Apply a library look with a blend, or remove it with null, as one undo step. */
-export function setLook(id: ClipId, look: ClipLookRequest | null): void {
+export async function setLook(id: ClipId, look: ClipLookRequest | null): Promise<void> {
   const method = 'clips.setLook'
   requireVideoClip(id, method)
   if (look === null) {
@@ -120,14 +120,17 @@ export function setLook(id: ClipId, look: ClipLookRequest | null): void {
       value: shape?.intensity,
     })
   }
+  // The library is read here, not assumed: a reopened app has not listed it yet.
+  await useLooksStore.getState().load()
+  requireVideoClip(id, method) // the clip may have gone while the library was read
   const library = useLooksStore.getState()
   if (library.status !== 'ready') {
     throw studioError({
-      code: 'CONFLICT',
+      code: 'INTERNAL',
       method,
       argument: 'look',
-      message: 'the looks library has not been read yet',
-      hint: 'Call studio.looks.list() first; it reads the library and names the ids.',
+      message: 'the looks library could not be read from the workspace',
+      hint: 'Open a workspace folder in the app; the library lives in it.',
     })
   }
   if (!library.looks.some((entry) => entry.id === lookId)) {
@@ -157,6 +160,8 @@ export function getStabilization(id: ClipId): ClipStabilization | null {
     horizonLockPercent: stored.horizonLockPercent,
     horizonLockRoll: stored.horizonLockRoll,
     adaptiveZoomSeconds: stored.adaptiveZoomSeconds,
+    framingX: stored.framingX ?? 0,
+    framingY: stored.framingY ?? 0,
   }
 }
 
@@ -175,6 +180,8 @@ const PATCH_FIELDS: Record<
   horizonLockRoll: () =>
     `a number from ${HORIZON_LOCK_ROLL_RANGE.min} to ${HORIZON_LOCK_ROLL_RANGE.max}`,
   adaptiveZoomSeconds: () => 'a number of seconds, 0 or more',
+  framingX: () => `a number from ${FRAMING_SLIDER_RANGE.min} to ${FRAMING_SLIDER_RANGE.max}`,
+  framingY: () => `a number from ${FRAMING_SLIDER_RANGE.min} to ${FRAMING_SLIDER_RANGE.max}`,
 }
 
 /** The settings with every field of the patch applied, or the error naming the first one the panel would refuse. */
@@ -261,7 +268,8 @@ export async function setStabilization(
       const methods = await pageEngine.smoothingMethods()
       const next = applyPatch(current, patch, methods)
       // The same values again are not a change: no undo step and no recompute (as in the panel)
-      if (engineSettingsKey(next) === engineSettingsKey(current)) return
+      // (the framing is not in the engine's key, so the whole settings are compared)
+      if (JSON.stringify(next) === JSON.stringify(current)) return
       const applied = transaction('CLIPS_SET_STABILIZATION', () =>
         storeStabilization(pageEngine, requireVideoClip(id, method), next, false),
       )

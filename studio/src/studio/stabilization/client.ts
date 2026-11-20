@@ -52,6 +52,15 @@ const DEFAULT_GYRO_WORKER_URL = withBase('gyroflow/wasm/js/gyro-worker.js')
 export const FRAMES_BEHIND = 8
 export const FRAMES_AHEAD = 24
 
+/**
+ * Positions between two source frames (an interpolated frame of optical-flow slow motion, task 11.12): a request for one
+ * also asks for the same phase in the next `BETWEEN_AHEAD` gaps (a constant slow-down repeats its phases from gap to
+ * gap, so playback finds them there), and a clip keeps the last `BETWEEN_KEPT`: at 0.25x three phases with their
+ * look-ahead, about 5.9 MiB of matrices, as much as the window.
+ */
+const BETWEEN_AHEAD = 8
+const BETWEEN_KEPT = 32
+
 /** How long after the last settings change the one `recompute` runs, in ms (design 6.3 §4.7) */
 const DEFAULT_RECOMPUTE_DELAY_MS = 250
 
@@ -99,7 +108,10 @@ export interface StabilizationProgress {
 
 /** One source frame's stabilization data, ready for `StabilizationStage.warp` */
 export interface StabilizationFrameData extends StabilizationFrame {
-  /** The source frame the data are for: the client checked that the engine answered the one it asked for */
+  /**
+   * The source frame the data are for: the client checked that the engine answered the one it asked for. For a
+   * position between two frames (task 11.12), that position.
+   */
   sourceFrame: number
 }
 
@@ -271,6 +283,12 @@ export interface StabilizationClient {
    * call slides and fills. A frame the engine has not answered yet is requested; without `{ wait: true }` the call
    * returns `undefined` then (the preview holds its previous output), and with it the call waits for the answer (the
    * export).
+   *
+   * `sourceFrame` may also be a position between two frames (an interpolated frame of optical-flow slow motion, task
+   * 11.12): the engine is asked for the camera's correction at that moment, `round(position · 1e6 · den / num)` µs
+   * (Gyroflow computes it at any time: the orientation is interpolated, the zoom and lens are the nearer frame's). Such
+   * a position is asked for outside the window, with the same phase in the next `BETWEEN_AHEAD` gaps, and the last
+   * `BETWEEN_KEPT` are kept.
    */
   getFrameData(
     clipId: string,
@@ -456,6 +474,20 @@ export function sourceFrameToMicroseconds(rate: Rate, frame: number): number {
   return Math.round((frame * 1_000_000 * exact.den) / exact.num)
 }
 
+/**
+ * The presentation time in µs of a position between two source frames (task 11.12), `round(position · 1e6 · den /
+ * num)`: the moment an interpolated frame shows, on the same clock as `sourceFrameToMicroseconds`.
+ *
+ * @throws RangeError when the rate is not a rate of positive integers, or the position is not finite and >= 0.
+ */
+export function sourcePositionToMicroseconds(rate: Rate, position: number): number {
+  const exact = toRate(rate)
+  if (!Number.isFinite(position) || position < 0) {
+    throw new RangeError(`sourcePositionToMicroseconds: position must be finite and >= 0, got ${position}`)
+  }
+  return Math.round((position * 1_000_000 * exact.den) / exact.num)
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The client
 
@@ -464,10 +496,13 @@ interface FrameCache {
   readonly window: Map<number, StabilizationFrameData>
   readonly inFlight: Set<number>
   readonly batches: Set<Promise<void>>
+  /** The positions between two frames asked for (task 11.12), the oldest first */
+  readonly between: Map<number, StabilizationFrameData>
+  readonly betweenInFlight: Map<number, Promise<void>>
 }
 
 function newCache(): FrameCache {
-  return { window: new Map(), inFlight: new Set(), batches: new Set() }
+  return { window: new Map(), inFlight: new Set(), batches: new Set(), between: new Map(), betweenInFlight: new Map() }
 }
 
 /** One engine: a worker with one file open and one set of settings computed */
@@ -627,6 +662,40 @@ function requireClipIds(clip: StabilizationClip): void {
   }
   if (typeof clip.mediaId !== 'string' || clip.mediaId.length === 0) {
     throw new TypeError('open: clip.mediaId must be a non-empty string')
+  }
+}
+
+/** A position strictly between two source frames of the clip: after its first frame and before its last */
+function requirePositionBetween(info: StabilizationInfo, position: number): void {
+  if (!Number.isFinite(position) || position <= 0 || position >= info.frames - 1) {
+    throw new RangeError(
+      `getFrameData: a position between frames must lie inside the clip's ${info.frames} frames, got ${position}`,
+    )
+  }
+}
+
+/**
+ * Keeps the engine's answer for a position between two frames, the oldest beyond `BETWEEN_KEPT` dropped; the answer
+ * must name one of the two frames the position lies between.
+ */
+function keepBetween(cache: FrameCache, position: number, answer: RawFrameData | undefined): void {
+  if (!answer) {
+    throw new StabilizationError('engine', `the engine answered no data for source position ${position}`)
+  }
+  if (answer.frame !== Math.floor(position) && answer.frame !== Math.ceil(position)) {
+    throw new StabilizationError(
+      'engine',
+      `the engine answered source frame ${answer.frame} for position ${position}: the source's rate and the engine's disagree`,
+    )
+  }
+  cache.between.set(position, {
+    matrices: answer.matrices,
+    params: answer.params,
+    mesh: answer.mesh,
+    sourceFrame: position,
+  })
+  while (cache.between.size > BETWEEN_KEPT) {
+    cache.between.delete(cache.between.keys().next().value as number)
   }
 }
 
@@ -791,6 +860,9 @@ class Client implements StabilizationClient {
     options: { wait?: boolean } = {},
   ): Promise<StabilizationFrameData | undefined> {
     const clip = this.requireClip(clipId)
+    if (!Number.isSafeInteger(sourceFrame) && Number.isFinite(sourceFrame)) {
+      return this.frameBetween(clip, sourceFrame, options)
+    }
     requireSourceFrame(this.requireInfo(clip.engine), sourceFrame)
     const pending = this.fillWindow(clip, sourceFrame)
     const cached = clip.cache.window.get(sourceFrame)
@@ -805,6 +877,66 @@ class Client implements StabilizationClient {
     }
     await pending
     return this.answeredFrame(clip, sourceFrame)
+  }
+
+  /** `getFrameData` for a position between two frames: one request of its own, outside the window */
+  private async frameBetween(
+    clip: ClipState,
+    position: number,
+    options: { wait?: boolean },
+  ): Promise<StabilizationFrameData | undefined> {
+    requirePositionBetween(this.requireInfo(clip.engine), position)
+    const cached = clip.cache.between.get(position)
+    if (cached) return copyFrame(cached)
+    const pending = this.requestBetween(clip, position)
+    if (options.wait !== true) {
+      void pending.catch(() => {})
+      return undefined
+    }
+    await pending
+    if (clip.engine.failure) throw clip.engine.failure
+    // A recompute or a move landed while the position was in flight and dropped it with the old settings: ask again
+    if (!clip.cache.between.has(position)) await this.requestBetween(clip, position)
+    if (clip.engine.failure) throw clip.engine.failure
+    const answered = clip.cache.between.get(position)
+    if (!answered) {
+      throw new StabilizationError('engine', `the engine did not answer source position ${position}`)
+    }
+    return copyFrame(answered)
+  }
+
+  /**
+   * The request that answers a position between two frames: the one already on its way, or a new `frameData` request
+   * for it and for the same phase in the next `BETWEEN_AHEAD` gaps the clip has and nobody asked for yet.
+   */
+  private requestBetween(clip: ClipState, position: number): Promise<void> {
+    const { cache, engine } = clip
+    const known = cache.betweenInFlight.get(position)
+    if (known) return known
+    const last = this.requireInfo(engine).frames - 1
+    const positions = [position]
+    for (let gap = 1; gap <= BETWEEN_AHEAD && position + gap < last; gap += 1) {
+      const ahead = position + gap
+      if (!cache.between.has(ahead) && !cache.betweenInFlight.has(ahead)) positions.push(ahead)
+    }
+    const request = (async (): Promise<void> => {
+      try {
+        const reply = await engine.engine.call<{ frames: RawFrameData[]; ms: number }>('frameData', {
+          timestampsUs: positions.map((at) => sourcePositionToMicroseconds(engine.rate, at)),
+        })
+        engine.failure = null
+        // A recompute or a move replaced the clip's cache: the answer belongs to other settings
+        if (clip.cache !== cache) return
+        positions.forEach((at, index) => keepBetween(cache, at, reply.frames[index]))
+      } catch (error) {
+        engine.failure = asStabilizationError(error)
+        throw error
+      } finally {
+        for (const at of positions) cache.betweenInFlight.delete(at)
+      }
+    })()
+    for (const at of positions) cache.betweenInFlight.set(at, request)
+    return request
   }
 
   /** The frame a waiting caller gets: the engine's answer, or the reason there is none */

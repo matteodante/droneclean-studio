@@ -21,6 +21,7 @@ the Mac app. The `Dockerfile` here downloads that file for one release tag and s
 ```sh
 # service studio-web of the DroneClean project, variable STUDIO_RELEASE = the release's tag (for example v0.1.0)
 railway up --service studio-web     # from this folder: only the Dockerfile and the Caddyfile are uploaded
+cd .. && npm run check:live-web     # once it is deployed: the live editor lands on its projects, isolated, no worker
 ```
 
 `Caddyfile`: listens on `:$PORT` bound to `[::]` (Railway's private network is IPv6); every response carries

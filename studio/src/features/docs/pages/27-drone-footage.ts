@@ -63,6 +63,11 @@ const page = {
         },
         {
           kind: 'note',
+          tone: 'warning',
+          text: 'Slow down only footage shot at a higher frame rate than the project. A 30 fps file in a 60 fps project already has half the frames it needs: keep it at 1x or faster, and slow 60 fps footage no further than 0.5x.',
+        },
+        {
+          kind: 'note',
           tone: 'tip',
           text: 'Cut on the strong beats of the song, not on every beat: mark them with markers (`M`), then let each clip run from one marker to the next.',
         },
@@ -73,7 +78,7 @@ const page = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'The **Instagram Reel** preset writes H.264 MP4 at the project’s frame rate: 1440x2560 at 25 Mbps for a 2K vertical project at 60 fps (16 Mbps at 30 fps), otherwise 1080x1920 at 15 or 10 Mbps. Instagram plays Reels at 1080x1920 and scales a 2K upload down itself, from a sharper picture.',
+          text: 'The **Instagram Reel** preset follows Meta’s Reel specification: H.264 MP4 at the project’s frame rate, 1080x1920 (the frame Instagram shows), 20 Mbps at 60 fps or 12 Mbps at 30 fps, under Meta’s 25 Mbps maximum. Instagram re-encodes every upload; giving it its own frame and size avoids a second scaling.',
         },
       ],
     },

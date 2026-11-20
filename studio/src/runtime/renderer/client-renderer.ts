@@ -170,6 +170,14 @@ export function selectFallbackVideoCodec(
   return candidates.find((codec) => supportedCodecs.includes(codec)) ?? null
 }
 
+/** `'128k'` (the export settings' form) as bits per second; undefined for anything else, so the default applies. */
+export function parseAudioBitrate(value: string | undefined): number | undefined {
+  const match = /^(\d+)k$/i.exec(value?.trim() ?? '')
+  if (!match) return undefined
+  const bitrate = Number.parseInt(match[1]!, 10) * 1000
+  return bitrate >= 32_000 && bitrate <= 512_000 ? bitrate : undefined
+}
+
 /**
  * Maps export settings to client-compatible settings
  */
@@ -203,7 +211,7 @@ export function mapToClientSettings(
     }),
     bitrateMode: settings.rateControl === 'constant' ? 'constant' : 'variable',
     smartCopy: settings.smartCopy ?? true,
-    audioBitrate: 192_000, // 192 kbps
+    audioBitrate: parseAudioBitrate(settings.audioBitrate) ?? 192_000,
     subtitleMode,
   }
 }
@@ -281,9 +289,18 @@ export async function getSupportedCodecs(
 /**
  * Create mediabunny output format based on container type
  */
+export type OutputFastStart = false | 'in-memory' | 'reserve'
+
 export async function createOutputFormat(
   container: ClientContainer,
-  options?: { fastStart?: boolean },
+  options?: {
+    /**
+     * Where the MP4/MOV `moov` box goes. `false`: at the end. `'in-memory'`: at the front, the media held
+     * in memory until the end. `'reserve'`: at the front, space left for it and filled in at the end, so
+     * the media streams to the file (every track must then carry a `maximumPacketCount`).
+     */
+    fastStart?: OutputFastStart
+  },
 ) {
   const mediabunny = await import('mediabunny')
   const {
@@ -295,16 +312,13 @@ export async function createOutputFormat(
     WavOutputFormat,
     AdtsOutputFormat,
   } = mediabunny
+  const fastStart = options?.fastStart ?? false
 
   switch (container) {
     case 'mp4':
-      return new Mp4OutputFormat({
-        fastStart: options?.fastStart ? 'in-memory' : false,
-      })
+      return new Mp4OutputFormat({ fastStart })
     case 'mov':
-      return new MovOutputFormat({
-        fastStart: options?.fastStart ? 'in-memory' : false,
-      })
+      return new MovOutputFormat({ fastStart })
     case 'webm':
       return new WebMOutputFormat()
     case 'mkv':
@@ -316,9 +330,7 @@ export async function createOutputFormat(
     case 'wav':
       return new WavOutputFormat()
     default:
-      return new Mp4OutputFormat({
-        fastStart: options?.fastStart ? 'in-memory' : false,
-      })
+      return new Mp4OutputFormat({ fastStart })
   }
 }
 

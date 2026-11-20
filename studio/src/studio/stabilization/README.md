@@ -87,15 +87,17 @@ data (`stage.ts`, items 7 and 8: the two floats at 1.0, the coefficient table an
 ## The engine host and the stage (design 3.6)
 
 `seat.ts` is the page's engine host: one engine per (media, settings fingerprint), its open result as data, its frames
-by **integer source frame**, its engines let go when no clip uses them (`sync`, `release`). It never writes the
-project and never draws.
+by **integer source frame**, its engines let go when no clip uses them (`sync`, `release`): every stabilized clip of
+a key counts, not only the one that opened its engine. It never writes the project and never draws.
 
 The renderer reaches it through the stage pipeline (`src/studio/render/stages/`). The stabilization stage
 (`stages/stabilize.ts`) prepares a clip outside the render (the engine's open, the warp built for the device, the size
 in the session's derived-size store, which the layout reads: `stagedSourceDimensions`), answers whether a frame's data
-is there (`ready`), and records the warp with the frame's bytes in the pipeline's arena. An export waits for what is
-missing and stops with a `StageError` when the engine cannot answer; a preview holds the clip's last good staged frame
-and says why. A staged clip is never drawn from a DOM `<video>` (finding S1): its frames come from the renderer's
+is there (`ready`), and records the warp with the frame's bytes in the pipeline's arena. A prepared key stays ready only
+while the engine and the assets its warp was built on serve it (`lost`, the host's `whenAssetsGone`): a key whose engine
+the host closed is prepared again by the next frame that needs it. An export waits for what is missing, a minute at
+most per frame, and stops with a `StageError` when the engine cannot answer; a preview holds the clip's last good staged
+frame and says why. A staged clip is never drawn from a DOM `<video>` (finding S1): its frames come from the renderer's
 source-frame provider, so the warp always gets the frame its data is for. Masks and canvas effects draw on the staged
 picture too (finding R1).
 

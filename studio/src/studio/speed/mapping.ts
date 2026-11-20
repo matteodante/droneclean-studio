@@ -20,7 +20,9 @@
  */
 
 import {
+  compareFractions,
   floorFraction,
+  fraction,
   multiplyFractions,
   rateRatio,
   sourceFrameAt as flatSourceFrameAt,
@@ -28,7 +30,7 @@ import {
   toRate,
   type Rate,
 } from '@/studio/time'
-import { areaAt, constantSpeed, frameAtArea, type SpeedCurve } from './curve'
+import { areaAt, constantSpeed, frameAtArea, hasEasedSegments, type SpeedCurve } from './curve'
 import { exactAreaAt } from './exact-curve'
 
 /** A source span as real source frame indices, `sourceStart` included. */
@@ -166,7 +168,35 @@ export function timelineFramesForSource(
   if (flatSpeed !== undefined) {
     return flatTimelineFramesForSource(sourceFrames, sourceRate, projectRate, flatSpeed)
   }
-  return Math.ceil(timelineDurationForSource(curve, sourceFrames, sourceRate, projectRate))
+  const estimate = Math.ceil(
+    timelineDurationForSource(curve, sourceFrames, sourceRate, projectRate),
+  )
+  return hasEasedSegments(curve)
+    ? settledFrames(curve, estimate, sourceFrames, sourceRate, projectRate)
+    : estimate
+}
+
+/**
+ * The smallest whole number of timeline frames whose exact integral reaches `sourceFrames`,
+ * starting from the real-valued estimate. An eased segment's inverse is a bisection, which can
+ * land a hair either side of a whole frame, so the ceil of it is checked against the exact
+ * integral and moved by the frame or two it may be off (task 11.11).
+ */
+function settledFrames(
+  curve: SpeedCurve,
+  estimate: number,
+  sourceFrames: number,
+  sourceRate: Rate,
+  projectRate: Rate,
+): number {
+  const ratio = rateRatio(toRate(sourceRate), toRate(projectRate))
+  const target = fraction(sourceFrames)
+  const reaches = (frames: number): boolean =>
+    compareFractions(multiplyFractions(exactAreaAt(curve, frames), ratio), target) >= 0
+  let frames = Math.max(0, estimate)
+  while (!reaches(frames)) frames += 1
+  while (frames > 0 && reaches(frames - 1)) frames -= 1
+  return frames
 }
 
 /**

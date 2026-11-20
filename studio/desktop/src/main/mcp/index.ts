@@ -18,6 +18,7 @@
  */
 import { app, type BrowserWindow } from 'electron'
 import path from 'node:path'
+import { IDLE_QUIT_MS, createIdleQuit, saveBeforeQuit } from './idle-quit'
 import { createPageBridge } from './page'
 import { corpusRootsFor, loadCorpusDocuments, type CorpusRoots } from './search/corpus'
 import type { SearchDocument } from './search/bm25'
@@ -56,20 +57,36 @@ async function loadDocumentsForSearch(): Promise<SearchDocument[]> {
  *
  * `showWindow` is how a `run` that asks `show: true` brings the window up: the
  * stdio launcher starts the app hidden, and the agent is the one that decides
- * when the user should see the edit.
+ * when the user should see the edit. `startedForAgent` is that hidden launch:
+ * such an app quits when idle, unless a window was shown (`idle-quit.ts`).
  */
 export async function installAgentAccess(
   getWindow: () => BrowserWindow | null,
   showWindow: () => void = () => undefined,
+  options: { startedForAgent?: boolean } = {},
 ): Promise<AgentAccess> {
+  const page = createPageBridge(getWindow, { showWindow })
+  // An app the launcher started hidden quits, after saving, when no client has
+  // used it for a while and its window was never shown (`idle-quit.ts`).
+  const idle = createIdleQuit({
+    startedForAgent: options.startedForAgent === true,
+    idleMs: IDLE_QUIT_MS,
+    save: () => saveBeforeQuit(page),
+    quit: () => app.quit(),
+  })
+  app.on('browser-window-created', (_event, window) => {
+    window.on('show', () => idle.windowShown())
+  })
   const access = createAgentAccess({
     userDataDir: app.getPath('userData'),
-    page: createPageBridge(getWindow, { showWindow }),
+    page,
     loadDocuments: loadDocumentsForSearch,
     showWindow,
+    onActivity: (event) => idle.activity(event),
   })
   await access.startIfEnabled()
   app.on('before-quit', () => {
+    idle.dispose()
     void access.dispose()
   })
   return access

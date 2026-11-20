@@ -62,6 +62,54 @@ const BUILT_IN_PROPERTY_VALUE_RANGES: Record<BuiltInAnimatableProperty, Property
   taperEndLength: { property: 'taperEndLength', min: 0, max: 100, unit: '%', decimals: 1 },
 }
 
+/** FreeCut's pixel bounds were written for a 1920 px frame; they grow with a bigger project. */
+const REFERENCE_EXTENT = 1920
+const ROUND_TO = 100
+
+let scale = 1
+
+type ScaledProperty =
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'anchorX'
+  | 'anchorY'
+  | 'cropLeft'
+  | 'cropRight'
+  | 'cropTop'
+  | 'cropBottom'
+  | 'cropSoftness'
+
+const SCALED_PROPERTIES = new Set<string>([
+  'x',
+  'y',
+  'width',
+  'height',
+  'anchorX',
+  'anchorY',
+  'cropLeft',
+  'cropRight',
+  'cropTop',
+  'cropBottom',
+  'cropSoftness',
+] satisfies ScaledProperty[])
+
+function scaleBound(value: number): number {
+  if (scale === 1 || value === 0) return value
+  return Math.sign(value) * Math.ceil((Math.abs(value) * scale) / ROUND_TO) * ROUND_TO
+}
+
+/**
+ * Tells the graph and the value fields how big the project frame is, so the pixel bounds of
+ * position, size, anchor and crop follow it (a 1440x2560 project needs more than 0..2000 px).
+ * The bounds never go below FreeCut's own, and the largest side counts.
+ */
+export function setPropertyRangeCanvas(canvas: { width: number; height: number }): void {
+  const extent = Math.max(canvas.width, canvas.height)
+  scale = Number.isFinite(extent) && extent > REFERENCE_EXTENT ? extent / REFERENCE_EXTENT : 1
+}
+
 function getDecimalsFromStep(step: number | undefined): number {
   if (step === undefined || !Number.isFinite(step) || step >= 1) {
     return 0
@@ -142,6 +190,11 @@ export const PROPERTY_VALUE_RANGES = new Proxy<Record<string, PropertyValueRange
     get(target, prop) {
       if (typeof prop !== 'string') {
         return undefined
+      }
+
+      if (SCALED_PROPERTIES.has(prop)) {
+        const base = target[prop]!
+        return { ...base, min: scaleBound(base.min), max: scaleBound(base.max) }
       }
 
       return target[prop] ?? getPropertyValueRange(prop as AnimatableProperty) ?? undefined

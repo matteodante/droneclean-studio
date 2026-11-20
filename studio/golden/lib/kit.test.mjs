@@ -23,6 +23,7 @@ import {
   shadowPieceFile,
   shadowSourceFile,
 } from './float.mjs'
+import { checkFlowHalfway, FLOW_HEIGHT, FLOW_SOURCE_FRAMES, FLOW_WIDTH, flowPatternFile } from './flow.mjs'
 import { decodePng, encodePng } from './png.mjs'
 import { decodePng16, encodePng16 } from './png16.mjs'
 import { assertHardwareGpu } from './render.mjs'
@@ -53,6 +54,7 @@ const IMAGE_HASHES = {
   detail: 'd86130bcfe2649667d52049ba2f58e6c0bef2ed3f331ff62f160bb17917b4625',
   scene: 'adac2b7de43e9ec40dfd46e896eadf6007d145b3a77b1f2dce6b7ba979e0f08e',
   overlay: '1d6e550abc1f02c39f26d45a111c41ac8006acb8da6f6247ec6fd6721860fe86',
+  overcast: 'd4c88c38ac3b3afb5d5db7a47e1e6aad9e4d2af60fef2da4bb27031fc783ec1e',
 }
 const VIDEO_HASHES = {
   'h264-high.mp4': '2c71e28cfe45186bacee58cd2b874db19c7ddc5b7dd11ffa703d304ed9630e11',
@@ -233,6 +235,31 @@ test('the 16-bit PNG codec round-trips every value and the float comparison miss
   assert.deepEqual([stats.differing, stats.max], [1, 1])
   assert.match(describeStats16(stats), /1 of 48 values differ/)
   assert.ok(!isIdentical16(diffStats16(image, { ...image, width: 3, height: 4 })))
+})
+
+test('the optical-flow case’s clip is what its stored frames were made from, and its check tells flow from blend', () => {
+  const file = flowPatternFile()
+  const frameBytes = FLOW_WIDTH * FLOW_HEIGHT * 2 * 3
+  assert.equal(file.length, frameBytes * FLOW_SOURCE_FRAMES)
+  assert.equal(crypto.createHash('sha256').update(file).digest('hex'), '1b8f53804ced46506b1d0d596fe81f8c8c82f480ab32d74b0e4fc2761395deb1')
+
+  // A picture as the float composite delivers it (unorm16 RGBA), from the codes of a frame or of a mix of two
+  const green = (frame, x, y) => file.readUInt16LE(frame * frameBytes + (y * FLOW_WIDTH + x) * 2)
+  const picture = (codeAt) => {
+    const data = new Uint16Array(FLOW_WIDTH * FLOW_HEIGHT * 4)
+    for (let y = 0; y < FLOW_HEIGHT; y++) {
+      for (let x = 0; x < FLOW_WIDTH; x++) {
+        const value = Math.round((codeAt(x, y) / 1023) * 65535)
+        data.set([value, value, value, 65535], (y * FLOW_WIDTH + x) * 4)
+      }
+    }
+    return { width: FLOW_WIDTH, height: FLOW_HEIGHT, data }
+  }
+  assert.deepEqual(checkFlowHalfway(picture((x, y) => green(1, x, y)), 2), [])
+  assert.notDeepEqual(checkFlowHalfway(picture((x, y) => green(2, x, y)), 2), [])
+  // The blend of frames 0 and 1 shown for output frame 1 fails: that is the picture the flow must beat
+  const blend = checkFlowHalfway(picture((x, y) => (green(0, x, y) + green(1, x, y)) / 2), 1)
+  assert.ok(blend.some((problem) => problem.includes('under 0.1 of the blend')), blend.join('; '))
 })
 
 test('the raw 10-bit inputs of the float cases are what the stored frames were made from', () => {

@@ -26,7 +26,11 @@
       "label": "색상 프로필",
       "unset": "설정 안 됨",
       "suggested": "추천: {{profile}}?",
-      "apply": "적용"
+      "apply": "적용",
+      "askTitle": "이 DJI 클립을 D-Log M으로 촬영했나요?",
+      "askBody": "파일에는 표시되지 않습니다. 예를 누르면 D-Log M 색상 프로필이 설정되며, 클립마다 바꿀 수 있습니다.",
+      "askYes": "예, D-Log M",
+      "askNo": "아니요, 일반"
     },
     "looks": {
       "title": "룩",

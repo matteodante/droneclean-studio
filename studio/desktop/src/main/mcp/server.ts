@@ -33,6 +33,7 @@ import type {
 } from '../../../../mcp/protocol'
 import type { AgentAccessStatus } from '../../shared/agent-access'
 import { agentError, toStudioErrorJson } from './errors'
+import type { AgentActivity } from './idle-quit'
 import { agentLogLine, createAgentLog, pruneAgentLog, type AgentLog } from './log'
 import { createSerialQueue } from './page'
 import {
@@ -74,6 +75,8 @@ export interface AgentAccessOptions {
   log?: AgentLog
   /** Where diagnostics go; the main process console when absent. */
   logger?: (message: string) => void
+  /** Told when a client connects or leaves and when a tool call starts or ends (the idle quit). */
+  onActivity?: (event: AgentActivity) => void
 }
 
 /** The object the shell (and, later, the Agent access panel) drives. */
@@ -241,7 +244,8 @@ function createMcpServer(tools: {
       description:
         'Render one timeline frame, or a contact sheet of up to 12 sampled frames, from the editor\'s own renderer. ' +
         'Returns the PNG as base64 with its size (default 1280 px long edge), or with full: true writes ' +
-        'projects/{id}/frames/frame-N.png into the workspace and returns its path and size.',
+        'projects/{id}/frames/frame-N-<time>-<counter>.png into the workspace (a new file each render, so a before and ' +
+        'an after both stay) and returns its path and size.',
       inputSchema: frameInput,
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
@@ -314,10 +318,13 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
   ): Promise<CallToolResult> {
     const startedAt = Date.now()
     let outcome: ToolOutcome
+    options.onActivity?.('call-started')
     try {
       outcome = await queue(handler)
     } catch (error) {
       outcome = { error: toStudioErrorJson(error) }
+    } finally {
+      options.onActivity?.('call-ended')
     }
     const undoSteps = outcome.undoSteps
     if ('error' in outcome) {
@@ -364,8 +371,12 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
   /** Serve one accepted client socket. */
   function handleConnection(socket: Socket): void {
     connections.add(socket)
+    options.onActivity?.('client-connected')
     socket.setNoDelay(true)
-    socket.once('close', () => connections.delete(socket))
+    socket.once('close', () => {
+      connections.delete(socket)
+      options.onActivity?.('client-closed')
+    })
     socket.on('error', (error) => {
       logger(`[mcp] client socket error: ${error.message}`)
       socket.destroy()

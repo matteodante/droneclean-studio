@@ -26,7 +26,11 @@
       "label": "カラープロファイル",
       "unset": "未設定",
       "suggested": "候補: {{profile}}?",
-      "apply": "適用"
+      "apply": "適用",
+      "askTitle": "これらのDJIクリップはD-Log Mで撮影しましたか？",
+      "askBody": "ファイルには記録されていません。「はい」でD-Log Mのカラープロファイルを設定します。クリップごとに変更できます。",
+      "askYes": "はい、D-Log M",
+      "askNo": "いいえ、通常"
     },
     "looks": {
       "title": "ルック",

@@ -30,7 +30,9 @@
       "deviceBusy": "Mikrofon başka bir uygulama tarafından kullanılıyor.",
       "startFailed": "Kayıt başlatılamadı. Lütfen tekrar deneyin.",
       "failed": "Kayıt başarısız oldu. Lütfen tekrar deneyin.",
-      "saveFailed": "Kayıt kaydedilemedi."
+      "saveFailed": "Kayıt kaydedilemedi.",
+      "systemBlocked": "DroneClean Studio mikrofonu kullanamıyor. Sistem Ayarları › Gizlilik ve Güvenlik › Mikrofon bölümünden izin verip yeniden deneyin.",
+      "startTimeout": "Mikrofon başlamadı. Bağlı ve izinli olduğunu kontrol edin (Sistem Ayarları › Gizlilik ve Güvenlik › Mikrofon), ardından yeniden deneyin."
     }
   }
 }

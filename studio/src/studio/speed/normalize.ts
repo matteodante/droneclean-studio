@@ -22,6 +22,7 @@
 
 import { MAX_SPEED_DENOMINATOR } from '@/studio/time'
 import { MAX_CURVE_SPEED, MIN_CURVE_SPEED, type SpeedCurve, type SpeedKey } from './curve'
+import { isSpeedEase, type SpeedEase, type SpeedEaseSlice } from './ease'
 
 /**
  * The longest ramp — a segment between two keys of different speeds — a curve may hold:
@@ -45,17 +46,60 @@ function hasOverlongRamp(keys: readonly SpeedKey[]): boolean {
   return false
 }
 
+/** A key as read off outside data: the numbers checked, the ease only if it names one. */
+interface ReadKey {
+  readonly frame: number
+  readonly speed: number
+  readonly ease: SpeedEase | undefined
+  readonly easeSlice: unknown
+}
+
 /**
  * Read one key off data that came from outside (a project file, the SDK): a finite `frame` and
- * a finite `speed`, or `undefined` when the value is not a key at all.
+ * a finite `speed`, or `undefined` when the value is not a key at all. An `ease` that is not one
+ * of the known names is read as none, so a file from a newer editor opens as linear.
  */
-function readKey(value: unknown): { frame: number; speed: number } | undefined {
+function readKey(value: unknown): ReadKey | undefined {
   if (typeof value !== 'object' || value === null) return undefined
-  const candidate = value as { frame?: unknown; speed?: unknown }
-  const { frame, speed } = candidate
+  const candidate = value as { frame?: unknown; speed?: unknown; ease?: unknown; easeSlice?: unknown }
+  const { frame, speed, ease } = candidate
   if (typeof frame !== 'number' || !Number.isFinite(frame)) return undefined
   if (typeof speed !== 'number' || !Number.isFinite(speed)) return undefined
-  return { frame, speed }
+  return {
+    frame,
+    speed,
+    ease: isSpeedEase(ease) && ease !== 'linear' ? ease : undefined,
+    easeSlice: candidate.easeSlice,
+  }
+}
+
+/** A speed inside the range a key may hold. */
+function clampSpeed(speed: number): number {
+  return Math.min(MAX_CURVE_SPEED, Math.max(MIN_CURVE_SPEED, speed))
+}
+
+/**
+ * The slice of an eased key whose segment is `segmentLength` frames long, or `undefined` when
+ * there is none or it does not put the segment inside its parent ramp (the segment is then the
+ * plain ease between its keys).
+ */
+function readSlice(value: unknown, segmentLength: number): SpeedEaseSlice | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const { offset, length, from, to } = value as Record<string, unknown>
+  if (!isWhole(offset, 0) || !isWhole(length, 1)) return undefined
+  if (offset + segmentLength > length) return undefined
+  if (!isFiniteNumber(from) || !isFiniteNumber(to)) return undefined
+  return { offset, length, from: clampSpeed(from), to: clampSpeed(to) }
+}
+
+/** An integer of at least `minimum`. */
+function isWhole(value: unknown, minimum: number): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum
+}
+
+/** A finite number. */
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
 }
 
 /**
@@ -74,6 +118,10 @@ function readKey(value: unknown): { frame: number; speed: number } | undefined {
  * with a ramp longer than `MAX_RAMP_SEGMENT_FRAMES`. The input is not mutated: the result is new
  * objects, ready to store.
  *
+ * A key's `ease` (the shape of the segment that starts there) and `easeSlice` (that segment is a
+ * piece of a longer ramp, written by a cut) are kept; `linear`, an unknown name and an ease on
+ * the last key are dropped, and a slice that does not fit its segment is dropped.
+ *
  * Speeds are clamped, never rounded: a key a cut inserted holds its parent line's fraction, and
  * rounding it would move the clip off its parent's frames. An edit by a person rounds to the
  * hundredth before it gets here (`setSpeedCurve`, `stretchSpeedCurve`).
@@ -89,16 +137,28 @@ export function normalizeSpeedCurve(
   if (!Number.isFinite(durationInFrames) || durationInFrames < 1) return undefined
   const duration = Math.round(durationInFrames)
 
-  const speedAtFrame = new Map<number, number>()
+  const keyAtFrame = new Map<number, ReadKey & { frame: number }>()
   for (const value of keys) {
     const key = readKey(value)
     if (key === undefined) return undefined
     const frame = Math.min(duration, Math.max(0, Math.round(key.frame)))
-    speedAtFrame.set(frame, Math.min(MAX_CURVE_SPEED, Math.max(MIN_CURVE_SPEED, key.speed)))
+    keyAtFrame.set(frame, { ...key, frame, speed: clampSpeed(key.speed) })
   }
 
-  const frames = [...speedAtFrame.keys()].sort((left, right) => left - right)
-  const normalized: SpeedKey[] = frames.map((frame) => ({ frame, speed: speedAtFrame.get(frame)! }))
+  const frames = [...keyAtFrame.keys()].sort((left, right) => left - right)
+  const normalized: SpeedKey[] = frames.map((frame, index) => {
+    const key = keyAtFrame.get(frame)!
+    const next = frames[index + 1]
+    // The last key starts no segment, so an ease on it means nothing.
+    if (key.ease === undefined || next === undefined) return { frame, speed: key.speed }
+    const easeSlice = readSlice(key.easeSlice, next - frame)
+    return {
+      frame,
+      speed: key.speed,
+      ease: key.ease,
+      ...(easeSlice !== undefined ? { easeSlice } : {}),
+    }
+  })
   const first = normalized[0]!
   if (first.frame !== 0) {
     normalized.unshift({ frame: 0, speed: first.speed })

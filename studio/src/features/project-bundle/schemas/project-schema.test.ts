@@ -127,6 +127,36 @@ describe('project schema speed curves', () => {
     expect(result.data?.timeline?.items[0]?.speed).toBe(2.5)
   })
 
+  it('keeps the ease of a segment, and the slice a cut left, through save and load', () => {
+    const eased = {
+      keys: [
+        { frame: 0, speed: 1.2, ease: 'smooth', easeSlice: { offset: 10, length: 60, from: 1, to: 4 } },
+        { frame: 20, speed: 2 },
+      ],
+    }
+    const result = validateProject(JSON.parse(JSON.stringify(makeProjectWithCurve(eased))) as unknown)
+
+    expect(result.success).toBe(true)
+    expect(result.data?.timeline?.items[0]?.speedCurve).toEqual(eased)
+  })
+
+  it('refuses an ease that is not one of the four', () => {
+    const result = validateProject(
+      JSON.parse(
+        JSON.stringify(
+          makeProjectWithCurve({
+            keys: [
+              { frame: 0, speed: 1, ease: 'bounce' },
+              { frame: 20, speed: 2 },
+            ],
+          }),
+        ),
+      ) as unknown,
+    )
+
+    expect(result.success).toBe(false)
+  })
+
   it.each([
     {
       curve: {

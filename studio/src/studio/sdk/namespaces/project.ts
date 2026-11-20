@@ -378,5 +378,36 @@ export function createProjectApi(): ProjectApi {
       useProjectStore.getState().setCurrentProject(stored)
       await scopeMediaLibrary(id)
     },
+
+    async delete(id) {
+      const method = 'project.delete'
+      const stored = await readStoredProject(id, method)
+      if (useProjectStore.getState().currentProject?.id === id) {
+        throw studioError({
+          code: 'CONFLICT',
+          method,
+          argument: 'id',
+          message: `"id" names the open project "${stored.name}", which cannot be deleted while it is open`,
+          entity: { kind: 'project', id },
+          hint: 'Open or create another project first with studio.project.open(id) or studio.project.create(...).',
+        })
+      }
+      // FreeCut's own removal path, in its two steps: the trash marker, then the wipe of the
+      // folder with the media nobody else uses. `clearLocalFiles` stays false: the project's
+      // linked folder on the user's disk is never touched.
+      try {
+        await useProjectStore.getState().deleteProject(id, false)
+        await useProjectStore.getState().permanentlyDeleteProject(id)
+        await useProjectStore.getState().loadProjects()
+      } catch (error) {
+        throw internalError(method, 'the project could not be deleted', error)
+      }
+      return {
+        id,
+        name: stored.name,
+        undoable: false,
+        message: `The project "${stored.name}" was deleted from the workspace. This cannot be undone.`,
+      }
+    },
   }
 }

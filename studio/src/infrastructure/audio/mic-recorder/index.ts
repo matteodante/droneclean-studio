@@ -1,5 +1,6 @@
 export {
   MicRecorder,
+  MicStartTimeoutError,
   extensionForMimeType,
   type MicRecorderResult,
   type MicRecorderOptions,

@@ -76,6 +76,7 @@ function createToolPage() {
         setTimeout,
         clearTimeout,
         console,
+        AbortController,
       }
       return Promise.resolve(vm.runInNewContext(code, sandbox))
     },

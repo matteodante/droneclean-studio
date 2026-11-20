@@ -92,7 +92,7 @@ describe('studio.effects', () => {
   describe('types', () => {
     it('lists every effect of the registry, in registry order', () => {
       expect(api.types().map((entry) => entry.id)).toEqual([...GPU_EFFECT_REGISTRY.keys()])
-      expect(api.types()).toHaveLength(54)
+      expect(api.types()).toHaveLength(55)
     })
 
     it("describes a type's parameters with their range, step and options", () => {
@@ -275,7 +275,7 @@ describe('studio.effects', () => {
         'effects.add: "type" must be an effect type id (got "gpu-nope"); ' +
           `valid: ${formatValidValues(ids, 'studio.effects.types()')}`,
       )
-      expect(error.message).toContain('… and 44 more (studio.effects.types())')
+      expect(error.message).toContain('… and 45 more (studio.effects.types())')
     })
 
     it('rejects an unknown parameter name', () => {
@@ -556,7 +556,7 @@ describe('studio.effects', () => {
       const studio = { effects: api }
 
       // types.ts: @example studio.effects.types()
-      expect(studio.effects.types().length).toBe(54)
+      expect(studio.effects.types().length).toBe(55)
 
       // types.ts: @example studio.effects.list('c1')
       expect(studio.effects.list('c1')).toHaveLength(2)

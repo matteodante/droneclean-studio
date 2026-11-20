@@ -84,7 +84,7 @@ test('the SDK parser reads every namespace and method of the real types', () => 
   assert.ok(methods.has('studio.markers.setIn'))
   assert.ok(methods.has('studio.export.start'))
   assert.ok(!methods.has('studio.clips.explode'))
-  assert.equal(methods.size, 109)
+  assert.equal(methods.size, 114)
 })
 
 const FORK_ENTRY = GOOD_ENTRY.replace('src/studio/sdk/types.ts', 'src/studio/looks/LooksSection.tsx')

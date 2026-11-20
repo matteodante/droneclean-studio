@@ -74,6 +74,8 @@ export interface ResolvedPilotPreset {
     ExportSettings,
     'codec' | 'quality' | 'resolution' | 'rateControl' | 'videoBitrate' | 'smartCopy'
   > &
+    /** Present on every preset, undefined unless the preset states one: the dialog's merge then clears an earlier preset's. */
+    Pick<ExportSettings, 'audioBitrate'> &
     Partial<Pick<ExportSettings, 'proResProfile'>>
   numbers: PresetNumbers
 }
@@ -104,23 +106,18 @@ function youtube4kBitrate(fps: number): number {
 }
 
 /**
- * Instagram plays Reels at 1080x1920 at most and re-encodes every upload; it publishes no bitrate, and the guides
- * that measure it (2026) agree on H.264 in MP4, 9:16, up to 60 fps, about 8-15 Mbps at 1080p. A 1440x2560 upload is
- * scaled down by Instagram itself from a sharper picture, which is what creators mean by "upload in 2K". So the box
- * is 1440x2560 when the project is at least that large on its short side, else 1080x1920, turned like the project;
- * and the rate sits at the top of the measured range, scaled by pixels and doubled frame rate.
+ * Meta's Reels specification (developers.facebook.com, IG User Media › Reel Specifications, read 19 Nov 2026): MP4,
+ * H.264 or HEVC, closed GOP, 4:2:0, 23-60 fps, at most 1920 columns, VBR at most 25 Mbps, AAC at most 48 kHz stereo,
+ * 128 kbps, 300 MB at most. Instagram shows Reels at 1080x1920 and re-encodes every upload, so the preset gives it
+ * exactly that frame (no scaling of its own) with the bits under the cap: 20 Mbps above 30 fps (peaks stay under
+ * 25: 23.5 measured on a 44 s reel), 12 Mbps at or below. H.264 is what every Instagram client decodes.
  */
 function instagramReelBox(project: PresetFrame): { width: number; height: number } {
-  const twoK = Math.min(project.width, project.height) >= 1440
-  const short = twoK ? 1440 : 1080
-  const long = twoK ? 2560 : 1920
-  return project.height >= project.width ? { width: short, height: long } : { width: long, height: short }
+  return project.height >= project.width ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 }
 }
 
-function instagramReelBitrate(box: { width: number; height: number }, fps: number): number {
-  const twoK = Math.min(box.width, box.height) >= 1440
-  if (twoK) return fps > 30 ? 25_000_000 : 16_000_000
-  return fps > 30 ? 15_000_000 : 10_000_000
+function instagramReelBitrate(fps: number): number {
+  return fps > 30 ? 20_000_000 : 12_000_000
 }
 
 /**
@@ -184,6 +181,7 @@ function build(
     bitrate: number
     bitDepth: 8 | 10
     quality?: ExportSettings['quality']
+    audioBitrate?: string
     proResProfile?: ExportSettings['proResProfile']
     nativeFormat?: NativeMasterFormat
     /** The rate the preset shows when it is above what the bitrate field takes (ProRes is far above it). */
@@ -202,6 +200,7 @@ function build(
       videoBitrate: bitrate,
       // A preset states exact numbers: copying the source bytes would ignore them.
       smartCopy: false,
+      audioBitrate: options.audioBitrate,
       ...(options.proResProfile ? { proResProfile: options.proResProfile } : {}),
     },
     numbers: {
@@ -259,8 +258,10 @@ const DEFINITIONS: PilotPresetDefinition[] = [
         container: 'mp4',
         codec: 'h264',
         resolution,
-        bitrate: instagramReelBitrate(resolution, context.project.fps),
+        bitrate: instagramReelBitrate(context.project.fps),
         bitDepth: 8,
+        // Meta's Reel specification: AAC at 128 kbps.
+        audioBitrate: '128k',
       })
     },
   },

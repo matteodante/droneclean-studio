@@ -9,22 +9,22 @@ failed call leaves the project exactly as it was. The same content is committed 
 
 | Namespace | Methods |
 |---|---|
-| `studio.project` | 9 |
+| `studio.project` | 10 |
 | `studio.media` | 5 |
 | `studio.subclips` | 5 |
 | `studio.tracks` | 5 |
-| `studio.clips` | 24 |
+| `studio.clips` | 25 |
 | `studio.titles` | 3 |
 | `studio.effects` | 5 |
 | `studio.keyframes` | 6 |
 | `studio.transitions` | 5 |
-| `studio.markers` | 9 |
+| `studio.markers` | 10 |
 | `studio.selection` | 3 |
 | `studio.playback` | 6 |
 | `studio.export` | 8 |
 | `studio.history` | 8 |
 | `studio.workspace` | 1 |
-| `studio.looks` | 2 |
+| `studio.looks` | 4 |
 | `studio.shadow` | 5 |
 
 ## studio.project
@@ -182,6 +182,23 @@ Example:
 
 ```ts
 await studio.project.open('p-8f21')
+```
+
+### `studio.project.delete()`
+
+```ts
+delete(id: string): Promise<ProjectDeleteResult>
+```
+
+Delete a stored project for good: its folder and its entry leave the workspace (the project JSON, its timeline, its media links, and the media copies and caches that no other project uses). A media file the project only linked from the user's own disk is never touched. It cannot be undone, and the result says so. The open project is refused: open or create another one first. Not an undo step.
+
+- Maps to: `useProjectStore.deleteProject, permanentlyDeleteProject`
+- Throws: NOT_FOUND, CONFLICT, INTERNAL
+
+Example:
+
+```ts
+await studio.project.delete('p-8f21')
 ```
 
 ## studio.media
@@ -492,13 +509,13 @@ studio.clips.get('c1')
 ### `studio.clips.add()`
 
 ```ts
-add(input: ClipAddInput): ClipId
+add<T extends ClipAddInput>(input: T): T extends { onOverlap: 'move'
 ```
 
-Place a media library item on a track. One undo step.
+Place a media library item on a track at exactly `from`. One undo step. A clip that would overlap one on its track is refused by default (the error names that clip and the first free frame); pass `onOverlap: 'move'` to have it placed at that frame instead. Then the answer is not the id but a `ClipPlacement` `{ id, from, requestedFrom, moved }`, which says the frame it chose. Without `onOverlap: 'move'` the answer is the id.
 
 - Maps to: `ADD_ITEM (item-actions.ts:610)`
-- Throws: NOT_FOUND, INVALID_ARGUMENT, UNSUPPORTED
+- Throws: NOT_FOUND, INVALID_ARGUMENT, UNSUPPORTED, CONFLICT
 
 Example:
 
@@ -509,13 +526,13 @@ const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0, sourceStar
 ### `studio.clips.addMany()`
 
 ```ts
-addMany(inputs: ClipAddInput[]): ClipId[]
+addMany<T extends ClipAddInput>(inputs: T[]): Array<T extends { onOverlap: 'move'
 ```
 
-Place several media items in one step. One undo step.
+Place several media items in one step. One undo step. Each input is checked as `add` checks it, in order, against the clips already on the track and the inputs before it: an input that would overlap one throws CONFLICT (naming its index, the clip in the way and the first free frame) and the call changes nothing. An input with `onOverlap: 'move'` is placed at that frame instead, and its entry in the answer is a `ClipPlacement` (`id`, `from`, `requestedFrom`, `moved`); every other entry is the id.
 
 - Maps to: `ADD_ITEM (item-actions.ts:610), once per input`
-- Throws: NOT_FOUND, INVALID_ARGUMENT, UNSUPPORTED
+- Throws: NOT_FOUND, INVALID_ARGUMENT, UNSUPPORTED, CONFLICT
 
 Example:
 
@@ -690,7 +707,7 @@ Set a clip's speed curve, or remove it with null (the clip keeps playing at the 
 Example:
 
 ```ts
-studio.clips.setSpeedCurve('c1', [{ frame: 0, speed: 1 }, { frame: 120, speed: 4 }, { frame: 300, speed: 1 }])
+studio.clips.setSpeedCurve('c1', [{ frame: 0, speed: 1, ease: 'smooth' }, { frame: 120, speed: 4 }, { frame: 300, speed: 1 }])
 ```
 
 ### `studio.clips.getMotionBlur()`
@@ -716,7 +733,7 @@ studio.clips.getMotionBlur('c1')?.shutterDegrees
 setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void
 ```
 
-Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x; with `blendSlowMotion` it also blends the two frames around each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project), so a slow-down plays smoothly instead of repeating frames. One undo step.
+Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x; with `smoothSlowMotion` it also makes each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project) from the two frames around it, by blending them or by optical flow, so a slow-down plays smoothly instead of repeating frames. The deprecated `blendSlowMotion` is still accepted in place of `smoothSlowMotion`: `true` is `'blend'`, `false` is off. One undo step.
 
 - Maps to: `SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT
@@ -724,7 +741,7 @@ Switch a clip's motion blur on with a shutter angle, or off with null. The blur 
 Example:
 
 ```ts
-studio.clips.setMotionBlur('c1', { shutterDegrees: 360 })
+studio.clips.setMotionBlur('c1', { shutterDegrees: 360, smoothSlowMotion: 'optical-flow' })
 ```
 
 ### `studio.clips.setSpeedPreset()`
@@ -742,6 +759,23 @@ Example:
 
 ```ts
 studio.clips.setSpeedPreset('c1', 'ramp-in-out', { peak: 4, rampFrames: 15 })
+```
+
+### `studio.clips.applySmoothEdit()`
+
+```ts
+applySmoothEdit(id: ClipId, options?: SmoothEditOptions): SmoothEditResult
+```
+
+The reference look of the drone reels on one clip, in one call: a speed curve fast-slow-fast (default 4x, 0.45x, 4x, the ramps eased `smooth`) that keeps the clip's source content and takes the length it needs, smooth slow motion and motion blur on (the clip's own shutter angle, else 360), and an eased zoom-in on the clip's width and height from its size to `1 + zoom` times it, over the new length. Earlier width, height and scale keyframes of the clip are replaced. The clips after it move by the speed slider's rule (only past the next clip's start). Returns what it set. One undo step.
+
+- Maps to: `SMOOTH_EDIT (src/studio/smooth-edit/action.ts:138)`
+- Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT
+
+Example:
+
+```ts
+studio.clips.applySmoothEdit('c1', { peak: 4, slow: 0.45, zoom: 0.2 })
 ```
 
 ### `studio.clips.speedAt()`
@@ -815,18 +849,18 @@ studio.clips.getLook('c1')?.intensity
 ### `studio.clips.setLook()`
 
 ```ts
-setLook(id: ClipId, look: ClipLookRequest | null): void
+setLook(id: ClipId, look: ClipLookRequest | null): Promise<void>
 ```
 
-Apply a look of the looks library to a clip, with a blend (default 1), or remove it with null. Ids come from `looks.list()`, which must have been called once in the session. One undo step.
+Apply a look of the looks library to a clip, with a blend (default 1), or remove it with null. Ids come from `looks.list()`. The call reads the library from the workspace itself, so it works on a fresh session. One undo step.
 
 - Maps to: `SET_LOOK (src/studio/looks/LooksSection.tsx:100, updateClipsTogether)`
-- Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT
+- Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, INTERNAL
 
 Example:
 
 ```ts
-studio.clips.setLook('c1', { id: 'look-1', intensity: 0.8 })
+await studio.clips.setLook('c1', { id: 'look-1', intensity: 0.8 })
 ```
 
 ### `studio.clips.getStabilization()`
@@ -1238,6 +1272,23 @@ Example:
 
 ```ts
 const id = studio.markers.add({ frame: 120, label: 'take off' })
+```
+
+### `studio.markers.addBeats()`
+
+```ts
+addBeats(clipId: ClipId, input?: MarkerBeatsInput): Promise<Frame[]>
+```
+
+Put a marker on each strong low-frequency hit (kick, bass pluck) of an audio or video clip's sound, at the project frame where the hit plays: the clip's trim, position, speed and reversal are respected. The clip's audio is decoded and analysed off the main thread, which takes a few seconds for a three-minute song, so the call is async. A frame that already has a marker keeps it. Resolves with the frames that carry a beat, in order. One undo step.
+
+- Maps to: `markBeats (src/studio/beats/mark.ts) with ADD_MARKER (marker-actions.ts:12)`
+- Throws: NOT_FOUND, INVALID_ARGUMENT, UNSUPPORTED, MEDIA_UNAVAILABLE
+
+Example:
+
+```ts
+const frames = await studio.markers.addBeats('a1', { strength: 0.6 })
 ```
 
 ### `studio.markers.update()`
@@ -1859,6 +1910,40 @@ Example:
 await studio.looks.add({ fileName: 'warm.cube', text: cubeText, name: 'Warm' })
 ```
 
+### `studio.looks.rename()`
+
+```ts
+rename(id: string, name: string): Promise<LookInfo>
+```
+
+Rename a look: `name` is the label the clip panel's picker shows; the id and the file do not change, so clips keep the look. The library holds only the user's own `.cube` files (there are no built-in looks), so every look can be renamed. Answers the look as `list` does. The look is the workspace's, not the project's: not an undo step.
+
+- Maps to: `useLooksStore.rename (src/studio/looks/store.ts)`
+- Throws: NOT_FOUND, INVALID_ARGUMENT, INTERNAL
+
+Example:
+
+```ts
+await studio.looks.rename('look-1', 'Warm')
+```
+
+### `studio.looks.remove()`
+
+```ts
+remove(id: string): Promise<LookInfo>
+```
+
+Remove a look from the library and delete its `.cube` file from the workspace. It cannot be undone. A look a clip still uses is refused (the clips would lose their look): the error names those clips, and `clips.setLook(clipId, null)` clears each. The library holds only the user's own `.cube` files (there are no built-in looks), so every look can be removed. Answers the look that was removed. Not an undo step.
+
+- Maps to: `useLooksStore.remove (src/studio/looks/store.ts)`
+- Throws: NOT_FOUND, CONFLICT, INTERNAL
+
+Example:
+
+```ts
+await studio.looks.remove('look-1')
+```
+
 ## studio.shadow
 
 `studio.shadow`: DroneClean shadow removal on a clip. Mark the shadow, follow it (free), read the price, clean at that price (spends credits). Implemented by `createShadowApi(): ShadowApi` in `namespaces/shadow.ts`. An agent cannot sign in: when the service needs it the user approves it in the app.
@@ -2068,6 +2153,19 @@ export interface CompositionTimelineContext {
     kind: 'composition';
     id: string;
     name: string;
+}
+```
+
+### `ProjectDeleteResult`
+
+What `project.delete` answers: the project that is gone and that it cannot come back.
+
+```ts
+export interface ProjectDeleteResult {
+    id: string;
+    name: string;
+    undoable: false;
+    message: string;
 }
 ```
 
@@ -2341,6 +2439,19 @@ export interface ClipInfo {
 }
 ```
 
+### `ClipPlacement`
+
+What `clips.add` answers when it was asked `onOverlap: 'move'`: the clip and the frame it was placed at.
+
+```ts
+export interface ClipPlacement {
+    id: ClipId;
+    from: Frame;
+    requestedFrom: Frame;
+    moved: boolean;
+}
+```
+
 ### `ClipAddInput`
 
 Input of `clips.add` and one entry of `clips.addMany`.
@@ -2350,6 +2461,7 @@ export interface ClipAddInput {
     mediaId: MediaId;
     trackId: TrackId;
     from: Frame;
+    onOverlap?: 'move' | 'fail';
     durationInFrames?: Frame;
     label?: string;
     sourceStart?: SourceFrame;
@@ -2414,6 +2526,7 @@ One point of a clip's speed curve: a clip-relative timeline frame and the speed 
 export interface SpeedKey {
     frame: Frame;
     speed: number;
+    ease?: 'linear' | 'smooth' | 'ease-in' | 'ease-out';
 }
 ```
 
@@ -2435,6 +2548,7 @@ A clip's motion blur, as `clips.getMotionBlur` reads it and `clips.setMotionBlur
 ```ts
 export interface MotionBlurSettings {
     shutterDegrees: 90 | 180 | 270 | 360;
+    smoothSlowMotion?: 'blend' | 'optical-flow';
     blendSlowMotion?: boolean;
 }
 ```
@@ -2455,6 +2569,36 @@ Options of `clips.setSpeedPreset`.
 export interface SpeedPresetOptions {
     peak?: number;
     rampFrames?: number;
+}
+```
+
+### `SmoothEditOptions`
+
+Options of `clips.applySmoothEdit`; every field is optional.
+
+```ts
+export interface SmoothEditOptions {
+    peak?: number;
+    slow?: number;
+    zoom?: number;
+}
+```
+
+### `SmoothEditResult`
+
+What `clips.applySmoothEdit` set on the clip.
+
+```ts
+export interface SmoothEditResult {
+    speedCurve: SpeedKey[];
+    averageSpeed: number;
+    durationInFrames: number;
+    motionBlur: MotionBlurSettings;
+    zoom: {
+        firstFrame: Frame;
+        lastFrame: Frame;
+        scale: number;
+    } | null;
 }
 ```
 
@@ -2526,6 +2670,8 @@ export interface ClipStabilization {
     horizonLockPercent: number;
     horizonLockRoll: number;
     adaptiveZoomSeconds: number;
+    framingX: number;
+    framingY: number;
 }
 ```
 
@@ -2540,6 +2686,8 @@ export interface StabilizationPatch {
     horizonLockPercent?: number;
     horizonLockRoll?: number;
     adaptiveZoomSeconds?: number;
+    framingX?: number;
+    framingY?: number;
 }
 ```
 
@@ -2945,6 +3093,16 @@ export interface MarkerInfo {
 }
 ```
 
+### `MarkerBeatsInput`
+
+Input of `markers.addBeats`.
+
+```ts
+export interface MarkerBeatsInput {
+    strength?: number;
+}
+```
+
 ### `MarkerAddInput`
 
 Input of `markers.add`.
@@ -3131,6 +3289,7 @@ export interface ExportPresetInfo {
     id: string;
     label: string;
     settings: ExportSettingsPatch;
+    audioBitrate?: string;
     numbers: {
         width: number;
         height: number;
@@ -3256,6 +3415,7 @@ Value and changes of `Studio.transaction`.
 export interface TransactionResult<T> {
     value: T;
     changes: Changes;
+    settled?: Promise<Changes>;
 }
 ```
 

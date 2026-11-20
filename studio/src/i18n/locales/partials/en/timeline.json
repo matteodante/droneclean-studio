@@ -84,6 +84,7 @@
       "regenerateCaptions": "Regenerate Captions",
       "removeFillerWords": "Remove Filler Words",
       "removeSilence": "Remove Silence",
+      "markBeats": "Mark Beats",
       "reverse": "Reverse",
       "rippleDelete": "Ripple Delete",
       "unlinkClips": "Unlink Clips",
@@ -213,7 +214,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "Applied Effect To Clips",
-      "selectAvClipFirst": "Select Av Clip First"
+      "selectAvClipFirst": "Select Av Clip First",
+      "beatsAnalysing": "Finding the beats…",
+      "beatsNone": "No strong bass hits found in this clip",
+      "beatsMarked_one": "Marked {{count}} beat",
+      "beatsMarked_other": "Marked {{count}} beats",
+      "beatsFailed": "Could not find the beats of this clip"
     },
     "joinIndicators": {
       "canJoinNext": "Can Join Next",

@@ -126,26 +126,62 @@ describe('MotionBlurRows', () => {
     expect(screen.getByTestId('motion-blur-identity')).toBeTruthy()
   })
 
-  it('switches the smooth slow motion on at 0.5x, and the 1x note gives way to it', () => {
+  /** Opens a select by its test id and picks the option of that name */
+  async function choose(testId: string, option: string) {
+    const trigger = screen.getByTestId(testId)
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('option', { name: option }))
+  }
+
+  it('offers smooth slow motion off, by frame blending or by optical flow, and starts off', async () => {
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 180 } }))
+    expect(screen.getByTestId('motion-blur-smooth-slow').textContent).toBe('Off')
+    const trigger = screen.getByTestId('motion-blur-smooth-slow')
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual(['Off', 'Frame blending', 'Optical flow'])
+  })
+
+  it('sets frame blending at 0.5x in one undo step, and the 1x note gives way to it', async () => {
     renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 180 } }))
     expect(screen.getByTestId('motion-blur-identity')).toBeTruthy()
 
-    fireEvent.click(screen.getByTestId('motion-blur-blend-slow'))
+    await choose('motion-blur-smooth-slow', 'Frame blending')
 
-    expect(stored()).toEqual({ shutterDegrees: 180, blendSlowMotion: true })
+    expect(stored()).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
     expect(undoDepth()).toBe(1)
     expect(screen.queryByTestId('motion-blur-identity')).toBeNull()
   })
 
+  it('moves from frame blending to optical flow and back off, one undo step each', async () => {
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'blend' } }))
+    expect(screen.getByTestId('motion-blur-smooth-slow').textContent).toBe('Frame blending')
+
+    await choose('motion-blur-smooth-slow', 'Optical flow')
+    expect(stored()).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+    expect(screen.getByTestId('motion-blur-smooth-slow').textContent).toBe('Optical flow')
+
+    await choose('motion-blur-smooth-slow', 'Off')
+    expect(stored()).toEqual({ shutterDegrees: 180 })
+    expect(undoDepth()).toBe(2)
+  })
+
   it('keeps the smooth slow motion when the shutter angle changes', async () => {
-    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 360, blendSlowMotion: true } }))
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 360, smoothSlowMotion: 'optical-flow' } }))
 
-    const trigger = screen.getByTestId('motion-blur-shutter')
-    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
-    fireEvent.keyDown(trigger, { key: 'Enter' })
-    fireEvent.click(await screen.findByRole('option', { name: '90°' }))
+    await choose('motion-blur-shutter', '90°')
 
-    expect(stored()).toEqual({ shutterDegrees: 90, blendSlowMotion: true })
+    expect(stored()).toEqual({ shutterDegrees: 90, smoothSlowMotion: 'optical-flow' })
+  })
+
+  it('forgets the mode with the blur: switched on again, it starts at 360 degrees with smooth slow motion off', () => {
+    renderStored(clip({ speed: 0.5, motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'blend' } }))
+    fireEvent.click(screen.getByTestId('motion-blur-enabled'))
+    expect(stored()).toBeUndefined()
+    fireEvent.click(screen.getByTestId('motion-blur-enabled'))
+    expect(stored()).toEqual({ shutterDegrees: 360 })
   })
 
   it('changes the shutter angle with the select: one undo step per choice', async () => {

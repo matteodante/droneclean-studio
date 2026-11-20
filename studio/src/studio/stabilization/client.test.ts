@@ -18,6 +18,7 @@ import {
   StabilizationError,
   createStabilizationClient,
   sourceFrameToMicroseconds,
+  sourcePositionToMicroseconds,
   type StabilizationClip,
   type StabilizationProgress,
 } from './client'
@@ -297,6 +298,66 @@ describe('the lens profile', () => {
   })
 })
 
+describe('a position between two frames (optical-flow slow motion, task 11.12)', () => {
+  it('is asked for at its own moment with the same phase of the next 8 gaps, answered as that position, and kept', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+
+    const frame = await client.getFrameData('clip-1', 100.5, { wait: true })
+
+    expect(frame?.sourceFrame).toBe(100.5)
+    const requests = worker().requests('frameData')
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.timestampsUs).toEqual(
+      [100.5, 101.5, 102.5, 103.5, 104.5, 105.5, 106.5, 107.5, 108.5].map((at) => sourcePositionToMicroseconds(RATE, at)),
+    )
+    // 100.5 frames at 60000/1001 is 1,676,675 us: between frames 100 (1,668,333) and 101 (1,685,017)
+    expect(sourcePositionToMicroseconds(RATE, 100.5)).toBe(1_676_675)
+    // Played on, the next gaps' frame halfway is already there: nothing more is asked
+    expect((await client.getFrameData('clip-1', 100.5))?.sourceFrame).toBe(100.5)
+    expect((await client.getFrameData('clip-1', 103.5))?.sourceFrame).toBe(103.5)
+    expect(worker().requests('frameData')).toHaveLength(1)
+  })
+
+  it('looks ahead only as far as the clip’s last frame', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+
+    await client.getFrameData('clip-1', INFO.frames - 2.5, { wait: true })
+
+    expect(worker().requests('frameData')[0]?.timestampsUs).toEqual(
+      [INFO.frames - 2.5, INFO.frames - 1.5].map((at) => sourcePositionToMicroseconds(RATE, at)),
+    )
+  })
+
+  it('answers undefined without waiting, and has the position for the next call', async () => {
+    const { client } = setup()
+    await client.open(CLIP, SETTINGS)
+
+    expect(await client.getFrameData('clip-1', 20.25)).toBeUndefined()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    expect((await client.getFrameData('clip-1', 20.25))?.sourceFrame).toBe(20.25)
+  })
+
+  it('refuses a position before the second frame’s start or past the last frame', async () => {
+    const { client } = setup()
+    await client.open(CLIP, SETTINGS)
+
+    expect(await failure(client.getFrameData('clip-1', INFO.frames - 0.5))).toMatchObject({ name: 'RangeError' })
+    expect(await failure(client.getFrameData('clip-1', -0.5))).toMatchObject({ name: 'RangeError' })
+    expect(() => sourcePositionToMicroseconds(RATE, -1)).toThrowError(RangeError)
+  })
+
+  it('rejects an answer for a frame that is not one of the two around the position', async () => {
+    const { client } = setup({ frameOf: () => 7 })
+    await client.open(CLIP, SETTINGS)
+
+    const error = await failure(client.getFrameData('clip-1', 3.5, { wait: true }))
+    expect(error).toBeInstanceOf(StabilizationError)
+    expect(error.message).toContain('the engine answered source frame 7 for position 3.5')
+  })
+})
+
 describe('the window', () => {
   /** Every timestamp the worker was asked for, in the order it was asked */
   function asked(worker: FakeWorker): number[] {
@@ -430,7 +491,8 @@ describe('the window', () => {
     expect(await failure(client.getFrameData('clip-1', INFO.frames))).toMatchObject({
       name: 'RangeError',
     })
-    expect(await failure(client.getFrameData('clip-1', 1.5))).toMatchObject({ name: 'RangeError' })
+    expect(await failure(client.getFrameData('clip-1', -1))).toMatchObject({ name: 'RangeError' })
+    expect(await failure(client.getFrameData('clip-1', Number.NaN))).toMatchObject({ name: 'RangeError' })
     expect(await failure(client.getFrameData('clip-2', 0))).toMatchObject({ name: 'Error' })
   })
 

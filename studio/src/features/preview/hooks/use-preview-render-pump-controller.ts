@@ -1263,6 +1263,14 @@ export function usePreviewRenderPump({
         ) {
           return
         }
+        // The pump has one request slot and the newest request wins. While a render is in flight,
+        // a request waiting there is the frame the preview must show next (an edit's redraw, a
+        // staged clip whose stages became ready), which the render's owner takes when it
+        // finishes: the lookahead must not replace it, so it waits for the next idle moment.
+        if (scrubRenderInFlightRef.current && scrubRequestedFrameRef.current !== null) {
+          schedulePausedPlaybackLookahead(pausedAtFrame, origin, true)
+          return
+        }
 
         const lookaheadFrame = pausedAtFrame + 1
         if (

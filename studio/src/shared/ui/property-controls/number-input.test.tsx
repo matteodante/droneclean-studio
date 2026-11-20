@@ -41,4 +41,21 @@ describe('NumberInput', () => {
     expect(onChange).toHaveBeenCalledWith(30)
     expect(input).toHaveValue('1.00')
   })
+
+  it('reserves room for four- and five-digit values so they are shown whole', () => {
+    const { container, rerender } = render(
+      <NumberInput value={720} onChange={vi.fn()} label="W" unit="px" className="flex-1 min-w-0" />,
+    )
+    const wrapper = container.firstElementChild as HTMLElement
+    expect(screen.getByRole('textbox')).toHaveValue('720')
+    expect(wrapper.style.minWidth).toContain('3ch')
+
+    rerender(<NumberInput value={2560} onChange={vi.fn()} label="W" unit="px" />)
+    expect(screen.getByRole('textbox')).toHaveValue('2560')
+    expect(wrapper.style.minWidth).toContain('4ch')
+
+    rerender(<NumberInput value={12800} onChange={vi.fn()} label="W" unit="px" />)
+    expect(screen.getByRole('textbox')).toHaveValue('12800')
+    expect(wrapper.style.minWidth).toContain('5ch')
+  })
 })

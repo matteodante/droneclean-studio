@@ -9,22 +9,24 @@
  * (`studio.clips.list()`). When the script returns a promise, the transaction
  * commits the synchronous part first and each awaited SDK call then makes its
  * own entry, exactly as `src/studio/sdk/transaction.ts` documents; `undoSteps`
- * therefore counts the entries of the whole call, while `changes` describes the
- * synchronous part.
+ * therefore counts the entries of the whole call, and `changes` describes the
+ * whole call too: the SDK's `transaction` reports it through `settled` once the
+ * promise resolves (`sdk/transaction.ts`).
  *
- * Timeouts stop waiting, not the script: JavaScript in the page cannot be
- * interrupted. The page races an async value against the call's `timeoutMs`,
- * and main waits at most `timeoutMs + 5000` for the page's answer (a blocked
- * main thread cannot answer at all). The error codes are `TIMEOUT` for both.
+ * JavaScript in the page cannot be interrupted, so a timeout tells the script to
+ * stop (an abort signal the SDK reads: its next SDK call fails) and releases the
+ * lock, instead of leaving the editor held. The page races an async value
+ * against the call's `timeoutMs`; main waits at most `timeoutMs + 5000` for the
+ * page's answer. A page that does not answer at all (a blocked main thread) is
+ * recovered by the bridge: it is asked to abort and, with no answer, to save,
+ * and the editor window is reloaded (`page.ts`). The error code is `TIMEOUT`
+ * for all of them, and says what was done.
  *
  * An abandoned call — a timeout, or an MCP `notifications/cancelled` whose
- * signal aborts the handler — is closed the way design §4.4 says: the tool
- * stops waiting, the script keeps running, and the edits the synchronous part
- * already made are **kept** as the one `agent: <label>` undo entry (they are
- * not rolled back; Ctrl+Z or `studio.history.undo()` takes them back). The
- * timeout answer names how many entries exist when it is produced, and any
- * edit the script makes after the answer is its own later undo entry, labelled
- * by the SDK call that made it. A cancelled call is answered exactly like a
+ * signal aborts the handler — keeps the edits the synchronous part already made
+ * as the one `agent: <label>` undo entry (they are not rolled back; Ctrl+Z or
+ * `studio.history.undo()` takes them back). The timeout answer names how many
+ * entries exist when it is produced. A cancelled call is answered like a
  * timeout (`TIMEOUT`), so the log line says why the tool stopped waiting.
  */
 import type { RunRequest, RunResult, StudioErrorJson } from '../../../../../mcp/protocol'
@@ -37,8 +39,8 @@ import {
   RUN_TIMEOUT_GRACE_MS,
 } from '../protocol'
 import { agentError, isStudioErrorJson } from '../errors'
-import { PageTimeoutError, RUN_BUSY_GLOBAL } from '../page'
-import { pageFailureOutcome } from './page-failure'
+import { PageTimeoutError, RUN_ABORT_GLOBAL, RUN_BUSY_GLOBAL } from '../page'
+import { pageFailureOutcome, timeoutOutcome } from './page-failure'
 import type { PageBridge, ToolOutcome } from '../types'
 
 /** What the page script is called with. */
@@ -92,29 +94,43 @@ export function buildRunScript(options: RunPageScriptOptions): string {
     return typeof evaluated === 'function' ? evaluated(studio) : evaluated
   }
   const before = STUDIO.history.depth()
+  // The signal the SDK reads (sdk/context.ts): once it is aborted, the script's
+  // next SDK call fails instead of editing on.
+  const abortController = new AbortController()
+  globalThis.${RUN_ABORT_GLOBAL} = abortController
+  const runId = (globalThis.__droneAgentRunId || 0) + 1
+  globalThis.__droneAgentRunId = runId
   try {
     const outcome = STUDIO.transaction(${label}, (studio) => evaluate(studio))
     let value = outcome.value
+    let changes = outcome.changes
     if (value && typeof value.then === 'function') {
       // The page's report that the script is not finished: the bridge refuses a
       // new call while this is set, even after this call answered TIMEOUT.
       globalThis.${RUN_BUSY_GLOBAL} = true
-      Promise.resolve(value).then(
-        () => { globalThis.${RUN_BUSY_GLOBAL} = false },
-        () => { globalThis.${RUN_BUSY_GLOBAL} = false },
-      )
+      // Only the latest run clears the flag: an abandoned script that settles
+      // late must not release the lock of the call that came after it.
+      const release = () => { if (globalThis.__droneAgentRunId === runId) globalThis.${RUN_BUSY_GLOBAL} = false }
+      Promise.resolve(value).then(release, release)
       const raced = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve({ state: 'timeout' }), ${timeoutMs})
+        abortController.signal.addEventListener('abort', () => { clearTimeout(timer); resolve({ state: 'aborted' }) }, { once: true })
         Promise.resolve(value).then(
           (resolved) => { clearTimeout(timer); resolve({ state: 'value', value: resolved }) },
           (rejected) => { clearTimeout(timer); resolve({ state: 'error', error: rejected }) },
         )
       })
-      if (raced.state === 'timeout') {
+      if (raced.state === 'timeout' || raced.state === 'aborted') {
+        // The script cannot be interrupted, but it is told to stop and the lock is
+        // released: its next SDK call fails, and the next call runs.
+        abortController.abort()
+        globalThis.${RUN_BUSY_GLOBAL} = false
         const kept = Math.max(0, STUDIO.history.depth() - before)
         return {
-          error: failure('TIMEOUT', 'run: the script is still running after ' + ${timeoutMs} + ' ms; the tool stopped waiting but the script keeps running', {
-            hint: 'The script is not interrupted. ' + (kept > 0 ? 'The ' + kept + ' undo ' + (kept === 1 ? 'entry' : 'entries') + ' it already made ' + (kept === 1 ? 'is' : 'are') + ' kept (its synchronous part is under "' + agentLabel + '"); ' : '') + 'later edits appear as their own undo entries. Make the script resolve sooner, or pass a larger timeoutMs (max 600000).',
+          error: failure('TIMEOUT', raced.state === 'timeout'
+            ? 'run: the script was still running after ' + ${timeoutMs} + ' ms, so it was stopped and the editor is free again'
+            : 'run: the script was stopped before it finished and the editor is free again', {
+            hint: 'The script is told to stop: its next SDK call fails. ' + (kept > 0 ? 'The ' + kept + ' undo ' + (kept === 1 ? 'entry' : 'entries') + ' it already made ' + (kept === 1 ? 'is' : 'are') + ' kept (its synchronous part is under "' + agentLabel + '"; studio.history.undo() takes them back). ' : '') + 'Make the script resolve sooner, or pass a larger timeoutMs (max 600000).',
           }),
           undoSteps: kept,
           durationMs: Date.now() - startedAt,
@@ -122,13 +138,15 @@ export function buildRunScript(options: RunPageScriptOptions): string {
       }
       if (raced.state === 'error') throw raced.error
       value = raced.value
+      // The whole call, awaited edits included (the synchronous part alone is outcome.changes).
+      if (outcome.settled) changes = await outcome.settled
     }
     const plain = (input) => {
       try { return JSON.parse(JSON.stringify(input)) } catch { return null }
     }
     return plain({
       value: value === undefined ? null : value,
-      changes: outcome.changes || { commands: [], added: [], removed: [], updated: [], undoSteps: 0 },
+      changes: changes || { commands: [], added: [], removed: [], updated: [], undoSteps: 0 },
       undoSteps: Math.max(0, STUDIO.history.depth() - before),
       durationMs: Date.now() - startedAt,
     })
@@ -153,27 +171,19 @@ function isRunResult(value: unknown): value is RunResult {
   )
 }
 
-/** The `TIMEOUT` a page that never answered maps to. */
-function timeoutError(timeoutMs: number): StudioErrorJson {
-  return agentError(
-    'TIMEOUT',
-    `run: the editor did not answer within ${timeoutMs + RUN_TIMEOUT_GRACE_MS} ms; its main thread is busy or the script never returns`,
-    {
-      hint: 'The app may be busy rendering; try again, or reload it from the Agent access panel if it stays unresponsive. Edits the script already made stay in the undo history.',
-    },
-  ).json
-}
-
 /** The `TIMEOUT` an MCP `notifications/cancelled` maps to (design §4.4). */
 function cancelledError(label: string, elapsedMs: number): StudioErrorJson {
   return agentError(
     'TIMEOUT',
-    `run: the call was cancelled after ${elapsedMs} ms; the tool stopped waiting but the script keeps running`,
+    `run: the call was cancelled after ${elapsedMs} ms; the tool stopped waiting and told the script to stop`,
     {
-      hint: `The script is not interrupted. The edits it made stay in the undo history (the synchronous part under "agent: ${label}"), and later edits appear as their own entries.`,
+      hint: `The edits it made stay in the undo history (the synchronous part under "agent: ${label}"; studio.history.undo() takes them back); its next SDK call fails.`,
     },
   ).json
 }
+
+/** What `run` advises after a timeout. */
+const RUN_RETRY = 'make the script lighter, split it into several run calls, or pass a larger timeoutMs (max 600000).'
 
 /** The rejection that says the call's signal aborted while main was waiting. */
 class RunCancelledError extends Error {
@@ -258,13 +268,19 @@ export async function runScript(
     const execution = page.execute(
       buildRunScript({ script: request.script, label, timeoutMs }),
       timeoutMs + RUN_TIMEOUT_GRACE_MS,
+      { recover: true },
     )
     answer = await untilCancelled(execution, signal)
   } catch (error) {
     if (error instanceof RunCancelledError) {
+      // The script is still running in the page: stop it and give the page back
+      // before the next call, which the server queues behind this one.
+      await page.recover?.()
       return { error: cancelledError(label, Date.now() - startedAt) }
     }
-    if (error instanceof PageTimeoutError) return { error: timeoutError(timeoutMs) }
+    if (error instanceof PageTimeoutError) {
+      return timeoutOutcome('run', error, timeoutMs + RUN_TIMEOUT_GRACE_MS, RUN_RETRY)
+    }
     const failure = pageFailureOutcome('run', error)
     if (failure !== null) return failure
     throw error

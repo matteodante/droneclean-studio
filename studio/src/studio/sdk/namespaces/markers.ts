@@ -36,12 +36,15 @@ import {
 } from '@/features/timeline/stores/actions/marker-actions'
 import { useMarkersStore } from '@/features/timeline/stores/markers-store'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
-import { requireFrame, requireMarker } from '../context'
+import { markBeats } from '@/studio/beats/mark'
+import { requireClip, requireFrame, requireMarker } from '../context'
 import { invalidArgumentError } from '../errors'
 import { transaction } from '../transaction'
 import type {
+  ClipId,
   Frame,
   MarkerAddInput,
+  MarkerBeatsInput,
   MarkerId,
   MarkerInfo,
   MarkerPatch,
@@ -111,6 +114,22 @@ function add(input: MarkerAddInput): MarkerId {
     const markers = useMarkersStore.getState().markers
     return markers[markers.length - 1]!.id
   }).value
+}
+
+/** Mark the beats of a clip's audio; `markBeats` is the one undo step. */
+async function addBeats(clipId: ClipId, input: MarkerBeatsInput = {}): Promise<Frame[]> {
+  const method = 'markers.addBeats'
+  requireClip(clipId, method, 'clipId')
+  const strength = input?.strength
+  if (strength !== undefined && !(typeof strength === 'number' && strength >= 0 && strength <= 1)) {
+    throw invalidArgumentError({
+      method,
+      argument: 'strength',
+      expectation: 'a number between 0 and 1',
+      value: strength,
+    })
+  }
+  return markBeats(clipId, { strength })
 }
 
 /** Change the fields the patch names on one marker. */
@@ -187,5 +206,5 @@ function clearRange(): void {
  * @example const markers = createMarkersApi(); markers.list()
  */
 export function createMarkersApi(): MarkersApi {
-  return { list, add, update, remove, clear, range, setIn, setOut, clearRange }
+  return { list, add, addBeats, update, remove, clear, range, setIn, setOut, clearRange }
 }

@@ -13,7 +13,8 @@
 
 import type { CompositionInputProps } from '@/types/export'
 import type { ClientExportSettings, RenderProgress, ClientRenderResult } from './client-renderer'
-import { createOutputFormat, getMimeType } from './client-renderer'
+import { createOutputFormat, getMimeType, type OutputFastStart } from './client-renderer'
+import { detectAacPrimingFrames, LeadingTrim } from '@/studio/export/aac-priming'
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
 import { frameToSeconds, rateValue, toRate } from '@/studio/time'
 import { createLogger } from '@/shared/logging/logger'
@@ -73,6 +74,76 @@ function formatClock(seconds: number): string {
     : `${minutes}:${String(remainingSeconds).padStart(2, '0')}`
 }
 
+/**
+ * The MP4 and MOV `moov` box goes at the front of every file the app writes (Meta's Reel specification asks
+ * for it, and a player can start before the download ends). A file target streams the media to disk and
+ * reserves the room for the box (`'reserve'`); a memory target holds the file anyway, so the box is written
+ * in front at the end (`'in-memory'`).
+ */
+function fastStartFor(outputTarget: { kind: 'buffer' | 'file' }): OutputFastStart {
+  return outputTarget.kind === 'buffer' ? 'in-memory' : 'reserve'
+}
+
+/**
+ * The most packets an audio track of this length can carry, for `fastStart: 'reserve'`. Mediabunny's own rule
+ * of thumb: a packet is at least 512 frames long, and a third more than that is added for safety. The
+ * reserved room costs under 50 bytes per packet.
+ */
+function audioPacketBound(durationSeconds: number): number {
+  return Math.ceil(((durationSeconds * 48_000) / 512) * 1.34) + 64
+}
+
+/** The most packets a video track of `frames` frames can carry: one per frame. */
+function videoPacketBound(frames: number): number {
+  return frames + 16
+}
+
+/** Every `-->` line of a WebVTT file is a cue, and a gap before or after it can add a packet each. */
+function subtitlePacketBound(vtt: string | null | undefined): number {
+  const cues = vtt ? (vtt.match(/-->/g)?.length ?? 0) : 0
+  return cues * 2 + 8
+}
+
+/**
+ * The leading frames to keep from the AAC encoder so the MP4 needs no edit list (aac-priming.ts). Nothing
+ * where the audio is not AAC in MP4/MOV, and nothing where the encoder's priming cannot be measured: the
+ * file then keeps the edit list mediabunny writes, which is still in step.
+ */
+async function createAacPrimingTrim(
+  container: ClientExportSettings['container'],
+  audioCodec: string,
+): Promise<LeadingTrim | undefined> {
+  if (audioCodec !== 'aac' || (container !== 'mp4' && container !== 'mov')) return undefined
+  try {
+    return new LeadingTrim(await detectAacPrimingFrames())
+  } catch (error) {
+    getLog().warn('AAC priming could not be measured; the file keeps its audio edit list', { error })
+    return undefined
+  }
+}
+
+/** The planar sample for `frameCount` frames of `audioData` from frame `from`, stamped at its own time. */
+function audioSampleOf(
+  AudioSample: MediabunnyModule['AudioSample'],
+  audioData: { samples: Float32Array[]; sampleRate: number; channels: number },
+  from: number,
+  frameCount: number,
+  startTimestamp: number,
+) {
+  const planar = new Float32Array(frameCount * audioData.channels)
+  for (let channel = 0; channel < audioData.channels; channel++) {
+    const samples = audioData.samples[channel]
+    if (samples) planar.set(samples.subarray(from, from + frameCount), channel * frameCount)
+  }
+  return new AudioSample({
+    data: planar,
+    format: 'f32-planar',
+    numberOfChannels: audioData.channels,
+    sampleRate: audioData.sampleRate,
+    timestamp: startTimestamp + from / audioData.sampleRate,
+  })
+}
+
 async function addAudioDataInChunks(
   audioSource: InstanceType<MediabunnyModule['AudioSampleSource']>,
   AudioSample: MediabunnyModule['AudioSample'],
@@ -80,32 +151,26 @@ async function addAudioDataInChunks(
   signal?: AbortSignal,
   startTimestamp = 0,
   onFramesAdded?: (frames: number) => void,
+  trim?: LeadingTrim,
 ): Promise<void> {
   const totalFrames = audioData.samples[0]?.length ?? 0
 
   for (let offset = 0; offset < totalFrames; offset += AUDIO_ENCODE_CHUNK_FRAMES) {
     if (signal?.aborted) throw new DOMException('Audio encoding cancelled', 'AbortError')
 
-    const frameCount = Math.min(AUDIO_ENCODE_CHUNK_FRAMES, totalFrames - offset)
-    const planar = new Float32Array(frameCount * audioData.channels)
-    for (let channel = 0; channel < audioData.channels; channel++) {
-      const samples = audioData.samples[channel]
-      if (samples) planar.set(samples.subarray(offset, offset + frameCount), channel * frameCount)
+    const chunkFrames = Math.min(AUDIO_ENCODE_CHUNK_FRAMES, totalFrames - offset)
+    // The encoder's priming is kept out of the file by starting the sound that much late (aac-priming.ts):
+    // those frames never reach the encoder, and the ones after them keep their own timestamps.
+    const dropped = trim?.take(chunkFrames, audioData.sampleRate) ?? 0
+    if (dropped < chunkFrames) {
+      const sample = audioSampleOf(AudioSample, audioData, offset + dropped, chunkFrames - dropped, startTimestamp)
+      try {
+        await audioSource.add(sample)
+      } finally {
+        sample.close()
+      }
     }
-
-    const sample = new AudioSample({
-      data: planar,
-      format: 'f32-planar',
-      numberOfChannels: audioData.channels,
-      sampleRate: audioData.sampleRate,
-      timestamp: startTimestamp + offset / audioData.sampleRate,
-    })
-    try {
-      await audioSource.add(sample)
-      onFramesAdded?.(frameCount)
-    } finally {
-      sample.close()
-    }
+    onFramesAdded?.(chunkFrames)
   }
 }
 
@@ -117,8 +182,9 @@ async function addCompositionAudio(params: {
   useWindowedAudio: boolean
   signal?: AbortSignal
   onProgress?: (encodedFrames: number) => void
+  trim?: LeadingTrim
 }): Promise<number> {
-  const { audioSource, AudioSample, canvasAudio, composition, signal, onProgress } = params
+  const { audioSource, AudioSample, canvasAudio, composition, signal, onProgress, trim } = params
   let encodedFrames = 0
   const recordFrames = (frames: number) => {
     encodedFrames += frames
@@ -133,6 +199,7 @@ async function addCompositionAudio(params: {
         signal,
         encodedFrames / window.sampleRate,
         recordFrames,
+        trim,
       )
     }
     return encodedFrames
@@ -140,7 +207,7 @@ async function addCompositionAudio(params: {
 
   const audioData = await canvasAudio.processAudio(composition, signal)
   if (!audioData) return 0
-  await addAudioDataInChunks(audioSource, AudioSample, audioData, signal, 0, recordFrames)
+  await addAudioDataInChunks(audioSource, AudioSample, audioData, signal, 0, recordFrames, trim)
   return encodedFrames
 }
 
@@ -261,8 +328,10 @@ async function addEncodedAudioTrack(params: {
   settings: ClientExportSettings
   durationSeconds: number
   useWindowedAudio: boolean
+  /** `fastStart: 'reserve'` needs the most packets the track can carry. */
+  reserve: boolean
 }): Promise<InstanceType<MediabunnyModule['AudioSampleSource']>> {
-  const { output, AudioSampleSource, settings, durationSeconds, useWindowedAudio } = params
+  const { output, AudioSampleSource, settings, durationSeconds, useWindowedAudio, reserve } = params
 
   // Select the container-compatible audio codec for the muxer.
   const audioCodec = resolveMuxedAudioCodec(settings.container)
@@ -285,7 +354,10 @@ async function addEncodedAudioTrack(params: {
   })
 
   // Add audio track to output (audio data fed after start())
-  output.addAudioTrack(audioSource)
+  output.addAudioTrack(
+    audioSource,
+    reserve ? { maximumPacketCount: audioPacketBound(durationSeconds) } : undefined,
+  )
   getLog().info('Audio track added to output', {
     duration: durationSeconds,
     channels: 2,
@@ -330,8 +402,10 @@ function addTranscriptSubtitleTrack(params: {
   output: InstanceType<MediabunnyModule['Output']>
   TextSubtitleSource: MediabunnyModule['TextSubtitleSource']
   container: ClientExportSettings['container']
+  /** Set under `fastStart: 'reserve'`: the most packets the track can carry. */
+  maximumPacketCount?: number
 }): InstanceType<MediabunnyModule['TextSubtitleSource']> {
-  const { output, TextSubtitleSource, container } = params
+  const { output, TextSubtitleSource, container, maximumPacketCount } = params
 
   const transcriptSubtitleSource = new TextSubtitleSource('webvtt')
   output.addSubtitleTrack(transcriptSubtitleSource, {
@@ -340,6 +414,7 @@ function addTranscriptSubtitleTrack(params: {
     disposition: {
       default: true,
     },
+    ...(maximumPacketCount === undefined ? {} : { maximumPacketCount }),
   })
   getLog().info('Transcript subtitles will be embedded as WebVTT track', {
     container,
@@ -456,7 +531,7 @@ async function tryPacketRemuxComposition(
       settings.destination,
     )
     const format = await createOutputFormat(settings.container, {
-      fastStart: outputTarget.kind === 'buffer',
+      fastStart: fastStartFor(outputTarget),
     })
     const output = new Output({
       format: format as unknown as ConstructorParameters<typeof Output>[0]['format'],
@@ -639,9 +714,9 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
       mimeType,
       settings.destination,
     )
-  const format = await createOutputFormat(settings.container, {
-    fastStart: outputTarget.kind === 'buffer',
-  })
+  const fastStart = fastStartFor(outputTarget)
+  const reserve = fastStart === 'reserve'
+  const format = await createOutputFormat(settings.container, { fastStart })
   const packetAudio = compositionHasAudio
     ? await prepareAudioPacketCopy({
         mediabunny,
@@ -678,7 +753,12 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
   }
 
   const transcriptSubtitleSource = embedTranscriptSubtitles
-    ? addTranscriptSubtitleTrack({ output, TextSubtitleSource, container: settings.container })
+    ? addTranscriptSubtitleTrack({
+        output,
+        TextSubtitleSource,
+        container: settings.container,
+        maximumPacketCount: reserve ? subtitlePacketBound(transcriptSubtitleVtt) : undefined,
+      })
     : null
 
   // Get composition (project) resolution – this is what we render at, and the
@@ -742,12 +822,16 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
   // Add video track
   output.addVideoTrack(videoSource, {
     frameRate: rateValue(rate),
+    ...(reserve ? { maximumPacketCount: videoPacketBound(totalFrames) } : {}),
   })
 
   let audioSource: InstanceType<typeof AudioSampleSource> | null = null
 
   if (packetAudio) {
-    output.addAudioTrack(packetAudio.source)
+    output.addAudioTrack(
+      packetAudio.source,
+      reserve ? { maximumPacketCount: audioPacketBound(durationSeconds) } : undefined,
+    )
     getLog().info('Audio will be copied without decoding or re-encoding')
   } else if (compositionHasAudio) {
     try {
@@ -757,6 +841,7 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
         settings,
         durationSeconds,
         useWindowedAudio,
+        reserve,
       })
     } catch (error) {
       getLog().error('Failed to setup audio track', { error })
@@ -795,6 +880,9 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
 
   // Audio and video now advance together. Mediabunny's source backpressure
   // bounds encoded data while windowed processing bounds decoded PCM memory.
+  const audioTrim = audioSource
+    ? await createAacPrimingTrim(settings.container, resolveMuxedAudioCodec(settings.container))
+    : undefined
   const audioTask: Promise<void> | null = packetAudio
     ? feedAudioPacketCopy({
         mediabunny,
@@ -813,6 +901,7 @@ export async function renderComposition(options: RenderEngineOptions): Promise<C
               useWindowedAudio,
               signal,
               onProgress: (frames) => reportAudioProgress(frames / 48_000, 'processing'),
+              trim: audioTrim,
             })
             getLog().info('Audio chunks fed to encoder', {
               duration: encodedFrames / 48_000,
@@ -1121,9 +1210,8 @@ export async function renderAudioOnly(options: AudioRenderOptions): Promise<Clie
       mimeType,
       settings.destination,
     )
-  const format = await createOutputFormat(settings.container, {
-    fastStart: outputTarget.kind === 'buffer',
-  })
+  const fastStart = fastStartFor(outputTarget)
+  const format = await createOutputFormat(settings.container, { fastStart })
   const output = new Output({ format, target: outputTarget.target })
 
   // Create audio source for encoding
@@ -1133,7 +1221,10 @@ export async function renderAudioOnly(options: AudioRenderOptions): Promise<Clie
   })
 
   // Add audio track to output
-  output.addAudioTrack(audioSource)
+  output.addAudioTrack(
+    audioSource,
+    fastStart === 'reserve' ? { maximumPacketCount: audioPacketBound(durationSeconds) } : undefined,
+  )
 
   getLog().info('Audio track configured', {
     duration: durationSeconds,

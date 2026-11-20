@@ -14,11 +14,13 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
   DesktopBridge,
   DesktopExportFile,
+  DesktopMicrophone,
   DesktopMediaFile,
   DesktopMediaPaths,
   DesktopNativeMedia,
   DesktopShadowSession,
 } from '../shared/bridge'
+import type { MicrophoneAccess } from '../shared/microphone'
 import type {
   ShadowRelayRequest,
   ShadowRelayResponse,
@@ -68,6 +70,9 @@ const SHADOW_SESSION_CHANNELS = {
   request: 'shadow-session:request',
   signOut: 'shadow-session:sign-out',
 } as const
+
+/** `shared/microphone.ts`'s `MICROPHONE_CHANNELS`, written out for the same reason. */
+const MICROPHONE_CHANNELS = { request: 'microphone:request' } as const
 
 function platform(): DesktopBridge['platform'] {
   if (process.platform === 'win32' || process.platform === 'linux') return process.platform
@@ -132,6 +137,12 @@ const shadowSession: DesktopShadowSession = {
   },
 }
 
+const microphone: DesktopMicrophone = {
+  request(): Promise<MicrophoneAccess> {
+    return ipcRenderer.invoke(MICROPHONE_CHANNELS.request)
+  },
+}
+
 const bridge: DesktopBridge = {
   version: 1,
   platform: platform(),
@@ -142,6 +153,7 @@ const bridge: DesktopBridge = {
   mediaPaths,
   exportFile,
   shadowSession,
+  microphone,
 }
 
 contextBridge.exposeInMainWorld('dronecleanDesktop', bridge)

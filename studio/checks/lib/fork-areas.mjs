@@ -93,6 +93,18 @@ const FORK_FOLDERS = [
     path: 'src/runtime/renderer/audio/audio-grid.test.ts',
     why: 'the exact-rate audio grid test covers mixdown.ts, pipeline.ts and windowed.ts together (design 1.5), so it has no single subject file',
   },
+  {
+    path: 'headless/lib/mp4-boxes.mjs',
+    why: "task 11.19: the MP4 box walk used by the headless export pass (export-media-video.mjs) and its tests, beside FreeCut's other headless helpers",
+  },
+  {
+    path: 'headless/mp4-boxes.test.mjs',
+    why: 'task 11.19: `headless:test:node` runs headless/*.test.mjs, so the box walk\'s test has to sit there',
+  },
+  {
+    path: 'headless/mp4-mux-contract.test.mjs',
+    why: 'task 11.19: the contract that the muxer writes moov first and no edit list; `headless:test:node` runs headless/*.test.mjs',
+  },
 ]
 
 /** The entry that owns `file`, or null when the file sits in FreeCut's folder. */

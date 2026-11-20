@@ -108,6 +108,76 @@ describe('the preparer', () => {
     expect(a.release).toHaveBeenCalledWith('k2')
   })
 
+  it('stops counting a key ready when its stage lost what it made, prepares it again when asked, and keeps its size meanwhile', async () => {
+    const { a, sizes, preparer } = setup()
+    const losses = new Map<string, () => void>()
+    a.built.lost = (key) =>
+      new Promise<void>((resolve) => {
+        losses.set(key, resolve)
+      })
+    const clip = video('y', { stab: 'k1' })
+    await preparer.sync(items(clip))
+    a.prepares[0]!.resolve()
+    await vi.waitFor(() => expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('ready'))
+    sizes.set(derivedSizeKey('stabilize', 'k1'), { width: 10, height: 10 })
+    const heard: string[] = []
+    preparer.subscribe((key) => heard.push(key))
+
+    // The host closed the key's engine on its own: the key is not ready, and nothing is released twice
+    losses.get('k1')!()
+    await vi.waitFor(() => expect(preparer.statusOf(clip, 'stabilize')).toBeUndefined())
+    expect(heard).toEqual([derivedSizeKey('stabilize', 'k1')])
+    expect(a.release).not.toHaveBeenCalled()
+    expect(sizes.get(derivedSizeKey('stabilize', 'k1'))).toEqual({ width: 10, height: 10 })
+
+    // The next frame that needs it (`ensure`) or the next change prepares it again
+    preparer.ensure(items(clip), DEVICE)
+    expect(a.prepares).toHaveLength(2)
+    expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('preparing')
+  })
+
+  it('drops the kept size of a lost key with the first change that no longer wants it', async () => {
+    const { a, sizes, preparer } = setup()
+    let lose!: () => void
+    a.built.lost = () =>
+      new Promise<void>((resolve) => {
+        lose = resolve
+      })
+    const clip = video('y', { stab: 'k1' })
+    await preparer.sync(items(clip))
+    a.prepares[0]!.resolve()
+    await vi.waitFor(() => expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('ready'))
+    sizes.set(derivedSizeKey('stabilize', 'k1'), { width: 10, height: 10 })
+    lose()
+    await vi.waitFor(() => expect(preparer.statusOf(clip, 'stabilize')).toBeUndefined())
+
+    await preparer.sync([])
+    expect(sizes.get(derivedSizeKey('stabilize', 'k1'))).toBeUndefined()
+    expect(a.release).not.toHaveBeenCalled()
+  })
+
+  it('ignores the loss of what an earlier preparation made once the key was released', async () => {
+    const { a, preparer } = setup()
+    let lose!: () => void
+    a.built.lost = () =>
+      new Promise<void>((resolve) => {
+        lose = resolve
+      })
+    const clip = video('y', { stab: 'k1' })
+    await preparer.sync(items(clip))
+    a.prepares[0]!.resolve()
+    await vi.waitFor(() => expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('ready'))
+    await preparer.sync([])
+    await preparer.sync(items(clip))
+    expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('preparing')
+
+    // The released preparation's engine goes (the release closed it): the new one is left alone
+    lose()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(preparer.statusOf(clip, 'stabilize')?.status).toBe('preparing')
+  })
+
   it('prepares every active stage of a clip, and nothing for a clip with none', async () => {
     const { a, b, c, preparer } = setup()
     await preparer.sync(items(video('x', { stab: 's', col: 'dlog', lk: 'warm' }), video('plain')))

@@ -31,7 +31,7 @@ import { createFakeStudio } from './support/fake-page.mjs'
  */
 function createVmWindow(studio) {
   const gestures = []
-  const ctx = vm.createContext({ setTimeout, clearTimeout, console, Error, Promise })
+  const ctx = vm.createContext({ setTimeout, clearTimeout, console, Error, Promise, AbortController })
   if (studio !== undefined) ctx.studio = studio
   const window = {
     isDestroyed: () => false,
@@ -78,10 +78,10 @@ test('D6: a script is evaluated without a user gesture', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// D8: a call that timed out keeps the page held until the script finishes
+// D8: a call that timed out stops its script and releases the page (task 11.2)
 // ---------------------------------------------------------------------------
 
-test('D8: after a run times out, the next call fails at once while the script still runs', async () => {
+test('D8: after a run times out, the script is told to stop and the next call runs at once', async () => {
   const { window, ctx } = createVmWindow(createFakeStudio())
   let release
   ctx.gate = new Promise((resolve) => {
@@ -95,23 +95,42 @@ test('D8: after a run times out, the next call fails at once while the script st
   )
   assert.ok('error' in first)
   assert.equal(first.error.code, 'TIMEOUT')
+  assert.match(first.error.message, /stopped/)
+  assert.equal(ctx[page.RUN_ABORT_GLOBAL].signal.aborted, true, 'the SDK can see the abort signal')
 
   const startedAt = Date.now()
   const second = await runScript({ script: 's => 2', label: 'second' }, bridge)
-  assert.ok('error' in second, 'a call beside a running script must not run')
-  assert.equal(second.error.code, 'CONFLICT')
-  assert.match(second.error.message, /previous script is still running/)
-  assert.ok(Date.now() - startedAt < 200, 'it fails at once, it does not wait')
-
-  // The page reports the script finished: calls run again.
+  assert.ok('result' in second, JSON.stringify(second))
+  assert.equal(second.result.value, 2)
+  assert.ok(Date.now() - startedAt < 200, 'the page was released, nothing to wait for')
+  assert.equal(ctx[page.RUN_ABORT_GLOBAL].signal.aborted, false, 'a new call has a fresh signal')
   release()
-  await new Promise((resolve) => setTimeout(resolve, 20))
-  const third = await runScript({ script: 's => 3', label: 'third' }, bridge)
-  assert.ok('result' in third, JSON.stringify(third))
-  assert.equal(third.result.value, 3)
 })
 
-test('D8: a cancelled run holds the page the same way', async () => {
+test('D8: an abandoned script that settles late does not release the call that came after it', async () => {
+  const { window, ctx } = createVmWindow(createFakeStudio())
+  let releaseFirst
+  ctx.firstGate = new Promise((resolve) => {
+    releaseFirst = resolve
+  })
+  ctx.secondGate = new Promise(() => {})
+  const bridge = page.createPageBridge(() => window, FAST)
+
+  await runScript({ script: 'async s => { await firstGate }', label: 'first', timeoutMs: 30 }, bridge)
+  // The second call is pending in the page when the first one finally settles.
+  const second = runScript({ script: 'async s => { await secondGate }', label: 'second', timeoutMs: 400 }, bridge)
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  assert.equal(ctx[page.RUN_BUSY_GLOBAL], true)
+  releaseFirst()
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.equal(ctx[page.RUN_BUSY_GLOBAL], true, 'the late first script must not clear the second one’s flag')
+  const answered = await second
+  assert.ok('error' in answered)
+  assert.equal(answered.error.code, 'TIMEOUT')
+  assert.equal(ctx[page.RUN_BUSY_GLOBAL], false)
+})
+
+test('D8: a cancelled run is stopped the same way and the next call runs', async () => {
   const { window, ctx } = createVmWindow(createFakeStudio())
   let release
   ctx.gate = new Promise((resolve) => {
@@ -131,8 +150,8 @@ test('D8: a cancelled run holds the page the same way', async () => {
   assert.equal(cancelled.error.code, 'TIMEOUT')
 
   const next = await runScript({ script: 's => 2', label: 'next' }, bridge)
-  assert.ok('error' in next)
-  assert.equal(next.error.code, 'CONFLICT')
+  assert.ok('result' in next, JSON.stringify(next))
+  assert.equal(next.result.value, 2)
   release()
 })
 
@@ -402,7 +421,7 @@ function createCrashableWindow({ loadMs = 30 } = {}) {
   const listeners = { 'render-process-gone': [], 'did-start-navigation': [] }
   const state = { crashed: false, reloads: 0, pending: [], ctx: null }
   const fresh = () => {
-    const ctx = vm.createContext({ setTimeout, clearTimeout, console, Error, Promise })
+    const ctx = vm.createContext({ setTimeout, clearTimeout, console, Error, Promise, AbortController })
     ctx.studio = createFakeStudio()
     return ctx
   }

@@ -25,7 +25,20 @@
  * With a linear speed the source position is quadratic in the frame, so `frameAtArea` is that
  * quadratic's root and is closed form too. The loop that walks the segments is shared with
  * `areaAt`; neither accumulates anything across calls.
+ *
+ * A key may also carry an `ease` (`ease.ts`): the segment that starts at it then follows
+ * `v0 + (v1 - v0)·g(u/L)` instead of the line, with an area that is as closed as the linear one;
+ * only the inverse is solved by bisection. Without `ease` a segment is linear, so a curve
+ * written before eases existed means what it always meant.
  */
+
+import {
+  easeIntegral,
+  easeValue,
+  isSpeedEase,
+  type SpeedEase,
+  type SpeedEaseSlice,
+} from './ease'
 
 /** The slowest speed a key may hold: 0.1, the project schema's lower limit. */
 export const MIN_CURVE_SPEED = 0.1
@@ -42,6 +55,16 @@ export interface SpeedKey {
   readonly frame: number
   /** The playback speed at that frame: a finite number in `MIN_CURVE_SPEED..MAX_CURVE_SPEED`. */
   readonly speed: number
+  /**
+   * The shape of the segment that starts at this key, up to the next one; absent means
+   * `linear`. Meaningless on the last key (nothing starts there), where a normaliser drops it.
+   */
+  readonly ease?: SpeedEase
+  /**
+   * Set by an edit that cut an eased segment: this key's segment is a piece of a longer ramp
+   * (`SpeedEaseSlice`), so the speed on every frame stays the parent's. Never set by hand.
+   */
+  readonly easeSlice?: SpeedEaseSlice
 }
 
 /** A clip's speed over its timeline frames, as keys with linear interpolation between them. */
@@ -111,6 +134,48 @@ function checkedSpeed(functionName: string, index: number, speed: number): void 
   }
 }
 
+/** Check one key's ease: absent, or one of `SPEED_EASES`. */
+function checkedEase(functionName: string, index: number, key: SpeedKey): void {
+  if (key.ease !== undefined && !isSpeedEase(key.ease)) {
+    throw new RangeError(
+      `${functionName}: keys[${index}].ease must be one of linear, smooth, ease-in, ease-out, ` +
+        `got ${String(key.ease)}`,
+    )
+  }
+}
+
+/**
+ * Check the slice on `key`, whose segment is `segmentLength` frames long: whole frames inside
+ * a parent ramp, endpoints in the speed range. A linear key must not carry one.
+ */
+function checkedSlice(
+  functionName: string,
+  index: number,
+  key: SpeedKey,
+  segmentLength: number,
+): void {
+  const slice = key.easeSlice
+  if (slice === undefined) return
+  const where = `keys[${index}].easeSlice`
+  if (key.ease === undefined || key.ease === 'linear') {
+    throw new RangeError(`${functionName}: ${where} needs keys[${index}].ease to be eased`)
+  }
+  if (
+    !Number.isSafeInteger(slice.offset) ||
+    !Number.isSafeInteger(slice.length) ||
+    slice.offset < 0 ||
+    slice.length < 1 ||
+    slice.offset + segmentLength > slice.length
+  ) {
+    throw new RangeError(
+      `${functionName}: ${where} must put ${segmentLength} frames inside its ramp, ` +
+        `got offset ${slice.offset} of length ${slice.length}`,
+    )
+  }
+  checkedSpeed(functionName, index, slice.from)
+  checkedSpeed(functionName, index, slice.to)
+}
+
 /**
  * Check a curve's invariants and return its first and last key. Every public function here
  * starts with this, so a curve built by hand cannot reach the maths broken.
@@ -130,6 +195,10 @@ function checkedCurve(curve: SpeedCurve, functionName: string): ValidatedSpeedCu
   for (const [index, key] of keys.entries()) {
     checkedFrame(functionName, index, key.frame, previousFrame)
     checkedSpeed(functionName, index, key.speed)
+    checkedEase(functionName, index, key)
+    if (index > 0) {
+      checkedSlice(functionName, index - 1, keys[index - 1]!, key.frame - previousFrame)
+    }
     if (index === 0) {
       first = key
     }
@@ -143,39 +212,108 @@ function checkedCurve(curve: SpeedCurve, functionName: string): ValidatedSpeedCu
 }
 
 /**
- * The area of one linear speed segment over `offset` frames of its `length`:
- * `offset·startSpeed + speedDelta·offset²/(2·length)`.
+ * One segment between two keys: the line when `ease` is `linear`, else a piece (`offset`,
+ * `length` of the parent ramp `parentLength` frames long) of the ramp from `parentStart` by
+ * `parentDelta`. An unsliced eased segment is its own parent: `offset 0`, `length` equal.
+ */
+interface Segment {
+  readonly ease: SpeedEase
+  readonly startSpeed: number
+  readonly speedDelta: number
+  readonly length: number
+  readonly parentLength: number
+  readonly offset: number
+}
+
+/** The segment from `start` to the next key `end`. */
+function segmentBetween(start: SpeedKey, end: SpeedKey): Segment {
+  const length = end.frame - start.frame
+  const ease = start.ease ?? 'linear'
+  if (ease === 'linear') {
+    return {
+      ease,
+      startSpeed: start.speed,
+      speedDelta: end.speed - start.speed,
+      length,
+      parentLength: length,
+      offset: 0,
+    }
+  }
+  const slice = start.easeSlice
+  if (slice === undefined) {
+    return {
+      ease,
+      startSpeed: start.speed,
+      speedDelta: end.speed - start.speed,
+      length,
+      parentLength: length,
+      offset: 0,
+    }
+  }
+  return {
+    ease,
+    startSpeed: slice.from,
+    speedDelta: slice.to - slice.from,
+    length,
+    parentLength: slice.length,
+    offset: slice.offset,
+  }
+}
+
+/** The area under an eased ramp from its own start to `t` frames in. */
+function rampArea(segment: Segment, t: number): number {
+  const { startSpeed, speedDelta, parentLength, ease } = segment
+  return t * startSpeed + speedDelta * parentLength * easeIntegral(ease, t / parentLength)
+}
+
+/**
+ * The area of one speed segment over `offset` frames of its length. A linear segment is
+ * `offset·startSpeed + speedDelta·offset²/(2·length)`; an eased one is the parent ramp's area
+ * between its two ends.
  *
  * `areaOf` calls it with `offset === length` for the prefix sums, so the integral at a key is
  * the same double whether it is reached from the segment that ends there or from the one that
  * starts there (which adds `offset === 0`, i.e. zero): the integral has no jump at a key.
  */
-function segmentArea(
-  startSpeed: number,
-  speedDelta: number,
-  length: number,
-  offset: number,
-): number {
-  return offset * startSpeed + (speedDelta * offset * offset) / (2 * length)
+function segmentArea(segment: Segment, offset: number): number {
+  if (segment.ease === 'linear') {
+    return (
+      offset * segment.startSpeed +
+      (segment.speedDelta * offset * offset) / (2 * segment.length)
+    )
+  }
+  if (segment.offset === 0) return rampArea(segment, offset)
+  return rampArea(segment, segment.offset + offset) - rampArea(segment, segment.offset)
 }
 
 /**
- * The offset in frames at which a linear segment has accumulated `area`:
- * `u·v + dv·u²/(2L) = area`, solved as `2·area/(v + √(v² + 2·area·dv/L))` — the `+` root of
- * design 7.1's `(−L·v + √(L²v² + 2·L·area·dv))/dv` written so that a tiny `dv` does not
- * subtract two nearly equal numbers. A segment with `dv === 0` is `area / v`.
+ * The offset in frames at which a segment has accumulated `area`. A linear segment solves
+ * `u·v + dv·u²/(2L) = area` as `2·area/(v + √(v² + 2·area·dv/L))` — the `+` root of design
+ * 7.1's `(−L·v + √(L²v² + 2·L·area·dv))/dv` written so that a tiny `dv` does not subtract two
+ * nearly equal numbers; with `dv === 0` it is `area / v`. An eased segment's area is a
+ * polynomial of degree 3 or 4 in the offset, increasing because the speed is positive, so it is
+ * found by bisection to the double's last digit.
  */
-function segmentOffsetForArea(
-  startSpeed: number,
-  speedDelta: number,
-  length: number,
-  area: number,
-): number {
-  if (speedDelta === 0) {
-    return area / startSpeed
+function segmentOffsetForArea(segment: Segment, area: number): number {
+  const { startSpeed, speedDelta, length } = segment
+  if (segment.ease === 'linear') {
+    if (speedDelta === 0) {
+      return area / startSpeed
+    }
+    const root = Math.sqrt(startSpeed * startSpeed + (2 * area * speedDelta) / length)
+    return (2 * area) / (startSpeed + root)
   }
-  const root = Math.sqrt(startSpeed * startSpeed + (2 * area * speedDelta) / length)
-  return (2 * area) / (startSpeed + root)
+  let low = 0
+  let high = length
+  for (let step = 0; step < 64; step++) {
+    const middle = (low + high) / 2
+    if (segmentArea(segment, middle) < area) {
+      low = middle
+    } else {
+      high = middle
+    }
+  }
+  return (low + high) / 2
 }
 
 /** The integral from frame 0 to `frame` for a curve that passed `checkedCurve`. */
@@ -186,12 +324,11 @@ function areaOf(keys: readonly SpeedKey[], first: SpeedKey, frame: number): numb
     if (index === 0) {
       continue
     }
-    const length = key.frame - start.frame
-    const speedDelta = key.speed - start.speed
+    const segment = segmentBetween(start, key)
     if (frame <= key.frame) {
-      return area + segmentArea(start.speed, speedDelta, length, frame - start.frame)
+      return area + segmentArea(segment, frame - start.frame)
     }
-    area += segmentArea(start.speed, speedDelta, length, length)
+    area += segmentArea(segment, segment.length)
     start = key
   }
   return area + (frame - start.frame) * start.speed
@@ -247,11 +384,10 @@ export function frameAtArea(curve: SpeedCurve, area: number): number {
     if (index === 0) {
       continue
     }
-    const length = key.frame - start.frame
-    const speedDelta = key.speed - start.speed
-    const endArea = consumed + segmentArea(start.speed, speedDelta, length, length)
+    const segment = segmentBetween(start, key)
+    const endArea = consumed + segmentArea(segment, segment.length)
     if (area <= endArea) {
-      return start.frame + segmentOffsetForArea(start.speed, speedDelta, length, area - consumed)
+      return start.frame + segmentOffsetForArea(segment, area - consumed)
     }
     consumed = endArea
     start = key
@@ -259,9 +395,18 @@ export function frameAtArea(curve: SpeedCurve, area: number): number {
   return start.frame + (area - consumed) / start.speed
 }
 
+/** The speed inside a segment `offset` frames after its start. */
+function segmentSpeedAt(segment: Segment, offset: number): number {
+  if (segment.ease === 'linear') {
+    return segment.startSpeed + (offset / segment.length) * segment.speedDelta
+  }
+  const shape = easeValue(segment.ease, (segment.offset + offset) / segment.parentLength)
+  return segment.startSpeed + segment.speedDelta * shape
+}
+
 /**
- * The speed the curve holds at `frame`: a key's own speed on a key, linear interpolation
- * between two, and the last key's speed past the last key. `frame` may be fractional. Never
+ * The speed the curve holds at `frame`: a key's own speed on a key, the segment's shape
+ * (linear unless the key says otherwise) between two, and the last key's speed past the last key. `frame` may be fractional. Never
  * the clip's `speed`, which is the curve's average. Motion blur does not weight samples by
  * this value: its samples are weighted by each source frame's overlap with the shutter
  * window (design 7.2, section 4.1).
@@ -281,8 +426,7 @@ export function speedAt(curve: SpeedCurve, frame: number): number {
       if (frame === key.frame) {
         return key.speed
       }
-      const offset = (frame - start.frame) / (key.frame - start.frame)
-      return start.speed + offset * (key.speed - start.speed)
+      return segmentSpeedAt(segmentBetween(start, key), frame - start.frame)
     }
     start = key
   }
@@ -319,6 +463,21 @@ export function constantSpeed(curve: SpeedCurve): number | undefined {
     if (key.speed !== first.speed) {
       return undefined
     }
+    // A piece of an eased ramp that really changes speed has end keys that may round alike.
+    if (key.easeSlice !== undefined && key.easeSlice.from !== key.easeSlice.to) {
+      return undefined
+    }
   }
   return first.speed
+}
+
+/**
+ * Whether any segment of the curve is eased: the curves whose frame count for a source span
+ * `mapping.ts` settles against the exact integral, because the double inverse is a bisection.
+ *
+ * @throws RangeError naming a broken key (as `validateSpeedCurve` does).
+ */
+export function hasEasedSegments(curve: SpeedCurve): boolean {
+  const { keys } = checkedCurve(curve, 'hasEasedSegments')
+  return keys.slice(0, -1).some((key) => key.ease !== undefined && key.ease !== 'linear')
 }

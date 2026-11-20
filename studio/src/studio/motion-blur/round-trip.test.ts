@@ -62,20 +62,54 @@ describe('VideoItem.motionBlur round trip', () => {
     expect(stored()?.motionBlur).toEqual({ shutterDegrees: 180 })
   })
 
-  it('keeps the slow-motion blend through a save and a load', async () => {
+  it('keeps each smooth slow motion mode through a save and a load', async () => {
+    for (const smoothSlowMotion of ['blend', 'optical-flow'] as const) {
+      useItemsStore
+        .getState()
+        .setItems([
+          makeTimelineVideoItem({
+            id: 'clip-1',
+            trackId: TRACK.id,
+            motionBlur: { shutterDegrees: 270, smoothSlowMotion },
+          }),
+        ])
+
+      await saveAndLoad()
+
+      expect(stored()?.motionBlur).toEqual({ shutterDegrees: 270, smoothSlowMotion })
+    }
+  })
+
+  it('loads a project saved with the old blend switch in blend mode, and drops the old field', async () => {
     useItemsStore
       .getState()
       .setItems([
         makeTimelineVideoItem({
           id: 'clip-1',
           trackId: TRACK.id,
-          motionBlur: { shutterDegrees: 270, blendSlowMotion: true },
+          motionBlur: { shutterDegrees: 270, blendSlowMotion: true } as unknown as VideoItem['motionBlur'],
         }),
       ])
 
     await saveAndLoad()
 
-    expect(stored()?.motionBlur).toEqual({ shutterDegrees: 270, blendSlowMotion: true })
+    expect(stored()?.motionBlur).toEqual({ shutterDegrees: 270, smoothSlowMotion: 'blend' })
+  })
+
+  it('reads an unknown smooth slow motion mode as none', async () => {
+    useItemsStore
+      .getState()
+      .setItems([
+        makeTimelineVideoItem({
+          id: 'clip-1',
+          trackId: TRACK.id,
+          motionBlur: { shutterDegrees: 90, smoothSlowMotion: 'rife' } as unknown as VideoItem['motionBlur'],
+        }),
+      ])
+
+    await saveAndLoad()
+
+    expect(stored()?.motionBlur).toEqual({ shutterDegrees: 90 })
   })
 
   it('passes the project schema the bundle load validates with, even with an unknown angle', () => {

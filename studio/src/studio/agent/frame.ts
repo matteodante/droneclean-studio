@@ -15,7 +15,7 @@
  *
  * One call renders one frame at a long edge (1280 px by default) and answers it
  * as base64 (`FramePngResult`), writes the project's own size to
- * `projects/{id}/frames/frame-N.png` and answers the path (`FramePathResult`)
+ * `projects/{id}/frames/frame-N-<time>-<counter>.png` (a new file per render) and answers the path (`FramePathResult`)
  * when the plan says `full`, or tiles up to 12 sampled frames into one PNG and
  * answers that (the contact sheet). Every cell of a sheet is a full-size render
  * downscaled by `renderSingleFrame`, not a cheap thumbnail: the sheet is for
@@ -36,6 +36,7 @@ import { convertTimelineToComposition } from '@/features/export/utils/timeline-t
 import { writeBlob } from '@/infrastructure/storage/workspace-fs/fs-primitives'
 import { projectDir } from '@/infrastructure/storage/workspace-fs/paths'
 import { getWorkspaceRoot } from '@/infrastructure/storage/workspace-fs/root'
+import { throwIfAgentAborted } from '@/studio/sdk/context'
 import { invalidArgumentError, studioError, StudioError } from '@/studio/sdk/errors'
 
 /** Folder of written frames inside one project (design §4.6). */
@@ -176,9 +177,19 @@ function sheetGeometry(
   }
 }
 
-/** The file name of one written frame: `frame-42.png`. */
-function frameFileName(frame: number): string {
-  return `frame-${frame}.png`
+/** Frames written by this page so far; keeps two names of the same millisecond apart. */
+let writtenFrames = 0
+
+/**
+ * The file name of one written frame: the frame number, the time in base 36
+ * and a counter, e.g. `frame-42-mhx3k9z1-0.png`. Every render gets its own
+ * file, so rendering a frame again after an edit keeps the first one (a
+ * before/after pair).
+ */
+function frameFileName(frame: number, now: number = Date.now()): string {
+  const name = `frame-${frame}-${now.toString(36)}-${writtenFrames}.png`
+  writtenFrames += 1
+  return name
 }
 
 /**
@@ -454,6 +465,7 @@ function liveFrameEnvironment(): FrameEnvironment {
       const { renderSingleFrame } = await import('@/runtime/renderer/canvas-render-orchestrator')
       const pngs: Blob[] = []
       for (const frame of frames) {
+        throwIfAgentAborted('frame')
         pngs.push(
           await renderSingleFrame({ composition, frame, width, height, format: 'image/png' }),
         )

@@ -91,12 +91,14 @@ type MediaActionsProps = ItemContextMenuSectionProps & {
   isVideoItem?: boolean
   playheadInBounds?: boolean
   canRemoveSilence?: boolean
+  canMarkBeats?: boolean
   canRemoveFillers?: boolean
   isRemovingFillers?: boolean
   isTextItem?: boolean
   onReverse?: () => void
   onFreezeFrame?: () => void
   onRemoveSilence?: () => void
+  onMarkBeats?: () => void
   onRemoveFillers?: () => void
   onGenerateAudioFromText?: () => void
 }
@@ -502,12 +504,14 @@ function MediaActions({
   isVideoItem,
   playheadInBounds,
   canRemoveSilence,
+  canMarkBeats,
   canRemoveFillers,
   isRemovingFillers,
   isTextItem,
   onReverse,
   onFreezeFrame,
   onRemoveSilence,
+  onMarkBeats,
   onRemoveFillers,
   onGenerateAudioFromText,
 }: MediaActionsProps) {
@@ -536,6 +540,15 @@ function MediaActions({
         <>
           <ContextMenuItem onClick={onRemoveSilence}>
             {t('timeline.contextMenu.removeSilence')}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+
+      {canMarkBeats && onMarkBeats && (
+        <>
+          <ContextMenuItem onClick={onMarkBeats}>
+            {t('timeline.contextMenu.markBeats', { defaultValue: 'Mark Beats' })}
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>

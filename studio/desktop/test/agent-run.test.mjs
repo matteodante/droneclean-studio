@@ -58,8 +58,10 @@ test('an awaiting script reports every entry it added, the transaction’s one i
   assert.ok('result' in outcome)
   assert.equal(outcome.result.value, 7)
   // One entry from the synchronous half (five edits would have been one too),
-  // one from the awaited call after the transaction committed.
-  assert.equal(outcome.result.changes.undoSteps, 1)
+  // one from the awaited call after the transaction committed. `changes` lists
+  // both: the edit after the await is no longer missing from it.
+  assert.equal(outcome.result.changes.undoSteps, 2)
+  assert.equal(outcome.result.changes.commands.length, 2)
   assert.equal(outcome.result.undoSteps, 2)
   assert.equal(page.studio.depth(), 2)
 })
@@ -230,7 +232,7 @@ test('an aborted (cancelled) call stops waiting at once, as a timeout does', asy
   assert.ok('error' in outcome)
   assert.equal(outcome.error.code, 'TIMEOUT')
   assert.match(outcome.error.message, /cancelled/)
-  assert.match(outcome.error.hint, /script keeps running|not interrupted/)
+  assert.match(outcome.error.hint, /told the script to stop|undo history/)
   assert.ok(elapsed < 700, `answered after ${elapsed} ms; cancellation should not wait for the script`)
 
   const next = await runScript({ script: 's => s.history.depth()', label: 'after cancel' }, page)

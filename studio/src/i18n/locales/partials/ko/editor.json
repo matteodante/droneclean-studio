@@ -688,6 +688,9 @@
       "motionBlur": "모션 블러",
       "motionBlurShutter": "셔터",
       "motionBlurBlendSlow": "부드러운 슬로 모션",
+      "smoothSlowMotionOff": "끔",
+      "smoothSlowMotionBlend": "프레임 블렌딩",
+      "smoothSlowMotionFlow": "옵티컬 플로우",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "{{speed}}배속에서는 이렇게 하면 스트로브 현상이 없어집니다",
       "motionBlurIdentity": "이 속도에서는 효과 없음"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "거꾸로 재생되는 클립에는 속도 곡선을 쓸 수 없습니다.",
       "unsupportedComposition": "복합 클립에는 속도 곡선을 쓸 수 없습니다.",
       "unsupportedKind": "이 클립에는 속도 곡선을 쓸 수 없습니다.",
-      "selectOneClip": "속도 곡선을 편집하려면 클립을 하나만 선택하세요."
+      "selectOneClip": "속도 곡선을 편집하려면 클립을 하나만 선택하세요.",
+      "ease": "이징",
+      "easeTitle": "이 키에서 다음 키까지 속도가 바뀌는 방식",
+      "easeLinear": "선형",
+      "easeSmooth": "부드럽게",
+      "easeIn": "천천히 시작",
+      "easeOut": "천천히 끝",
+      "deliveredFps": "초당 프레임",
+      "deliveredFpsTitle": "가장 느린 지점에서 클립이 실제로 가진 초당 프레임: 원래 프레임 레이트 × 그 속도",
+      "lowFps": "프레임이 부족합니다: 가장 느린 지점에서 초당 {{fps}}, 프로젝트는 {{projectFps}}로 재생합니다. 프레임이 반복됩니다.",
+      "lowFpsBlended": "프레임이 부족합니다: 가장 느린 지점에서 초당 {{fps}}, 프로젝트는 {{projectFps}}로 재생합니다. 부드러운 슬로 모션이 사이 프레임을 섞습니다.",
+      "smoothEdit": "부드러운 램프 + 줌",
+      "smoothEditTitle": "빠르게, 느리게, 빠르게. 부드러운 슬로 모션과 모션 블러, 클립 전체에 부드러운 줌인",
+      "lowFpsFlow": "프레임이 부족합니다: 가장 느린 지점에서 초당 {{fps}}, 프로젝트는 {{projectFps}}로 재생합니다. 옵티컬 플로우가 움직임으로 사이 프레임을 만듭니다."
     },
     "shadowSection": {
       "title": "DroneClean 그림자",
@@ -754,7 +770,6 @@
       "piecesGone_other": "정리된 조각 {{count}}개를 서비스에서 더 이상 사용할 수 없습니다. 다시 정리하기 전까지 해당 구간은 원본이 재생됩니다.",
       "account": {
         "signedIn": "로그인됨",
-        "signedInAs": "{{email}}(으)로 로그인됨",
         "signOut": "로그아웃"
       },
       "pendingRunning": "프레임 {{start}}–{{end}}의 유료 정리가 진행 중입니다. 결과는 클립에 추가됩니다.",
@@ -999,7 +1014,9 @@
         "starting": "클립을 여는 중…",
         "reading": "모션 데이터 읽는 중: {{read}} / {{total}} MB",
         "smoothing": "보정 계산 중…"
-      }
+      },
+      "framingX": "프레이밍(좌우)",
+      "framingY": "프레이밍(상하)"
     },
     "sourceMonitor": {
       "createSubclip": "서브클립 만들기 (Alt+S)",

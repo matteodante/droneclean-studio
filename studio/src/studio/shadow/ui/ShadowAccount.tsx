@@ -8,26 +8,24 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { desktopShadowCloud, type DesktopShadowCloud } from '../session-desktop'
 
-type AccountState =
-  | { stage: 'loading' }
-  | { stage: 'signed-out' }
-  | { stage: 'signed-in'; email: string | null }
+type AccountState = { stage: 'loading' } | { stage: 'signed-out' } | { stage: 'signed-in' }
 
-/** Who is signed in: the session's state, and the account's address when the cloud answers. */
+/**
+ * Whether a pilot is signed in, from the session's flag alone. The account's address is not asked for
+ * here: that call carries the token, and reading it makes macOS ask for keychain access (the desktop app
+ * is not signed, so at every update), which a pilot who never uses shadow removal must not see.
+ */
 async function readAccount(cloud: DesktopShadowCloud): Promise<AccountState> {
-  if ((await cloud.session.getToken()) === null) return { stage: 'signed-out' }
-  try {
-    const account = await cloud.client.getAccount()
-    return { stage: 'signed-in', email: account.user.email }
-  } catch {
-    // Offline, or the session ended (the client has already signed out): show what is true now.
-    return (await cloud.session.getToken()) === null
-      ? { stage: 'signed-out' }
-      : { stage: 'signed-in', email: null }
-  }
+  return (await cloud.session.getToken()) === null
+    ? { stage: 'signed-out' }
+    : { stage: 'signed-in' }
 }
 
-export function ShadowAccount({ cloud = desktopShadowCloud() }: { cloud?: DesktopShadowCloud | null }) {
+export function ShadowAccount({
+  cloud = desktopShadowCloud(),
+}: {
+  cloud?: DesktopShadowCloud | null
+}) {
   const { t } = useTranslation()
   const [state, setState] = useState<AccountState>({ stage: 'loading' })
 
@@ -52,12 +50,7 @@ export function ShadowAccount({ cloud = desktopShadowCloud() }: { cloud?: Deskto
   return (
     <div className="flex items-center justify-between gap-2 text-xs" data-testid="shadow-account">
       <span className="truncate" data-testid="shadow-account-status">
-        {state.email === null
-          ? t('editor.shadowSection.account.signedIn', { defaultValue: 'Signed in' })
-          : t('editor.shadowSection.account.signedInAs', {
-              email: state.email,
-              defaultValue: 'Signed in as {{email}}',
-            })}
+        {t('editor.shadowSection.account.signedIn', { defaultValue: 'Signed in' })}
       </span>
       <Button
         variant="link"

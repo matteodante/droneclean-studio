@@ -688,6 +688,9 @@
       "motionBlur": "Flou de mouvement",
       "motionBlurShutter": "Obturateur",
       "motionBlurBlendSlow": "Ralenti fluide",
+      "smoothSlowMotionOff": "Désactivé",
+      "smoothSlowMotionBlend": "Fusion d'images",
+      "smoothSlowMotionFlow": "Flux optique",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "À {{speed}}x, cela supprime l'effet stroboscopique",
       "motionBlurIdentity": "Aucun effet à cette vitesse"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "Un clip inversé ne peut pas avoir de courbe de vitesse.",
       "unsupportedComposition": "Un clip composé ne peut pas avoir de courbe de vitesse.",
       "unsupportedKind": "Ce clip ne peut pas avoir de courbe de vitesse.",
-      "selectOneClip": "Sélectionnez un seul clip pour modifier sa courbe de vitesse."
+      "selectOneClip": "Sélectionnez un seul clip pour modifier sa courbe de vitesse.",
+      "ease": "Lissage",
+      "easeTitle": "Comment la vitesse change de cette clé à la suivante",
+      "easeLinear": "Linéaire",
+      "easeSmooth": "Doux",
+      "easeIn": "Entrée douce",
+      "easeOut": "Sortie douce",
+      "deliveredFps": "Images par seconde",
+      "deliveredFpsTitle": "Les images par seconde que le clip a vraiment à son point le plus lent : sa propre cadence multipliée par cette vitesse",
+      "lowFps": "Trop peu d'images : {{fps}} par seconde au point le plus lent, le projet en lit {{projectFps}}. Des images se répètent.",
+      "lowFpsBlended": "Trop peu d'images : {{fps}} par seconde au point le plus lent, le projet en lit {{projectFps}}. Le ralenti fluide fond les images intermédiaires.",
+      "smoothEdit": "Rampe douce + zoom",
+      "smoothEditTitle": "Rapide, lent, rapide avec ralenti fluide et flou de mouvement, et un zoom avant adouci sur tout le clip",
+      "lowFpsFlow": "Trop peu d'images : {{fps}} par seconde au point le plus lent, le projet en lit {{projectFps}}. Le flux optique crée les images intermédiaires à partir du mouvement."
     },
     "shadowSection": {
       "title": "Ombre DroneClean",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} morceaux nettoyés ne sont plus disponibles sur le service. Leurs secondes lisent l'original jusqu'à ce que vous les nettoyiez à nouveau.",
       "account": {
         "signedIn": "Connecté",
-        "signedInAs": "Connecté en tant que {{email}}",
         "signOut": "Se déconnecter"
       },
       "pendingRunning": "Un nettoyage payant des images {{start}}–{{end}} est en cours ; son résultat sera ajouté au clip.",
@@ -999,7 +1014,9 @@
         "starting": "Ouverture du clip…",
         "reading": "Lecture des données de mouvement : {{read}} sur {{total}} Mo",
         "smoothing": "Calcul de la stabilisation…"
-      }
+      },
+      "framingX": "Cadrage, horizontal",
+      "framingY": "Cadrage, vertical"
     },
     "sourceMonitor": {
       "createSubclip": "Créer un subclip (Alt+S)",

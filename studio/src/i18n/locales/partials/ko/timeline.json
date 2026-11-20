@@ -84,6 +84,7 @@
       "regenerateCaptions": "자막 다시 생성",
       "removeFillerWords": "군더더기 단어 제거",
       "removeSilence": "무음 제거",
+      "markBeats": "비트 표시",
       "reverse": "반전",
       "rippleDelete": "리플 삭제",
       "unlinkClips": "클립 연결 해제",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "클립에 효과 적용됨",
-      "selectAvClipFirst": "먼저 AV 클립을 선택하세요"
+      "selectAvClipFirst": "먼저 AV 클립을 선택하세요",
+      "beatsAnalysing": "비트를 찾는 중…",
+      "beatsNone": "이 클립에서 강한 저음 타격을 찾지 못했습니다",
+      "beatsMarked_one": "비트 {{count}}개를 표시했습니다",
+      "beatsMarked_other": "비트 {{count}}개를 표시했습니다",
+      "beatsFailed": "이 클립의 비트를 찾을 수 없습니다"
     },
     "joinIndicators": {
       "canJoinNext": "다음과 결합 가능",

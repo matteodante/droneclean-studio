@@ -28,6 +28,7 @@ import { isLinkedSelectionEnabled } from '@/features/timeline/stores/actions/edi
 import { timelineToSourceFrames } from '@/features/timeline/utils/source-calculations'
 import { floorFraction, multiplyFractions, rateRatio, toRate } from '@/studio/time'
 import { averageSpeed, type SpeedCurve } from './curve'
+import { scaledEaseFields } from './ease-cut'
 import { exactAreaAt } from './exact-curve'
 import { sourceFramesAt } from './mapping'
 import { normalizeSpeedCurve } from './normalize'
@@ -144,7 +145,12 @@ export function applySpeedCurve(itemId: string, curve: SpeedCurve | null): void 
   }
 
   const authored = {
-    keys: curve.keys.map((key) => ({ frame: key.frame, speed: toHundredth(key.speed) })),
+    keys: curve.keys.map((key) => ({
+      frame: key.frame,
+      speed: toHundredth(key.speed),
+      ...(key.ease !== undefined ? { ease: key.ease } : {}),
+      ...(key.easeSlice !== undefined ? { easeSlice: key.easeSlice } : {}),
+    })),
   }
   const shape = normalizeSpeedCurve(authored, item.durationInFrames)
   if (shape === undefined) return
@@ -164,7 +170,13 @@ export function applySpeedCurve(itemId: string, curve: SpeedCurve | null): void 
   )
   const factor = duration / item.durationInFrames
   const nextCurve = normalizeSpeedCurve(
-    { keys: shape.keys.map((key) => ({ frame: key.frame * factor, speed: key.speed })) },
+    {
+      keys: shape.keys.map((key) => ({
+        frame: key.frame * factor,
+        speed: key.speed,
+        ...scaledEaseFields(key, factor, 1),
+      })),
+    },
     duration,
   )
   if (nextCurve === undefined) return
@@ -173,7 +185,7 @@ export function applySpeedCurve(itemId: string, curve: SpeedCurve | null): void 
   // and their keyframes, as a speed change: it leaves each clip at one speed with no remainder.
   // The new curve is then written into the length it just left, on the clip and on every
   // companion, inside the same undo entry (design 7.1, section 4.6).
-  rateStretchItemWithoutHistory(itemId, item.from, duration, average)
+  rateStretchItemWithoutHistory(itemId, item.from, duration, average, { rippleOverlapOnly: true })
 
   const store = useItemsStore.getState()
   for (const target of targets) {

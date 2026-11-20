@@ -238,7 +238,35 @@ function overlay() {
   return data
 }
 
-const GENERATORS = { card, ramp, detail, scene, overlay }
+/**
+ * An overcast day: a sky clipped white with faint cloud texture and a grey haze at the horizon, dark
+ * hills and a field, and a bright orange kite in the sky (bright but colourful, so it is not sky).
+ */
+// Test-support kit, exercised end to end by npm run golden (it needs a GPU, so Vitest coverage cannot see it)
+// fallow-ignore-next-line complexity
+function overcast() {
+  const { data, set } = canvas()
+  const horizon = 104
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      let c
+      if (y < horizon) {
+        const cloud = Math.floor(triangle(x + 3 * y, 90) / 6) + Math.floor(triangle(x - 2 * y, 40) / 10)
+        const haze = Math.floor((y * y * 30) / (horizon * horizon))
+        c = [clampByte(255 - (cloud >> 1) - haze), clampByte(255 - (cloud >> 1) - haze), clampByte(252 - cloud - haze)]
+      } else c = [52, 84, 50]
+      const hill = horizon - 14 - Math.floor(triangle(x + 30, 170) / 5) - Math.floor(triangle(x, 54) / 14)
+      if (y >= hill) c = [34 + ((y - hill) >> 2), 62 + ((y - hill) >> 2), 38]
+      const kx = x - 236
+      const ky = y - 38
+      if (Math.abs(kx) + Math.abs(ky) < 16) c = [236, 142, 52]
+      set(x, y, c[0], c[1], c[2])
+    }
+  }
+  return data
+}
+
+const GENERATORS = { card, ramp, detail, scene, overlay, overcast }
 
 /** Names of the generated images. */
 export const IMAGE_NAMES = Object.keys(GENERATORS)

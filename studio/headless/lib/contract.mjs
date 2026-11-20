@@ -78,6 +78,7 @@ const GPU_EFFECT_TYPES = [
   'gpu-secondary-qualifier',
   'gpu-sepia',
   'gpu-sharpen',
+  'gpu-sky',
   'gpu-temperature',
   'gpu-threshold',
   'gpu-trigger-wave',

@@ -60,9 +60,16 @@ export interface SourceStage {
   outputSize(item: VideoItem, input: Size): Size | StageNotReady
   /** Opens engines, builds pipelines and fills the derived-size store: outside the render, never during it. */
   prepare(item: VideoItem, device: GPUDevice): Promise<void>
-  /** Whether the stage's per-frame data for `sourceIndex` is present. */
+  /**
+   * Whether the stage's per-frame data for `sourceIndex` is present. `sourceIndex` is a whole source frame, or for a
+   * frame interpolated between two (optical-flow slow motion, task 11.12) its fractional source position: a stage whose
+   * data depend on time (the stabilization) answers for that moment.
+   */
   ready(item: VideoItem, sourceIndex: number): true | StageNotReady
-  /** Records the stage's work for source frame `sourceIndex` into `encoder`, from `input` to `output`; synchronous. */
+  /**
+   * Records the stage's work for source frame `sourceIndex` (whole, or fractional as in `ready`) into `encoder`, from
+   * `input` to `output`; synchronous.
+   */
   encode(
     env: StageEnv,
     encoder: GPUCommandEncoder,
@@ -73,6 +80,12 @@ export interface SourceStage {
   ): void
   /** Lets go of what the stage holds for a key no clip wants any more (an engine); the preparer calls it. */
   release?(key: string): Promise<void> | void
+  /**
+   * Resolves when what `prepare` made for `key` is gone without the preparer's `release` (an engine its host closed on
+   * its own): the preparer then no longer counts the key as ready, and the next frame that needs it prepares it again.
+   * Asked as soon as a `prepare` resolves. A stage whose preparation cannot be lost leaves it out.
+   */
+  lost?(key: string): Promise<void>
 }
 
 /** What a failed stage reports: the clip, the stage, the source frame when there is one, and why. */

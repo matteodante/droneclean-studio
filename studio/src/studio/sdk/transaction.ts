@@ -30,11 +30,54 @@ import type { CommandEntry } from '@/features/timeline/stores/commands/types'
 import { captureSnapshot, restoreSnapshot } from '@/features/timeline/stores/commands/snapshot'
 import { useTimelineCommandStore } from '@/features/timeline/stores/timeline-command-store'
 import type { Changes, CommandInfo, TransactionResult } from './types'
-import { captureChangeBaseline, diffChangeBaselines } from './changes'
+import { captureChangeBaseline, diffChangeBaselines, type ChangeBaseline } from './changes'
+import { throwIfAgentAborted } from './context'
 import { StudioError } from './errors'
 
 /** How many transactions are open; only the outermost one commits. */
 let depth = 0
+
+/** Who is told about every outermost transaction that ends (the async scopes). */
+const observers = new Set<(changes: Changes) => void>()
+
+/** Whether a callback's value is a promise the call must wait for. */
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  )
+}
+
+/**
+ * The changes of a whole async call: the diff from `baseline` to now once
+ * `pending` settled, with the commands and undo entries the awaited calls
+ * reported after the synchronous part. Never rejects; the caller sees the
+ * failure through the value itself.
+ */
+function followAsyncCall(
+  baseline: ChangeBaseline,
+  synchronous: Changes,
+  pending: PromiseLike<unknown>,
+): Promise<Changes> {
+  const later: Changes[] = []
+  const observer = (changes: Changes): void => {
+    later.push(changes)
+  }
+  observers.add(observer)
+  const finish = (): Changes => {
+    observers.delete(observer)
+    const diff = diffChangeBaselines(baseline, captureChangeBaseline())
+    const changed = diff.added.length > 0 || diff.removed.length > 0 || diff.updated.length > 0
+    const commands = changed
+      ? [...synchronous.commands, ...later.flatMap((changes) => changes.commands)]
+      : []
+    const undoSteps =
+      synchronous.undoSteps + later.reduce((total, changes) => total + changes.undoSteps, 0)
+    return { ...diff, commands, undoSteps }
+  }
+  return Promise.resolve(pending).then(finish, finish)
+}
 
 /** The undo/redo stacks as they were when a transaction started. */
 interface StackPair {
@@ -98,6 +141,7 @@ function toStudioError(error: unknown): StudioError {
  * @example transaction('CLIPS_UPDATE', () => updateItem('c1', { volume: -6 }))
  */
 export function transaction<T>(label: string, fn: () => T): TransactionResult<T> {
+  throwIfAgentAborted(label)
   const commandStore = useTimelineCommandStore.getState()
   const before = captureSnapshot()
   const baseline = captureChangeBaseline()
@@ -121,6 +165,12 @@ export function transaction<T>(label: string, fn: () => T): TransactionResult<T>
     }
     const changes: Changes = { ...diff, commands, undoSteps: committed ? 1 : 0 }
     depth -= 1
+    if (outermost) {
+      for (const observer of observers) observer(changes)
+    }
+    if (outermost && isThenable(value)) {
+      return { value, changes, settled: followAsyncCall(baseline, changes, value) }
+    }
     return { value, changes }
   } catch (error) {
     depth -= 1

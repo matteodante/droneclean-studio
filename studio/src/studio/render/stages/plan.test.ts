@@ -119,6 +119,32 @@ describe('sourceFramePlan', () => {
     expect(sourceFramePlan(item, 299, { ...at(299), sourceFrameCount: undefined }).samples).toHaveLength(4)
   })
 
+  it('optical-flow slow motion: a frame between two source frames carries its phase over the blend', () => {
+    const rate = toRate(60)
+    const item = clip({ motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' }, sourceDuration: 200 })
+    const at = (frame: number, sourceStart = 100): SourceFramePlanSources => ({
+      ...sources(0.5),
+      sourceFrameCount: (it) => it.sourceDuration,
+      motionBlurQuery: (): MotionBlurQuery => ({
+        clip: { type: 'video', sourceStart, sourceFps: 60, speed: 0.5 },
+        timelineFrame: frame,
+        projectRate: rate,
+        shutterDegrees: 180,
+        smoothSlowMotion: 'optical-flow',
+      }),
+    })
+    expect(sourceFramePlan(item, 3, at(3))).toEqual({
+      samples: [
+        { index: 101, weight: 0.5 },
+        { index: 102, weight: 0.5 },
+      ],
+      flow: { phase: 0.5 },
+    })
+    expect(sourceFramePlan(item, 4, at(4))).toEqual({ samples: [{ index: 102, weight: 1 }] })
+    // The file's last gap: its second frame (200) does not exist, so the frame is 199 as it is, with no flow
+    expect(sourceFramePlan(item, 1, at(1, 199))).toEqual({ samples: [{ index: 199, weight: 1 }] })
+  })
+
   it('refuses a bad position and a non-video item', () => {
     const negative: SourceFramePlanSources = { ...sources(1), position: () => ({ frame: -1 }) }
     expect(() => sourceFramePlan(clip(), 0, negative)).toThrow(RangeError)

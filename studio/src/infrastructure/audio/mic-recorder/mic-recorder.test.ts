@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 import {
   MicRecorder,
+  MicStartTimeoutError,
   pickRecorderMimeType,
   extensionForMimeType,
   buildAudioConstraints,
@@ -151,5 +152,52 @@ describe('MicRecorder duration accounting', () => {
     expect(result.durationMs).toBe(700)
     expect(result.blob.size).toBeGreaterThan(0)
     expect(recorder.getState()).toBe('idle')
+  })
+})
+
+describe('MicRecorder start timeout', () => {
+  const originalRecorder = globalThis.MediaRecorder
+
+  beforeEach(() => {
+    MockMediaRecorder.isTypeSupported = vi.fn(() => true)
+    globalThis.MediaRecorder = MockMediaRecorder as unknown as typeof MediaRecorder
+  })
+
+  afterEach(() => {
+    globalThis.MediaRecorder = originalRecorder
+    vi.restoreAllMocks()
+  })
+
+  it('gives up when the microphone permission never answers, and releases a late stream', async () => {
+    const stop = vi.fn()
+    let answer: (stream: unknown) => void = () => {}
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(() => new Promise((resolve) => (answer = resolve))),
+      },
+    })
+    const recorder = new MicRecorder(20)
+
+    await expect(recorder.start()).rejects.toBeInstanceOf(MicStartTimeoutError)
+    expect(recorder.getState()).toBe('idle')
+
+    // The prompt is answered after all: nobody uses that stream, so it is stopped.
+    answer({ getTracks: () => [{ stop }] })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up when the recorder never reports that it started', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] }) as unknown),
+      },
+    })
+    vi.spyOn(MockMediaRecorder.prototype, 'start').mockImplementation(() => {})
+    const recorder = new MicRecorder(20)
+
+    await expect(recorder.start()).rejects.toBeInstanceOf(MicStartTimeoutError)
   })
 })

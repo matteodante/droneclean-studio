@@ -34,7 +34,13 @@ import {
   StudioError,
 } from '../errors'
 import { requireFrame } from '../context'
-import { getPilotPresets, resolvePilotPreset, WEB_PRESET_CAPABILITIES } from '@/studio/export/presets'
+import {
+  findActivePilotPresetId,
+  getPilotPresets,
+  resolvePilotPreset,
+  WEB_PRESET_CAPABILITIES,
+  type PresetContext,
+} from '@/studio/export/presets'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { readExportSettings, resolveExportSettings, writeExportSettings } from './export-settings'
 import { buildRenderJob } from '@/features/export/utils/build-render-job'
@@ -203,6 +209,26 @@ function presetSource(): { width: number; height: number; fps: number; bitrate: 
   return { width: sourceWidth, height: sourceHeight, fps: sourceFps, bitrate: 0 }
 }
 
+/** The context the dialog resolves its presets in, for the open project (`undefined` with none open). */
+function presetContext(): PresetContext | undefined {
+  const project = useProjectStore.getState().currentProject
+  if (!project) return undefined
+  const { width, height, fps } = project.metadata
+  return { project: { width, height, fps }, source: presetSource(), capabilities: WEB_PRESET_CAPABILITIES }
+}
+
+/**
+ * The audio bitrate (`'128k'`) of the preset these settings still stand for exactly, as the dialog applies it
+ * with the preset (Meta's Reel asks for 128 kbps AAC). `setSettings` refuses `audioBitrate`, so a job gets it
+ * only this way. Undefined when no preset states one.
+ */
+function presetAudioBitrate(settings: ExtendedExportSettings, container: string): string | undefined {
+  const context = presetContext()
+  if (!context) return undefined
+  const id = findActivePilotPresetId(container, settings, context)
+  return id === null ? undefined : resolvePilotPreset(id, context)?.settings.audioBitrate
+}
+
 /** `studio.export.presets`: the dialog's presets, resolved for the open project. */
 function presets(): ExportPresetInfo[] {
   const project = useProjectStore.getState().currentProject
@@ -233,6 +259,7 @@ function presets(): ExportPresetInfo[] {
           smartCopy: resolved.settings.smartCopy,
           videoContainer: resolved.container,
         },
+        ...(resolved.settings.audioBitrate !== undefined && { audioBitrate: resolved.settings.audioBitrate }),
         numbers: { ...resolved.numbers, codec },
       },
     ]
@@ -256,7 +283,10 @@ async function start(options: ExportStartInput = {}): Promise<ExportJobInfo> {
   const range = resolveStartRange(options, settings.renderWholeProject === true)
   // `ExportSettingsInfo` is exactly the plain-JSON half of `ExtendedExportSettings`;
   // this annotation makes a drift between the two fail the type check.
-  const exportSettings: ExtendedExportSettings = settings
+  const baseSettings: ExtendedExportSettings = settings
+  const audioBitrate = presetAudioBitrate(baseSettings, baseSettings.videoContainer ?? 'mp4')
+  const exportSettings: ExtendedExportSettings =
+    audioBitrate === undefined ? baseSettings : { ...baseSettings, audioBitrate }
 
   let job: RenderJob
   try {
@@ -264,7 +294,7 @@ async function start(options: ExportStartInput = {}): Promise<ExportJobInfo> {
       settings: exportSettings,
       inPoint: range.inPoint,
       outPoint: range.outPoint,
-      ...(name !== undefined && { name }),
+      ...(name !== undefined && { name, fileStem: name }),
     })
   } catch (error) {
     if (error instanceof StudioError) throw error

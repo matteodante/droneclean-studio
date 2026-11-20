@@ -107,7 +107,9 @@ test('the token survives a restart: a new session over the same folder is signed
 
 test('a /v1 call carries the token, the contract header and nothing the page sent as authorization', async () => {
   const cloud = fakeCloud((url) =>
-    url.pathname === '/api/auth/device/token' ? { body: deviceTokenBody(REAL_TOKEN) } : { body: '{"id":"j1"}' },
+    url.pathname === '/api/auth/device/token'
+      ? { body: deviceTokenBody(REAL_TOKEN) }
+      : { body: '{"id":"j1"}' },
   )
   const { value } = await session({ cloud })
   await signIn(value)
@@ -160,7 +162,9 @@ test('a 401 from /v1 clears the stored token, in memory and on disk', async () =
 
 test('sign-out deletes the token first and then tells the cloud, with the token', async () => {
   const cloud = fakeCloud((url) =>
-    url.pathname === '/api/auth/device/token' ? { body: deviceTokenBody(REAL_TOKEN) } : { body: '{"success":true}' },
+    url.pathname === '/api/auth/device/token'
+      ? { body: deviceTokenBody(REAL_TOKEN) }
+      : { body: '{"success":true}' },
   )
   const { folder, value } = await session({ cloud })
   await signIn(value)
@@ -189,11 +193,18 @@ test('sign-out signs out on this Mac even when the cloud cannot be reached, and 
   await value.signOut()
   await value.signOut()
   assert.deepEqual(await value.status(), { signedIn: false, persistent: true })
-  assert.equal(calls.filter((call) => call.url.endsWith('/sign-out')).length, 1, 'no token, no call')
+  assert.equal(
+    calls.filter((call) => call.url.endsWith('/sign-out')).length,
+    1,
+    'no token, no call',
+  )
 })
 
 test('without a secret store the token is kept in memory and never written', async () => {
-  for (const storage of [fakeStorage({ available: false }), fakeStorage({ backend: 'basic_text' })]) {
+  for (const storage of [
+    fakeStorage({ available: false }),
+    fakeStorage({ backend: 'basic_text' }),
+  ]) {
     const cloud = fakeCloud(() => ({ body: deviceTokenBody(REAL_TOKEN) }))
     const { folder, value } = await session({ storage, cloud })
     await signIn(value)
@@ -210,9 +221,76 @@ test('a file that cannot be decrypted is removed and the pilot is signed out', a
   other.decryptString = () => {
     throw new Error('another keychain')
   }
-  const second = await session({ storage: other, dir: first.folder })
+  const cloud2 = fakeCloud(() => ({ body: '{}' }))
+  const second = await session({ storage: other, dir: first.folder, cloud: cloud2 })
+  // The status is a flag and reads no secret: the unreadable file is found when a call needs the token.
+  assert.deepEqual(await second.value.status(), { signedIn: true, persistent: true })
+  await second.value.request({ method: 'GET', path: '/v1/me' })
   assert.deepEqual(await second.value.status(), { signedIn: false, persistent: true })
   assert.equal(existsSync(path.join(first.folder, 'shadow-session.bin')), false)
+  assert.equal(cloud2.calls[0].init.headers.authorization, undefined)
+})
+
+/** A secret store that counts how often it is asked to decrypt: on macOS each one can be a keychain prompt. */
+function countingStorage() {
+  const storage = fakeStorage()
+  const counts = { decrypt: 0, available: 0 }
+  const decrypt = storage.decryptString
+  storage.decryptString = (buffer) => {
+    counts.decrypt += 1
+    return decrypt(buffer)
+  }
+  const available = storage.isEncryptionAvailable
+  storage.isEncryptionAvailable = () => {
+    counts.available += 1
+    return available()
+  }
+  return { storage, counts }
+}
+
+test('the status never reads the secret, however often it is asked; a call that needs the token does', async () => {
+  const first = await session({ cloud: fakeCloud(() => ({ body: deviceTokenBody(REAL_TOKEN) })) })
+  await signIn(first.value)
+
+  const { storage, counts } = countingStorage()
+  const api = fakeCloud(() => ({ body: '{"ok":true}' }))
+  const second = await session({ storage, cloud: api, dir: first.folder })
+  for (let i = 0; i < 3; i += 1) {
+    assert.deepEqual(await second.value.status(), { signedIn: true, persistent: true })
+  }
+  assert.equal(counts.decrypt, 0, 'no decrypt')
+  assert.equal(counts.available, 0, 'the secret store is not even asked')
+
+  await second.value.request({ method: 'GET', path: '/v1/me' })
+  assert.equal(counts.decrypt, 1, 'the call read the token')
+  assert.equal(api.calls[0].init.headers.authorization, `Bearer ${REAL_TOKEN}`)
+  await second.value.request({ method: 'GET', path: '/v1/me' })
+  assert.equal(counts.decrypt, 1, 'and only once')
+})
+
+test('signing out reads the secret to tell the cloud, but a signed-out app never does', async () => {
+  const first = await session({ cloud: fakeCloud(() => ({ body: deviceTokenBody(REAL_TOKEN) })) })
+  await signIn(first.value)
+
+  const out = countingStorage()
+  const second = await session({
+    storage: out.storage,
+    cloud: fakeCloud(() => ({ body: '{}' })),
+    dir: first.folder,
+  })
+  await second.value.signOut()
+  assert.equal(out.counts.decrypt, 1)
+  assert.deepEqual(await second.value.status(), { signedIn: false, persistent: true })
+
+  const idle = countingStorage()
+  const third = await session({
+    storage: idle.storage,
+    cloud: fakeCloud(() => ({ body: '{}' })),
+    dir: first.folder,
+  })
+  await third.value.signOut()
+  assert.equal(idle.counts.decrypt, 0)
+  assert.equal(idle.counts.available, 0)
 })
 
 test('the relay refuses every route and request it is not for', async () => {
@@ -235,7 +313,11 @@ test('the relay refuses every route and request it is not for', async () => {
     { method: 'POST', path: '/v1/jobs', body: new Uint8Array(4) },
   ]
   for (const request of refused) {
-    await assert.rejects(() => value.request(request), /refused/, JSON.stringify(request).slice(0, 80))
+    await assert.rejects(
+      () => value.request(request),
+      /refused/,
+      JSON.stringify(request).slice(0, 80),
+    )
   }
   await assert.rejects(() => value.request(null), /refused/)
   assert.equal(cloud.calls.length, 0, 'nothing reached the cloud')
@@ -267,9 +349,18 @@ test('every channel refuses a foreign or missing sender frame, and answers the a
   for (const channel of channels) {
     const handler = fake.state.handles.get(channel)
     assert.ok(handler, `${channel} is registered`)
-    const args = channel === SHADOW_SESSION_CHANNELS.request ? [{ method: 'GET', path: '/v1/me' }] : []
-    await assert.rejects(async () => handler({ senderFrame: { url: 'https://evil.example/' } }, ...args), /only answers the app/, channel)
-    await assert.rejects(async () => handler({ senderFrame: null }, ...args), /only answers the app/, channel)
+    const args =
+      channel === SHADOW_SESSION_CHANNELS.request ? [{ method: 'GET', path: '/v1/me' }] : []
+    await assert.rejects(
+      async () => handler({ senderFrame: { url: 'https://evil.example/' } }, ...args),
+      /only answers the app/,
+      channel,
+    )
+    await assert.rejects(
+      async () => handler({ senderFrame: null }, ...args),
+      /only answers the app/,
+      channel,
+    )
     await assert.rejects(async () => handler({}, ...args), /only answers the app/, channel)
     await handler({ senderFrame: { url: 'droneclean://app/settings' } }, ...args)
   }

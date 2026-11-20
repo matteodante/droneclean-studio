@@ -21,7 +21,10 @@ export const SHADOW_SESSION_CHANNELS = {
 
 /** What the page may know about the session. */
 export interface ShadowSessionStatus {
-  /** A token is held, so a request to `/v1/*` carries one. */
+  /**
+   * A token is held, so a request to `/v1/*` carries one. Answered from a non-secret flag (the token
+   * file exists), never by reading the secret: the keychain is asked only when a call needs the token.
+   */
   readonly signedIn: boolean
   /**
    * The token survives a restart: it is on disk, encrypted. False when the system has no secret

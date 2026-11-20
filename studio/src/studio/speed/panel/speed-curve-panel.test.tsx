@@ -8,6 +8,7 @@ import { useTimelineViewportStore } from '@/features/timeline/stores/timeline-vi
 import { useZoomStore } from '@/features/timeline/stores/zoom-store'
 import { usePlaybackStore } from '@/shared/state/playback'
 import { useSelectionStore } from '@/shared/state/selection'
+import { setFeatureOverride } from '@/studio/feature-switches'
 import { areaAt, averageSpeed, type SpeedCurve } from '@/studio/speed'
 import { SpeedCurvePanel } from './speed-curve-panel'
 import { useSpeedCurvePanelStore } from './panel-store'
@@ -216,9 +217,10 @@ describe('SpeedCurvePanel', () => {
     // The live feedback: the store already follows the pointer, with no undo entry yet.
     const liveDuration = useItemsStore.getState().itemById['clip']!.durationInFrames
     expect(liveDuration).toBeGreaterThan(startDuration)
-    expect(useItemsStore.getState().itemById['after']!.from).toBe(
-      startDownstream + (liveDuration - startDuration),
-    )
+    // The clip starts at 0 and the next one 20 frames after its end: the clip passes it, and
+    // the next clip is pushed to the clip's new end, no further (task 11.3).
+    expect(liveDuration).toBeGreaterThan(startDownstream)
+    expect(useItemsStore.getState().itemById['after']!.from).toBe(liveDuration)
     expect(useTimelineCommandStore.getState().undoStack).toHaveLength(0)
 
     fireEvent.pointerUp(window, { pointerId: 1 })
@@ -243,6 +245,123 @@ describe('SpeedCurvePanel', () => {
     expect(restored.durationInFrames).toBe(startDuration)
     expect(restored.speedCurve?.keys).toEqual(RAMP.keys)
     expect(useItemsStore.getState().itemById['after']!.from).toBe(startDownstream)
+  })
+
+  it('sets the ease of a segment from its key row, in one undo step, and draws the bend', () => {
+    seed([rampItem(), downstreamItem()])
+    renderPanel()
+    const linearPoints = screen.getByTestId('speed-curve-line').getAttribute('points')!.split(' ')
+
+    const select = screen.getByTestId('speed-key-ease-0') as HTMLSelectElement
+    expect(select.value).toBe('linear')
+    expect(screen.getByTestId('speed-key-ease-3')).toHaveProperty('disabled', true)
+    fireEvent.change(select, { target: { value: 'smooth' } })
+
+    expect(curveOf().keys[0]?.ease).toBe('smooth')
+    expect(curveOf().keys[1]?.ease).toBeUndefined()
+    expect(useTimelineCommandStore.getState().undoStack).toHaveLength(1)
+    expect((screen.getByTestId('speed-key-ease-0') as HTMLSelectElement).value).toBe('smooth')
+    // An eased segment is drawn through samples, a linear one through its two ends.
+    const easedPoints = screen.getByTestId('speed-curve-line').getAttribute('points')!.split(' ')
+    expect(easedPoints.length).toBeGreaterThan(linearPoints.length + 20)
+
+    fireEvent.change(screen.getByTestId('speed-key-ease-0'), { target: { value: 'linear' } })
+    expect(curveOf().keys[0]?.ease).toBeUndefined()
+
+    useTimelineCommandStore.getState().undo()
+    useTimelineCommandStore.getState().undo()
+    expect(curveOf().keys).toEqual(RAMP.keys)
+  })
+
+  it('keeps a key’s ease when its speed is typed, and drops the slice a cut left', () => {
+    const sliced: SpeedCurve = {
+      keys: [
+        { frame: 0, speed: 1.2, ease: 'smooth', easeSlice: { offset: 10, length: 60, from: 1, to: 4 } },
+        { frame: 30, speed: 3 },
+        { frame: 60, speed: 2 },
+      ],
+    }
+    seed([rampItem({ durationInFrames: 60, sourceEnd: 150, speedCurve: sliced, speed: averageSpeed(sliced) })])
+    renderPanel()
+
+    fireEvent.change(screen.getByLabelText('editor.speedCurve.keySpeed 2'), { target: { value: '2.5' } })
+    fireEvent.blur(screen.getByLabelText('editor.speedCurve.keySpeed 2'))
+
+    const keys = curveOf().keys
+    expect(keys[0]?.ease).toBe('smooth')
+    expect(keys[0]?.easeSlice).toBeUndefined()
+  })
+
+  describe('frames per second the clip really has (task 11.18)', () => {
+    /** A video clip of a file at `sourceFps`, at one speed, in the 30 fps project. */
+    function flatItem(sourceFps: number, speed: number, extra: Partial<VideoItem> = {}): VideoItem {
+      return rampItem({
+        durationInFrames: 60,
+        sourceFps,
+        sourceEnd: Math.round(60 * speed * (sourceFps / 30)),
+        speed,
+        speedCurve: undefined,
+        ...extra,
+      })
+    }
+
+    it('shows the file’s rate times the speed, and warns below the project’s rate', () => {
+      seed([flatItem(30, 0.5)])
+      renderPanel()
+
+      expect(screen.getByTestId('speed-readout-fps').textContent).toBe('15')
+      expect(screen.getByTestId('speed-low-fps-warning')).toBeTruthy()
+      expect(screen.getByTestId('speed-low-fps-warning').textContent).toBe(
+        'editor.speedCurve.lowFps',
+      )
+    })
+
+    it('shows no warning when the clip has the project’s rate or more', () => {
+      seed([flatItem(30, 1)])
+      const first = renderPanel()
+      expect(screen.getByTestId('speed-readout-fps').textContent).toBe('30')
+      expect(screen.queryByTestId('speed-low-fps-warning')).toBeNull()
+      first.unmount()
+
+      seed([flatItem(24, 2)])
+      renderPanel()
+      expect(screen.getByTestId('speed-readout-fps').textContent).toBe('48')
+      expect(screen.queryByTestId('speed-low-fps-warning')).toBeNull()
+    })
+
+    it('reads the slowest point of a curve', () => {
+      // 1x at the ends and 0.5x in the middle of a 60 fps file in a 30 fps project: 60 and 30.
+      const dip: SpeedCurve = {
+        keys: [
+          { frame: 0, speed: 1 },
+          { frame: 30, speed: 0.25 },
+          { frame: 60, speed: 1 },
+        ],
+      }
+      seed([rampItem({ durationInFrames: 60, sourceFps: 60, sourceEnd: 100, speedCurve: dip, speed: averageSpeed(dip) })])
+      renderPanel()
+
+      expect(screen.getByTestId('speed-readout-fps').textContent).toBe('15')
+      expect(screen.getByTestId('speed-low-fps-warning')).toBeTruthy()
+    })
+
+    it('says so when smooth slow motion blends the frames, or makes them by optical flow', () => {
+      setFeatureOverride('motionBlur', true)
+      try {
+        seed([flatItem(30, 0.5, { motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'blend' } })])
+        const { unmount } = renderPanel()
+        expect(screen.getByTestId('speed-low-fps-warning').textContent).toBe(
+          'editor.speedCurve.lowFpsBlended',
+        )
+        unmount()
+
+        seed([flatItem(30, 0.5, { motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' } })])
+        renderPanel()
+        expect(screen.getByTestId('speed-low-fps-warning').textContent).toBe('editor.speedCurve.lowFpsFlow')
+      } finally {
+        setFeatureOverride('motionBlur', undefined)
+      }
+    })
   })
 
   it('applies a preset in one undo step, with the design keys scaled to the length it needs', () => {

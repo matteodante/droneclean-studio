@@ -688,6 +688,9 @@
       "motionBlur": "Desfoque de movimento",
       "motionBlurShutter": "Obturador",
       "motionBlurBlendSlow": "Câmera lenta suave",
+      "smoothSlowMotionOff": "Desligado",
+      "smoothSlowMotionBlend": "Mesclagem de quadros",
+      "smoothSlowMotionFlow": "Fluxo óptico",
       "motionBlurDegrees": "{{degrees}}°",
       "motionBlurHint": "A {{speed}}x, isso remove o efeito estroboscópico",
       "motionBlurIdentity": "Sem efeito nesta velocidade"
@@ -710,7 +713,20 @@
       "unsupportedReversed": "Um clipe invertido não pode ter curva de velocidade.",
       "unsupportedComposition": "Um clipe composto não pode ter curva de velocidade.",
       "unsupportedKind": "Este clipe não pode ter curva de velocidade.",
-      "selectOneClip": "Selecione um único clipe para editar a curva de velocidade dele."
+      "selectOneClip": "Selecione um único clipe para editar a curva de velocidade dele.",
+      "ease": "Suavização",
+      "easeTitle": "Como a velocidade muda desta chave para a próxima",
+      "easeLinear": "Linear",
+      "easeSmooth": "Suave",
+      "easeIn": "Entrada suave",
+      "easeOut": "Saída suave",
+      "deliveredFps": "Quadros por segundo",
+      "deliveredFpsTitle": "Os quadros por segundo que o clipe realmente tem no ponto mais lento: a própria taxa de quadros vezes essa velocidade",
+      "lowFps": "Poucos quadros: {{fps}} por segundo no ponto mais lento, o projeto reproduz {{projectFps}}. Os quadros se repetem.",
+      "lowFpsBlended": "Poucos quadros: {{fps}} por segundo no ponto mais lento, o projeto reproduz {{projectFps}}. A câmera lenta suave mescla os quadros intermediários.",
+      "smoothEdit": "Rampa suave + zoom",
+      "smoothEditTitle": "Rápido, lento, rápido com câmera lenta suave e desfoque de movimento, e um zoom suave ao longo do clipe",
+      "lowFpsFlow": "Poucos quadros: {{fps}} por segundo no ponto mais lento, o projeto reproduz {{projectFps}}. O fluxo óptico cria os quadros intermediários a partir do movimento."
     },
     "shadowSection": {
       "title": "Sombra do DroneClean",
@@ -754,7 +770,6 @@
       "piecesGone_other": "{{count}} trechos limpos não estão mais disponíveis no serviço. Seus segundos reproduzem o original até você limpá-los novamente.",
       "account": {
         "signedIn": "Conectado",
-        "signedInAs": "Conectado como {{email}}",
         "signOut": "Sair"
       },
       "pendingRunning": "Uma limpeza paga dos quadros {{start}}–{{end}} está a caminho; o resultado será adicionado ao clipe.",
@@ -999,7 +1014,9 @@
         "starting": "Abrindo o clipe…",
         "reading": "Lendo dados de movimento: {{read}} de {{total}} MB",
         "smoothing": "Calculando a estabilização…"
-      }
+      },
+      "framingX": "Enquadramento, lateral",
+      "framingY": "Enquadramento, vertical"
     },
     "sourceMonitor": {
       "createSubclip": "Criar subclipe (Alt+S)",

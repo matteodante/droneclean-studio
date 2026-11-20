@@ -213,6 +213,11 @@ export function NumberInput({
 
   const isMixed = value === 'mixed'
 
+  // Never narrower than what it shows: four- and five-digit values (a 1440x2560 project) stay whole.
+  // The width is the digits (ch of the mono font), the label, the unit and the padding.
+  const digitCount = Math.max(3, localValue.length)
+  const minWidth = `calc(${digitCount}ch + ${(label ? 20 : 0) + (unit ? unitWidth : 0) + 12}px)`
+
   return (
     <div
       className={cn(
@@ -223,6 +228,7 @@ export function NumberInput({
         !disabled && scrubEnabled && 'cursor-ew-resize',
         className,
       )}
+      style={{ minWidth }}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
     >

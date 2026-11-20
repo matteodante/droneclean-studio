@@ -22,6 +22,7 @@ import {
   speedToPlotY,
   tickStep,
 } from './graph-geometry'
+import { plottedCurvePoints } from './curve-on-item'
 import type { SpeedKeyDragStart } from './use-speed-curve-key-drag'
 
 interface SpeedCurveGraphProps {
@@ -112,8 +113,8 @@ export function SpeedCurveGraph({
     })
   }
 
-  const curvePoints = curve.keys
-    .map((key) => `${xOfClipFrame(key.frame)},${yOfSpeed(key.speed)}`)
+  const curvePoints = plottedCurvePoints(curve)
+    .map((point) => `${xOfClipFrame(point.frame)},${yOfSpeed(point.speed)}`)
     .join(' ')
   const areaPoints = `${xOfClipFrame(0)},${plotHeight} ${curvePoints} ${durationX},${plotHeight}`
 
@@ -182,7 +183,7 @@ export function SpeedCurveGraph({
         strokeWidth={1}
       />
 
-      {/* The curve itself: linear between keys, so a polyline through them is exact. */}
+      {/* The curve itself: a polyline through the keys, with samples inside an eased segment. */}
       <polyline
         points={curvePoints}
         fill="none"

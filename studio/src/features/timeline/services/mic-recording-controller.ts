@@ -20,6 +20,7 @@
 
 import {
   MicRecorder,
+  MicStartTimeoutError,
   extensionForMimeType,
   enumerateAudioInputs,
   hasMicRecordingSupport,
@@ -33,6 +34,7 @@ import { useSelectionStore } from '@/shared/state/selection'
 import { useMicRecordingStore, isMicRecordingActive } from '@/shared/state/mic-recording-store'
 import { createLogger } from '@/shared/logging/logger'
 import { i18n } from '@/i18n'
+import { askDesktopMicrophone, isMicrophoneBlockedBySystem } from '@/studio/desktop/microphone'
 import { useItemsStore } from '../stores/items-store'
 import { useTimelineSettingsStore } from '../stores/timeline-settings-store'
 import { addItemOnNewTrack } from '../stores/actions/item-actions'
@@ -108,6 +110,21 @@ export async function startMicRecording(): Promise<void> {
   store.setError(null)
   store.setStatus('requesting')
   const token = ++startGeneration
+
+  // The desktop app asks the system for the microphone first and says so when it is refused:
+  // left to `getUserMedia`, a prompt macOS never showed would leave the button spinning.
+  const access = await askDesktopMicrophone()
+  if (token !== startGeneration) return
+  if (isMicrophoneBlockedBySystem(access)) {
+    store.setStatus('idle')
+    store.setError(
+      i18n.t('recording.errors.systemBlocked', {
+        defaultValue:
+          'DroneClean Studio cannot use the microphone. Allow it in System Settings › Privacy & Security › Microphone, then try again.',
+      }),
+    )
+    return
+  }
 
   const rec = new MicRecorder()
   recorder = rec
@@ -470,6 +487,12 @@ async function commitRecording(
 }
 
 function describeGetUserMediaError(error: unknown): string {
+  if (error instanceof MicStartTimeoutError) {
+    return i18n.t('recording.errors.startTimeout', {
+      defaultValue:
+        'The microphone did not start. Check that it is connected and allowed (System Settings › Privacy & Security › Microphone), then try again.',
+    })
+  }
   const name = error instanceof DOMException ? error.name : ''
   switch (name) {
     case 'NotAllowedError':

@@ -16,6 +16,7 @@ import { setTimelineState } from '@/features/preview/deps/timeline-test-helpers-
 import { useMediaLibraryStore } from '@/features/preview/deps/media-library'
 import { useGizmoStore } from '../stores/gizmo-store'
 import { useMaskEditorStore } from '../stores/mask-editor-store'
+import { notifyStagedFrameReady } from '@/studio/render/stages/failure'
 
 // This suite's waits cover animation-frame chains plus async render work, which under
 // coverage instrumentation on a loaded runner legitimately exceed the 1s async-util
@@ -1789,6 +1790,59 @@ describe('VideoPreview sync behavior', { timeout: 15_000 }, () => {
     })
 
     await waitForSingleRendererFrame(24, scrubCanvas, { expectedDisplayedFrame: 24 })
+  })
+
+  it('draws the paused frame again when a look’s stages become ready, even if the paused lookahead runs first', async () => {
+    // The packaged e2e's order (wave 22): a look is chosen on a paused clip, the paused frame is drawn while the look
+    // is still being prepared (without it), the look becomes ready while that frame is in flight, and the pump's
+    // paused lookahead (the next frame, after an idle moment) arrives before the frame in flight finishes.
+    await renderScrubCanvasAfterInitialSeek({ id: 'item-look' })
+    let finishFirstPausedFrame: (() => void) | null = null
+    const renderFrame = vi.fn((frame: number) =>
+      frame === 24 && renderFrame.mock.calls.filter(([drawn]) => drawn === 24).length === 1
+        ? new Promise<void>((resolve) => {
+            finishFirstPausedFrame = resolve
+          })
+        : Promise.resolve(),
+    )
+    createCompositionRendererMock.mockImplementationOnce(async () => {
+      const renderer = createRendererDouble({ renderFrame })
+      rendererMockState.instances.push(renderer)
+      return renderer
+    })
+
+    act(() => {
+      useItemsStore.getState().setItems([
+        {
+          id: 'item-look',
+          type: 'video',
+          trackId: 'track-video',
+          from: 0,
+          durationInFrames: 120,
+          src: 'blob:mock-video',
+          look: { id: 'look-swap', intensity: 1 },
+        } as unknown as TimelineItem,
+      ])
+    })
+    await waitFor(() => {
+      expect(renderFrame).toHaveBeenCalledWith(24)
+    })
+
+    act(() => {
+      notifyStagedFrameReady()
+    })
+    // The lookahead is scheduled for an idle moment, at most 600 ms away (120 ms where there is no idle callback).
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    })
+    await act(async () => {
+      finishFirstPausedFrame?.()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(renderFrame.mock.calls.filter(([drawn]) => drawn === 24)).toHaveLength(2)
+    })
   })
 
   it('re-renders the paused currentFrame when committed gpu effect params change', async () => {

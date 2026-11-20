@@ -9,6 +9,7 @@
  */
 
 import { createStudio } from './index'
+import { installDjiProfilePrompt } from '@/studio/presets/dji-profile-prompt'
 import type { Studio } from './types'
 
 declare global {
@@ -23,5 +24,6 @@ declare global {
 export function installStudio(): Studio {
   const studio = createStudio()
   globalThis.studio = studio
+  installDjiProfilePrompt()
   return studio
 }

@@ -22,6 +22,32 @@ import { getRangeError, useSubclipsStore, type Subclip } from '@/studio/subclips
 import type { EntityKind, Frame, SourceFrame, TimelineContext } from './types'
 import { invalidArgumentError, notFoundError, studioError } from './errors'
 
+/**
+ * The page global the MCP bridge keeps the running call's `AbortController` in
+ * (`desktop/src/main/mcp/page.ts` names the same string; a desktop test holds
+ * the two together).
+ */
+const AGENT_ABORT_GLOBAL = '__droneAgentAbort'
+
+/**
+ * Fail with `INTERNAL` when the MCP told the running call to stop (it timed out
+ * or was cancelled). A script cannot be interrupted, but its next SDK call that
+ * writes, and every frame the renderer is about to draw, stops here instead of
+ * editing on after the call was given up.
+ * @example throwIfAgentAborted('clips.split')
+ */
+export function throwIfAgentAborted(method?: string): void {
+  const controller = (globalThis as Record<string, unknown>)[AGENT_ABORT_GLOBAL]
+  const signal = (controller as { signal?: AbortSignal } | undefined)?.signal
+  if (signal?.aborted !== true) return
+  throw studioError({
+    code: 'INTERNAL',
+    ...(method !== undefined && { method }),
+    message: 'the call was stopped (it timed out or was cancelled), so this step did not run',
+    hint: 'Start again with a new run call; edits made before the stop are still in the editor.',
+  })
+}
+
 /** What a caller can do about a missing id: the ids belong to one context. */
 const CONTEXT_HINT =
   'Ids belong to one editing context; studio.project.context() names the one that is open.'

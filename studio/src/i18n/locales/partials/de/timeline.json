@@ -84,6 +84,7 @@
       "regenerateCaptions": "Neu generieren Untertitel",
       "removeFillerWords": "Entfernen Fuller Worter",
       "removeSilence": "Entfernen Stille",
+      "markBeats": "Beats markieren",
       "reverse": "Umkehren",
       "rippleDelete": "Ripple Loschen",
       "unlinkClips": "Trennen Clips",
@@ -209,7 +210,12 @@
     },
     "itemActions": {
       "appliedEffectToClips": "Applied Effekt zu Clips",
-      "selectAvClipFirst": "Auswahlen AV Clip zuerst"
+      "selectAvClipFirst": "Auswahlen AV Clip zuerst",
+      "beatsAnalysing": "Beats werden gesucht…",
+      "beatsNone": "Keine starken Bass-Schläge in diesem Clip gefunden",
+      "beatsMarked_one": "{{count}} Beat markiert",
+      "beatsMarked_other": "{{count}} Beats markiert",
+      "beatsFailed": "Die Beats dieses Clips konnten nicht gefunden werden"
     },
     "joinIndicators": {
       "canJoinNext": "Kann Verbinden nachstem",

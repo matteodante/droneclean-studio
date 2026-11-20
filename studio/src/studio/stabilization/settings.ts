@@ -72,6 +72,15 @@ export interface StabilizationSettings {
   /** How far either way the adaptive zoom looks to fit the correction, in seconds: 0 turns it off */
   adaptiveZoomSeconds: number
   /**
+   * Where the stabilized window sits in the source picture, sideways: `-1` to `1`, a fraction of the room the
+   * stabilization has to move it on that side without a black border (`reframe.ts`). Absent or 0 is the framing the
+   * engine fits (a project saved before this field is unchanged). It is not part of the engine's key: the engine's
+   * frames are the same, the warp reads the offset when it draws (preview and export alike).
+   */
+  framingX?: number
+  /** The same, up and down: `-1` is the top of the room, `1` the bottom. Absent or 0 is today's framing */
+  framingY?: number
+  /**
    * The lens profile the pilot loaded for a clip whose file carries none (or a wrong one): the text of a Gyroflow
    * profile file, as `loadLensProfile` takes it. The engine gets it with `setLensProfile` before the clip's first
    * recompute, so a saved project opens with it. Absent when the file's own profile (or the engine's default pinhole)
@@ -148,6 +157,9 @@ export function engineSettingsKey(settings: EngineSettings): string {
  * (`gyroflow/wasm/test/chrome-worker.test.mjs:165-206`, design 6.3 §3.1).
  */
 export const DEFAULT_SMOOTHING_METHOD = 'Default'
+
+/** The range of the framing offsets: the validator and the panel's slider share it (`ui/changes.ts`) */
+export const FRAMING_RANGE = { min: -1, max: 1 } as const
 
 /** The engine's default output zoom: `setFov(1)` restores the reference (design 6.3 §4.7) */
 const DEFAULT_FOV = 1
@@ -284,7 +296,7 @@ function keepUnknownFields<T extends object>(stored: Record<string, unknown>, kn
  *
  * Rejects a switch that is not a boolean, an empty method name, a parameter that is not a finite number, a zoom that is
  * not positive, a horizon lock outside 0-100 per cent, a roll outside -180 to 180 degrees, a negative adaptive-zoom
- * window and a lens profile that is not the text of a JSON object. Opening a clip puts its settings through this first (`client.ts`), so a stored field the engine cannot
+ * window, a framing offset that is not a number from -1 to 1 and a lens profile that is not the text of a JSON object. Opening a clip puts its settings through this first (`client.ts`), so a stored field the engine cannot
  * take is refused by name, never replaced by a default. What the engine's limits are for a smoothing
  * parameter is the engine's to say (`smoothingMethods()`), and the panel enforces it; a project written by another
  * version is not refused for a value this version would not offer.
@@ -313,6 +325,13 @@ export function validateStabilization(value: unknown): StabilizationSettings {
       'stabilization.adaptiveZoomSeconds',
       0,
     ),
+  }
+
+  if (root.framingX !== undefined) {
+    known.framingX = requireNumber(root.framingX, 'stabilization.framingX', FRAMING_RANGE.min, FRAMING_RANGE.max)
+  }
+  if (root.framingY !== undefined) {
+    known.framingY = requireNumber(root.framingY, 'stabilization.framingY', FRAMING_RANGE.min, FRAMING_RANGE.max)
   }
 
   if (root.lensProfile !== undefined) {

@@ -12,8 +12,38 @@ import type { SearchDocument } from './search/bm25'
  * JSON-serialisable value out, or `PageUnavailableError` / `PageTimeoutError`.
  */
 export interface PageBridge {
-  execute(code: string, timeoutMs: number): Promise<unknown>
+  /**
+   * Run `code` in the page. With `recover`, a call that outlives its deadline
+   * is not left holding the page: the bridge stops its script and, when the
+   * page does not answer, reloads the editor window (`PageTimeoutError.recovery`
+   * says which). The calls that wait on a script of the page's own (`run`,
+   * `frame`) ask for it; a poll such as `export`'s does not.
+   */
+  execute(code: string, timeoutMs: number, options?: ExecuteOptions): Promise<unknown>
+  /**
+   * Stop the call that is running in the page and give the page back, the way a
+   * timeout does; `null` when there is nothing to recover (no window).
+   */
+  recover?(): Promise<PageRecovery | null>
 }
+
+/** What `PageBridge.execute` may be asked besides the code. */
+export interface ExecuteOptions {
+  /** Stop the script and, if the page does not answer, reload it when the call times out. */
+  recover?: boolean
+}
+
+/**
+ * What the bridge did about a page that did not settle a call. `aborted`: the
+ * page answered the abort request, so its script was stopped and the editor is
+ * as it was (unsaved edits are still in it). `reloaded`: the page did not
+ * answer, so the editor window was reloaded; `unsavedEditsKept` says whether a
+ * save went through first, and `back` whether the new page was ready again
+ * before the call answered.
+ */
+export type PageRecovery =
+  | { readonly action: 'aborted' }
+  | { readonly action: 'reloaded'; readonly unsavedEditsKept: boolean; readonly back: boolean }
 
 /**
  * What a tool handler answers to the server: either a JSON result with the

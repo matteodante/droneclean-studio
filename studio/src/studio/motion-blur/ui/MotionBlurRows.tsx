@@ -6,7 +6,8 @@
  * They are hidden while the `motionBlur` feature switch is off (nothing draws the blur until the
  * export stage and the preview land: AGENTS.md, a feature is finished or hidden), and for a
  * selection with no clip that can carry blur. Every change goes through `setMotionBlur`, so the
- * switch and each shutter choice are one undo step however many clips are selected.
+ * switch, each shutter choice and each smooth slow motion choice (off, frame blending, optical
+ * flow: task 11.12) are one undo step however many clips are selected.
  */
 
 import { useTranslation } from 'react-i18next'
@@ -26,9 +27,18 @@ import {
   canHoldMotionBlur,
   DEFAULT_SHUTTER_DEGREES,
   isShutterDegrees,
+  isSmoothSlowMotion,
   SHUTTER_DEGREES,
+  SMOOTH_SLOW_MOTION,
 } from '../settings'
-import type { ShutterDegrees } from '../types'
+import type { MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from '../types'
+
+/** The select's value for "off": smooth slow motion is absent from the settings */
+const SMOOTH_OFF = 'off'
+
+/** The smooth slow motion select's choices, in its order */
+const SMOOTH_CHOICES: readonly (SmoothSlowMotion | typeof SMOOTH_OFF)[] = [SMOOTH_OFF, ...SMOOTH_SLOW_MOTION]
+
 
 interface MotionBlurRowsProps {
   /** The selected items; the rows work on the video clips among them that can carry blur */
@@ -56,11 +66,21 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
     targets.find((item) => item.motionBlur !== undefined)?.motionBlur?.shutterDegrees ??
     DEFAULT_SHUTTER_DEGREES
   const fastest = Math.max(...targets.map(peakSpeed))
-  const blend = targets.every((item) => item.motionBlur?.blendSlowMotion === true)
-  /** The blur settings with the shutter and the blend the rows show, one of them changed. */
-  const settingsWith = (change: { shutterDegrees?: ShutterDegrees; blendSlowMotion?: boolean }) => {
-    const next = { shutterDegrees: change.shutterDegrees ?? shutter, blendSlowMotion: change.blendSlowMotion ?? blend }
-    return next.blendSlowMotion ? next : { shutterDegrees: next.shutterDegrees }
+  const smooth: SmoothSlowMotion | undefined = targets.find((item) => item.motionBlur !== undefined)?.motionBlur
+    ?.smoothSlowMotion
+  const smoothLabels: Record<SmoothSlowMotion | typeof SMOOTH_OFF, string> = {
+    off: t('editor.videoSection.smoothSlowMotionOff', { defaultValue: 'Off' }),
+    blend: t('editor.videoSection.smoothSlowMotionBlend', { defaultValue: 'Frame blending' }),
+    'optical-flow': t('editor.videoSection.smoothSlowMotionFlow', { defaultValue: 'Optical flow' }),
+  }
+  /** The blur settings with the shutter and the smooth slow motion the rows show, one of them changed. */
+  const settingsWith = (change: {
+    shutterDegrees?: ShutterDegrees
+    smoothSlowMotion?: SmoothSlowMotion | typeof SMOOTH_OFF
+  }): MotionBlurSettings => {
+    const shutterDegrees = change.shutterDegrees ?? shutter
+    const mode = change.smoothSlowMotion ?? smooth ?? SMOOTH_OFF
+    return mode === SMOOTH_OFF ? { shutterDegrees } : { shutterDegrees, smoothSlowMotion: mode }
   }
 
   return (
@@ -113,14 +133,31 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
           <PropertyRow
             label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
           >
-            <Switch
-              checked={blend}
-              onCheckedChange={(checked) => setMotionBlur(ids, settingsWith({ blendSlowMotion: checked }))}
-              aria-label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
-              data-testid="motion-blur-blend-slow"
-            />
+            <Select
+              value={smooth ?? SMOOTH_OFF}
+              onValueChange={(value) => {
+                if (value === SMOOTH_OFF || isSmoothSlowMotion(value)) {
+                  setMotionBlur(ids, settingsWith({ smoothSlowMotion: value }))
+                }
+              }}
+            >
+              <SelectTrigger
+                className="h-7 text-xs"
+                aria-label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
+                data-testid="motion-blur-smooth-slow"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SMOOTH_CHOICES.map((mode) => (
+                  <SelectItem key={mode} value={mode} className="text-xs">
+                    {smoothLabels[mode]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </PropertyRow>
-          {fastest <= 1 && !blend && (
+          {fastest <= 1 && smooth === undefined && (
             <p className="text-xs text-muted-foreground" data-testid="motion-blur-identity">
               {t('editor.videoSection.motionBlurIdentity', {
                 defaultValue: 'No effect at this speed',

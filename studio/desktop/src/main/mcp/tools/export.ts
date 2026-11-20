@@ -22,7 +22,7 @@
  */
 import type { ExportRequest, ExportResult } from '../../../../../mcp/protocol'
 import { agentError, isStudioErrorJson } from '../errors'
-import { PageTimeoutError } from '../page'
+import { PageTimeoutError, RUN_ABORT_GLOBAL } from '../page'
 import { pageFailureOutcome } from './page-failure'
 import { MAX_EXPORT_WAIT_MS } from '../protocol'
 import type { PageBridge, ToolOutcome } from '../types'
@@ -72,6 +72,8 @@ export function buildExportScript(request: ExportRequest): string {
   if (!bridge || typeof bridge.export !== 'function') {
     return { error: { name: 'StudioError', code: 'UNSUPPORTED', message: 'export: the editor is still starting; window.studioAgent is not installed yet', hint: 'Wait a few seconds and call export again.' } }
   }
+  // A fresh signal: an earlier call that was stopped must not stop this one's SDK calls.
+  globalThis.${RUN_ABORT_GLOBAL} = new AbortController()
   try {
     const job = await bridge.export(${JSON.stringify(request)})
     return { job }

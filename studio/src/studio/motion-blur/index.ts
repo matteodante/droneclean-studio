@@ -9,8 +9,8 @@
  * of design 7.2 section 4.4.
  */
 
-/** A clip's motion blur: the shutter angle of its causal blend window (design 7.2, 4.7). */
-export type { MotionBlurSettings, ShutterDegrees } from './types'
+/** A clip's motion blur: the shutter angle of its causal blend window (design 7.2, 4.7), and its smooth slow motion. */
+export type { MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from './types'
 
 /** One source frame of a blend: its index and its share of the window. */
 export type { MotionBlurSample } from './weights'
@@ -27,11 +27,12 @@ export { motionBlurFrameCount } from './weights'
 /** The weighted source frames output frame `n` is blended from (design 7.2, section 4.1). */
 export { planMotionBlur } from './weights'
 
-/** The four shutter angles, the check, the clip rule and the store's clamp (design 7.2, 4.7 and 4.8). */
+/** The four shutter angles, the checks of an angle and of a smooth slow motion mode, the clip rule and the store's clamp (design 7.2, 4.7 and 4.8). */
 export {
   SHUTTER_DEGREES,
   canHoldMotionBlur,
   isShutterDegrees,
+  isSmoothSlowMotion,
   normalizeMotionBlurField,
 } from './settings'
 

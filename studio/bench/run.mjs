@@ -46,6 +46,10 @@ import {
   name as motionBlurPreviewName,
   measure as measureMotionBlurPreview,
 } from './measurements/motion-blur-preview.mjs'
+import {
+  name as slowMotionFlowName,
+  measure as measureSlowMotionFlow,
+} from './measurements/slow-motion-flow.mjs'
 import { name as timingsName, measure as measureTimings } from './measurements/stage-timings.mjs'
 import {
   name as mainThreadName,
@@ -87,6 +91,8 @@ const MEASUREMENTS = [
   // Opt-in: task 7.2's motion blur proof (export) and its preview twin, on the real GPU and the clips.
   { name: motionBlurName, measure: measureMotionBlur, optIn: true },
   { name: motionBlurPreviewName, measure: measureMotionBlurPreview, optIn: true },
+  // Opt-in: task 11.12's optical-flow slow motion against the blend, three 4K exports.
+  { name: slowMotionFlowName, measure: measureSlowMotionFlow, optIn: true },
   // Opt-in: task 6.4's stabilization proofs (a stabilized export, and the controls in the editor), on the real GPU and a 3.76 GB clip.
   { name: stabilizedExportName, measure: measureStabilizedExport, optIn: true },
   { name: stabilizationControlsName, measure: measureStabilizationControls, optIn: true },

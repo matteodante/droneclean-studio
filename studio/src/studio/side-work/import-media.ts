@@ -13,6 +13,7 @@ import type { MediaMetadata } from '@/types/storage'
 import type { ClipFile } from '@/studio/stabilization/client'
 import { createLogger } from '@/shared/logging/logger'
 import { useSettingsStore } from '@/features/settings/stores/settings-store'
+import { emitImportedClip } from './imported-clips'
 import { getSideWork } from './index'
 import { createImportWork, type ImportWork, type ImportWorkRunners } from './import-work'
 
@@ -153,5 +154,6 @@ function appImportWork(): ImportWork<ImportedClip> {
 
 /** Queues the side work of a freshly imported clip (not a duplicate: its caches already exist) */
 export function queueImportSideWork(clip: ImportedClip): void {
+  emitImportedClip(clip.media)
   appImportWork().queue(clip)
 }

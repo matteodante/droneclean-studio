@@ -178,6 +178,22 @@ describe('the relayed stabilization host', () => {
     expect(await worker.stageAssets(key)).toBe(assets)
   })
 
+  it('keeps the assets until the worker lets the key go: what its warp was prepared on lasts that long', async () => {
+    const { client } = fakeClient()
+    const { worker } = relay(client)
+    const item = clip()
+    const key = stabilizationEngineKey(item)!
+    await worker.open(item)
+    let gone = false
+    await worker.whenAssetsGone(key)
+    await worker.stageAssets(key)
+    void worker.whenAssetsGone(key).then(() => (gone = true))
+    await Promise.resolve()
+    expect(gone).toBe(false)
+    await worker.release(key)
+    await vi.waitFor(() => expect(gone).toBe(true))
+  })
+
   it('reports an open that failed on the page as the worker’s failed state, with the page’s message', async () => {
     const { client } = fakeClient({
       open: vi.fn(async () => {

@@ -29,6 +29,7 @@ import {
 } from '@/studio/time'
 import type { SpeedCurve, SpeedKey } from './curve'
 import { averageSpeed } from './curve'
+import { SPEED_EASES } from './ease'
 import { windowSpeedCurve } from './edits'
 import { clipSourcePosition } from './position'
 import { resampleThroughCurve } from './audio'
@@ -69,12 +70,18 @@ function hundredth(random: () => number): number {
 }
 
 /** A random curve over `duration` frames with 2–5 keys and at least two different speeds. */
-function randomCurve(random: () => number, duration: number): SpeedCurve {
+function randomCurve(random: () => number, duration: number, eased = false): SpeedCurve {
   const inner = new Set<number>()
   const innerCount = Math.min(duration - 1, integer(random, 0, 3))
   while (inner.size < innerCount) inner.add(integer(random, 1, duration - 1))
   const frames = [0, ...[...inner].sort((a, b) => a - b), duration]
   const keys: SpeedKey[] = frames.map((frame) => ({ frame, speed: hundredth(random) }))
+  if (eased) {
+    // Every segment gets a random ease, linear among them (task 11.11).
+    for (let index = 0; index < keys.length - 1; index++) {
+      keys[index] = { ...keys[index]!, ease: SPEED_EASES[integer(random, 0, 3)]! }
+    }
+  }
   if (keys.every((key) => key.speed === keys[0]!.speed)) {
     keys[keys.length - 1] = { frame: duration, speed: keys[0]!.speed === 10 ? 9.99 : 10 }
   }
@@ -84,12 +91,12 @@ function randomCurve(random: () => number, duration: number): SpeedCurve {
 /** A random clip: a rate pair, a start, a curve or a hundredth speed, maybe a remainder. */
 function randomClip(
   random: () => number,
-  options: { curved: boolean; maxDuration: number },
+  options: { curved: boolean; maxDuration: number; eased?: boolean },
 ): { item: VideoItem; projectFps: number } {
   const projectFps = RATES[integer(random, 0, RATES.length - 1)]!
   const sourceFps = RATES[integer(random, 0, RATES.length - 1)]!
   const durationInFrames = integer(random, 2, options.maxDuration)
-  const speedCurve = options.curved ? randomCurve(random, durationInFrames) : undefined
+  const speedCurve = options.curved ? randomCurve(random, durationInFrames, options.eased === true) : undefined
   const remainder: SourceRemainder | undefined =
     random() < 0.5 ? undefined : { num: integer(random, 1, 999), den: 1_000 }
   const item: VideoItem = {
@@ -420,6 +427,233 @@ describe('property (d): a clip at one speed of a different rate keeps every fram
       }
       expect(failures).toEqual([])
       expect(differentRates).toBeGreaterThan(CASES * 0.8)
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+})
+
+describe('property (e): eased segments keep every guarantee of the linear ones (task 11.11)', () => {
+  /** A curved clip whose segments carry random eases, in the store (its normaliser kept them). */
+  function easedParent(random: () => number, maxDuration: number) {
+    const { item, projectFps } = randomClip(random, { curved: true, eased: true, maxDuration })
+    return { item, projectFps, parent: storeClip(item, projectFps) }
+  }
+
+  it(
+    'keeps the eases through the store: the clips under test really are eased',
+    () => {
+      const random = generator(0xea5e)
+      let eased = 0
+      for (let index = 0; index < 500; index++) {
+        const { parent } = easedParent(random, 90)
+        if (parent.speedCurve?.keys.some((key) => key.ease !== undefined)) eased += 1
+      }
+      expect(eased).toBeGreaterThan(350)
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'splits an eased clip at a random frame: both halves show the parent’s frames',
+    () => {
+      const random = generator(0xea51)
+      const failures: string[] = []
+      for (let index = 0; index < CASES && failures.length < 5; index++) {
+        const { item, projectFps, parent } = easedParent(random, 90)
+        const expected = framesOf(parent, projectFps)
+        const cut = integer(random, 1, parent.durationInFrames - 1)
+        const result = useItemsStore.getState()._splitItem('clip', cut)!
+        const leftAt = firstMismatch(framesOf(result.leftItem as VideoItem, projectFps), expected)
+        const rightAt = firstMismatch(
+          framesOf(result.rightItem as VideoItem, projectFps),
+          expected,
+          cut,
+        )
+        if (leftAt >= 0 || rightAt >= 0) {
+          failures.push(
+            `case ${index}: ${JSON.stringify({ item, projectFps, cut, leftAt, rightAt })}`,
+          )
+        }
+      }
+      expect(failures).toEqual([])
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'splits twice, cutting a piece again: the three pieces show the parent’s frames',
+    () => {
+      const random = generator(0xea52)
+      const failures: string[] = []
+      for (let index = 0; index < CASES && failures.length < 5; index++) {
+        const { item, projectFps, parent } = easedParent(random, 90)
+        if (parent.durationInFrames < 3) continue
+        const expected = framesOf(parent, projectFps)
+        const first = integer(random, 1, parent.durationInFrames - 2)
+        const second = integer(random, first + 1, parent.durationInFrames - 1)
+        const store = useItemsStore.getState()
+        const firstSplit = store._splitItem('clip', first)!
+        const secondSplit = useItemsStore.getState()._splitItem(firstSplit.rightItem.id, second)!
+        const middleAt = firstMismatch(
+          framesOf(secondSplit.leftItem as VideoItem, projectFps),
+          expected,
+          first,
+        )
+        const lastAt = firstMismatch(
+          framesOf(secondSplit.rightItem as VideoItem, projectFps),
+          expected,
+          second,
+        )
+        if (middleAt >= 0 || lastAt >= 0) {
+          failures.push(
+            `case ${index}: ${JSON.stringify({ item, projectFps, first, second, middleAt, lastAt })}`,
+          )
+        }
+      }
+      expect(failures).toEqual([])
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'splits, then joins the halves back: the parent’s frames and the parent’s keys return',
+    () => {
+      const random = generator(0xea53)
+      const failures: string[] = []
+      for (let index = 0; index < CASES && failures.length < 5; index++) {
+        const { item, projectFps, parent } = easedParent(random, 90)
+        const expected = framesOf(parent, projectFps)
+        const cut = integer(random, 1, parent.durationInFrames - 1)
+        const { rightItem } = useItemsStore.getState()._splitItem('clip', cut)!
+        useItemsStore.getState()._joinItems(['clip', rightItem.id])
+        const joined = useItemsStore.getState().itemById['clip'] as VideoItem
+        const at = firstMismatch(framesOf(joined, projectFps), expected)
+        if (at >= 0 || joined.durationInFrames !== parent.durationInFrames) {
+          failures.push(`case ${index}: ${JSON.stringify({ item, projectFps, cut, at })}`)
+        }
+      }
+      expect(failures).toEqual([])
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'the preview and the export pick the same source frame on every frame',
+    () => {
+      const random = generator(0xea54)
+      const failures: string[] = []
+      for (let index = 0; index < CASES && failures.length < 5; index++) {
+        const { item, projectFps } = randomClip(random, { curved: true, eased: true, maxDuration: 40 })
+        const clip = storeClip(item, projectFps)
+        const sourceFps = clip.sourceFps!
+        const span = getItemRenderTimelineSpan(clip)
+        for (let frame = 0; frame < clip.durationInFrames; frame++) {
+          const mapped = clipSourcePosition(clip, frame, projectFps).frame
+          const preview = secondsToFrame(
+            toRate(sourceFps),
+            getVideoTargetTimeSeconds(
+              clip.sourceStart ?? 0,
+              sourceFps,
+              frame,
+              clip.speed ?? 1,
+              projectFps,
+              0,
+              false,
+              undefined,
+              clip.speedCurve,
+              clip.sourceFrameOffset,
+            ),
+          )
+          const exported = secondsToFrame(
+            toRate(sourceFps),
+            resolveVideoRenderSourceTimeSeconds(clip, span, frame, projectFps),
+          )
+          if (preview !== mapped || exported !== mapped) {
+            failures.push(
+              `case ${index}: ${JSON.stringify({ item, projectFps, frame, mapped, preview, exported })}`,
+            )
+            break
+          }
+        }
+      }
+      expect(failures).toEqual([])
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'the sound is within one sample of the picture on eased segments',
+    () => {
+      const ramp = new Float32Array(8_000_000).map((_, index) => index)
+      const random = generator(0xea55)
+      const failures: string[] = []
+      const sampleRate = 48_000
+      for (let index = 0; index < 2_000 && failures.length < 5; index++) {
+        const { item, projectFps } = randomClip(random, { curved: true, eased: true, maxDuration: 120 })
+        const clip = storeClip(item, projectFps)
+        if (clip.speedCurve === undefined) continue
+        const projectRate = toRate(projectFps)
+        const sourceRate = toRate(clip.sourceFps!)
+        const step = projectRate.den === 1001 && projectRate.num !== 24_000 ? 5 : 1
+        const frame = step * integer(random, 0, Math.floor((clip.durationInFrames - 1) / step))
+        const position: Fraction = subtractFractions(
+          clipSourcePosition(clip, frame, projectFps).position,
+          fraction(clip.sourceStart ?? 0),
+        )
+        const expected = fractionToNumber(
+          multiplyFractions(position, fraction(sampleRate * sourceRate.den, sourceRate.num)),
+        )
+        const [read] = resampleThroughCurve([ramp], {
+          curve: clip.speedCurve,
+          projectRate,
+          sourceRate,
+          sourceSampleRate: sampleRate,
+          outputSampleRate: sampleRate,
+          firstOutputSample: sampleAt(frame, projectRate, sampleRate),
+          outputSampleCount: 1,
+          clipStartFrame: 0,
+          preRollFrames: 0,
+          averageSpeed: clip.speed!,
+          sourceFrameOffset: sourceRemainderValue(clip.sourceFrameOffset),
+        })
+        if (Math.abs(read![0]! - expected) > 1) {
+          failures.push(
+            `case ${index}: ${JSON.stringify({ item, projectFps, frame, heard: read![0], expected })}`,
+          )
+        }
+      }
+      expect(failures).toEqual([])
+    },
+    PROPERTY_TIMEOUT_MS,
+  )
+
+  it(
+    'trims an eased clip and extends it back: the kept frames are the parent’s throughout',
+    () => {
+      const random = generator(0xea56)
+      const failures: string[] = []
+      for (let index = 0; index < CASES && failures.length < 5; index++) {
+        const { item, projectFps, parent } = easedParent(random, 90)
+        const expected = framesOf(parent, projectFps)
+        const duration = parent.durationInFrames
+        const amount = integer(random, 1, duration - 1)
+        const atStart = random() < 0.5
+        const store = useItemsStore.getState()
+        if (atStart) store._trimItemStart('clip', amount)
+        else store._trimItemEnd('clip', -amount)
+        const trimmed = useItemsStore.getState().itemById['clip'] as VideoItem
+        const trimmedAt = firstMismatch(
+          framesOf(trimmed, projectFps),
+          expected,
+          atStart ? amount : 0,
+        )
+        if (trimmed.durationInFrames !== duration - amount || trimmedAt >= 0) {
+          failures.push(
+            `case ${index}: ${JSON.stringify({ item, projectFps, amount, atStart, trimmedAt })}`,
+          )
+        }
+      }
+      expect(failures).toEqual([])
     },
     PROPERTY_TIMEOUT_MS,
   )

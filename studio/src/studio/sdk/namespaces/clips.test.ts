@@ -10,6 +10,7 @@ import {
   resetTimelineCompositionTestState,
 } from '@/features/timeline/test-helpers'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
+import { useKeyframesStore } from '@/features/timeline/stores/keyframes-store'
 import { buildTimelineFromStores } from '@/features/timeline/stores/timeline-persistence'
 import { useTimelineCommandStore } from '@/features/timeline/stores/timeline-command-store'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
@@ -40,6 +41,15 @@ const fakeEngine = vi.hoisted(() => ({
   ]),
 }))
 vi.mock('@/studio/stabilization/ui/engine', () => ({ pageEngine: fakeEngine }))
+
+/** The looks index of the workspace folder, as `looks/index.json` would answer it. */
+const fakeLooksIndex = vi.hoisted(() => ({
+  read: vi.fn<() => Promise<unknown[]>>(async () => []),
+}))
+vi.mock('@/studio/looks/workspace', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/studio/looks/workspace')>()),
+  readLooksIndex: fakeLooksIndex.read,
+}))
 
 /** Run an async call that must be rejected with a `StudioError`. */
 async function rejectedAsync(run: () => Promise<unknown>): Promise<StudioError> {
@@ -356,11 +366,63 @@ describe('studio.clips', () => {
       expect(snapshot()).toEqual(before)
     })
 
-    it('reports the placed position when the store moves the clip to avoid an overlap', () => {
-      // c1 occupies frames 0..299 of v1, so a drop at 0 lands at 300.
-      const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0 })
+    it('throws CONFLICT for a clip that overlaps one, naming it and the first free frame', () => {
+      // c1 occupies frames 0..299 of v1, so a drop at 0 would land at 300.
+      const error = rejected(() => studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0 }))
 
+      expect(error.code).toBe('CONFLICT')
+      expect(error.message).toContain('clip "c1" (frames 0..300)')
+      expect(error.message).toContain('the first free frame where it fits is 300')
+      expect(error.entity).toEqual({ kind: 'clip', id: 'c1' })
+      expect(error.hint).toContain('onOverlap')
+    })
+
+    it("throws CONFLICT for onOverlap 'fail' too, and places a clip that does not overlap", () => {
+      const error = rejected(() =>
+        studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 100, onOverlap: 'fail' }),
+      )
+      expect(error.code).toBe('CONFLICT')
+      expect(error.message).toContain('the first free frame where it fits is 300')
+
+      const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 300, onOverlap: 'fail' })
       expect(studio.clips.get(id)?.from).toBe(300)
+    })
+
+    it("moves the clip with onOverlap 'move' and says the frame it chose", () => {
+      const placed = studio.clips.add({
+        mediaId: 'm-1',
+        trackId: 'v1',
+        from: 0,
+        onOverlap: 'move',
+      })
+
+      expect(placed).toEqual({ id: expect.any(String), from: 300, requestedFrom: 0, moved: true })
+      expect(studio.clips.get(placed.id)?.from).toBe(300)
+    })
+
+    it("answers moved false with onOverlap 'move' when the clip fits where it was asked", () => {
+      const placed = studio.clips.add({
+        mediaId: 'm-1',
+        trackId: 'v2',
+        from: 40,
+        onOverlap: 'move',
+      })
+
+      expect(placed).toMatchObject({ from: 40, requestedFrom: 40, moved: false })
+    })
+
+    it('throws INVALID_ARGUMENT for an onOverlap that is not move or fail', () => {
+      const error = rejected(() =>
+        studio.clips.add({
+          mediaId: 'm-1',
+          trackId: 'v2',
+          from: 0,
+          onOverlap: 'push' as unknown as 'move',
+        }),
+      )
+
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('onOverlap')
     })
 
     it('honours durationInFrames and label', () => {
@@ -556,12 +618,14 @@ describe('studio.clips', () => {
       const before = snapshot()
       const depth = undoDepth()
 
-      const ids = studio.clips.addMany([
+      const [first, second] = studio.clips.addMany([
         { mediaId: 'm-1', trackId: 'v3', from: 0 },
-        { mediaId: 'm-1', trackId: 'v3', from: 0 },
+        { mediaId: 'm-1', trackId: 'v3', from: 0, onOverlap: 'move' },
       ])
+      const ids = [first as string, (second as { id: string }).id]
 
-      expect(ids).toHaveLength(2)
+      expect(typeof first).toBe('string')
+      expect(second).toEqual({ id: ids[1], from: 300, requestedFrom: 0, moved: true })
       expect(studio.clips.get(ids[0]!)?.from).toBe(0)
       expect(studio.clips.get(ids[1]!)?.from).toBe(300)
       expect(undoDepth()).toBe(depth + 1)
@@ -571,6 +635,65 @@ describe('studio.clips', () => {
 
       expect(studio.clips.get(ids[0]!)).toBeNull()
       expect(studio.clips.get(ids[1]!)).toBeNull()
+      expect(snapshot()).toEqual(before)
+    })
+
+    it('throws CONFLICT for an input that overlaps, naming its index, and adds nothing', () => {
+      const before = snapshot()
+      const depth = undoDepth()
+
+      const error = rejected(() =>
+        studio.clips.addMany([
+          { mediaId: 'm-1', trackId: 'v2', from: 0 },
+          { mediaId: 'm-1', trackId: 'v1', from: 100 },
+        ]),
+      )
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.argument).toBe('inputs[1].from')
+      expect(error.message).toContain('inputs[1]:')
+      expect(error.message).toContain('clip "c1" (frames 0..300)')
+      expect(error.message).toContain('the first free frame where it fits is 300')
+      expect(snapshot()).toEqual(before)
+      expect(undoDepth()).toBe(depth)
+    })
+
+    it('throws CONFLICT for an input that overlaps an earlier input of the same call', () => {
+      const error = rejected(() =>
+        studio.clips.addMany([
+          { mediaId: 'm-1', trackId: 'v2', from: 0 },
+          { mediaId: 'm-1', trackId: 'v2', from: 10 },
+        ]),
+      )
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.argument).toBe('inputs[1].from')
+      expect(error.message).not.toContain('"c1"')
+      expect(error.message).toMatch(/the first free frame where it fits is \d+/)
+    })
+
+    it("reports each input's frame with onOverlap 'move', moved or not", () => {
+      const [stays, moved] = studio.clips.addMany([
+        { mediaId: 'm-1', trackId: 'v2', from: 40, onOverlap: 'move' },
+        { mediaId: 'm-1', trackId: 'v1', from: 0, onOverlap: 'move' },
+      ])
+
+      expect(stays).toMatchObject({ from: 40, requestedFrom: 40, moved: false })
+      expect(moved).toMatchObject({ from: 300, requestedFrom: 0, moved: true })
+      expect(studio.clips.get(moved!.id)?.from).toBe(300)
+    })
+
+    it('throws INVALID_ARGUMENT for an onOverlap that is not move or fail', () => {
+      const before = snapshot()
+
+      const error = rejected(() =>
+        studio.clips.addMany([
+          { mediaId: 'm-1', trackId: 'v2', from: 0, onOverlap: 'push' as unknown as 'move' },
+        ]),
+      )
+
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('onOverlap')
       expect(snapshot()).toEqual(before)
     })
 
@@ -1283,6 +1406,42 @@ describe('studio.clips', () => {
       expect(studio.clips.get('c1')).toMatchObject({ durationInFrames: 150, speed: 2 })
     })
 
+    describe('ripple', () => {
+      // `c1` is 300 source frames over 0..300 on its own track; add clips after it.
+      function addAfter(from: number): void {
+        const c1 = useItemsStore.getState().itemById['c1']!
+        useItemsStore.getState().setItems([
+          ...useItemsStore.getState().items,
+          makeTimelineVideoItem({
+            id: 'after',
+            trackId: c1.trackId,
+            from,
+            durationInFrames: 100,
+            sourceStart: 0,
+            sourceEnd: 100,
+            sourceDuration: 600,
+            sourceFps: 30,
+          }),
+        ])
+      }
+
+      it('moves nothing when the clip grows into a gap that fits it', () => {
+        addAfter(900)
+        studio.clips.setSpeed('c1', 0.5)
+
+        expect(studio.clips.get('c1')).toMatchObject({ durationInFrames: 600 })
+        expect(useItemsStore.getState().itemById['after']?.from).toBe(900)
+      })
+
+      it('pushes the next clip only by how far the clip passes it', () => {
+        addAfter(400)
+        studio.clips.setSpeed('c1', 0.5)
+
+        expect(studio.clips.get('c1')).toMatchObject({ durationInFrames: 600 })
+        expect(useItemsStore.getState().itemById['after']?.from).toBe(600)
+      })
+    })
+
     it('adds no undo entry when the clip already runs at that speed', () => {
       const depth = undoDepth()
 
@@ -1527,6 +1686,41 @@ describe('studio.clips', () => {
       ])
     })
 
+    it('takes an ease on a key and reads it back only where the segment is not linear', () => {
+      addCurvedClip()
+
+      studio.clips.setSpeedCurve('curved', [
+        { frame: 0, speed: 1, ease: 'smooth' },
+        { frame: 100, speed: 3, ease: 'linear' },
+        { frame: 300, speed: 1 },
+      ])
+
+      const read = studio.clips.getSpeedCurve('curved')!
+      expect(read.keys.map((key) => key.ease)).toEqual(['smooth', undefined, undefined])
+      expect(useItemsStore.getState().itemById['curved']?.speedCurve?.keys[0]?.ease).toBe('smooth')
+      // The speed in the middle of the eased segment is not the line's.
+      const length = read.keys[1]!.frame
+      const x = Math.floor(length / 2) / length
+      expect(studio.clips.speedAt('curved', 700 + Math.floor(length / 2))).toBeCloseTo(
+        1 + 2 * (3 * x * x - 2 * x * x * x),
+        6,
+      )
+    })
+
+    it('throws INVALID_ARGUMENT for an ease that is not linear, smooth, ease-in or ease-out', () => {
+      addCurvedClip()
+
+      const error = rejected(() =>
+        studio.clips.setSpeedCurve('curved', [
+          { frame: 0, speed: 1, ease: 'bounce' as 'smooth' },
+          { frame: 300, speed: 2 },
+        ]),
+      )
+
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.message).toContain('keys[0].ease')
+    })
+
     it('throws INVALID_ARGUMENT for a curve that is not a sorted list of two or more keys', () => {
       addCurvedClip()
       const cases: Array<[unknown, string]> = [
@@ -1677,6 +1871,118 @@ describe('studio.clips', () => {
     })
   })
 
+  describe('applySmoothEdit', () => {
+    it('sets the curve, the blur and the zoom and answers what it set, in one undo step', () => {
+      addCurvedClip()
+      const depth = undoDepth()
+
+      const result = studio.clips.applySmoothEdit('curved', { peak: 4, slow: 0.45, zoom: 0.2 })
+
+      const duration = studio.clips.get('curved')!.durationInFrames
+      expect(result.durationInFrames).toBe(duration)
+      expect(result.speedCurve.map((key) => key.speed)).toEqual([4, 0.45, 0.45, 4])
+      expect(result.speedCurve[result.speedCurve.length - 1]!.frame).toBe(duration)
+      expect(studio.clips.getSpeedCurve('curved')!.keys).toEqual(result.speedCurve)
+      expect(studio.clips.getMotionBlur('curved')).toEqual({ shutterDegrees: 360, smoothSlowMotion: 'blend' })
+      expect(result.zoom).toEqual({ firstFrame: 0, lastFrame: duration - 1, scale: 1.2 })
+      expect(undoDepth()).toBe(depth + 1)
+      expect(lastCommandType()).toBe('CLIPS_APPLY_SMOOTH_EDIT')
+
+      undo()
+      expect(studio.clips.getSpeedCurve('curved')).toBeNull()
+      expect(studio.clips.getMotionBlur('curved')).toBeNull()
+      expect(studio.clips.get('curved')!.durationInFrames).toBe(300)
+      expect(useKeyframesStore.getState().keyframesByItemId['curved']).toBeUndefined()
+    })
+
+    it('takes peak 4, slow 0.45 and zoom 0.2 when it is given none', () => {
+      addCurvedClip()
+
+      const result = studio.clips.applySmoothEdit('curved')
+
+      expect(result.speedCurve.map((key) => key.speed)).toEqual([4, 0.45, 0.45, 4])
+      expect(result.zoom?.scale).toBe(1.2)
+    })
+
+    it('throws INVALID_ARGUMENT outside the ranges, naming the option', () => {
+      addCurvedClip()
+      const cases: Array<['peak' | 'slow' | 'zoom', unknown[]]> = [
+        ['peak', [0.5, 11, Number.NaN, '4']],
+        ['slow', [0.05, 1.5, Number.NaN]],
+        ['zoom', [-0.1, 1.5, Number.NaN]],
+      ]
+      for (const [name, values] of cases) {
+        for (const value of values) {
+          const error = rejected(() => studio.clips.applySmoothEdit('curved', { [name]: value }))
+          expect(error.code).toBe('INVALID_ARGUMENT')
+          expect(error.argument).toBe(`options.${name}`)
+        }
+      }
+      const options = rejected(() => studio.clips.applySmoothEdit('curved', 'fast' as never))
+      expect(options.argument).toBe('options')
+    })
+
+    it('throws NOT_FOUND for an unknown clip id', () => {
+      const error = rejected(() => studio.clips.applySmoothEdit('c9'))
+
+      expect(error.code).toBe('NOT_FOUND')
+      expect(error.message).toContain('clips.applySmoothEdit: "id"')
+    })
+
+    it('throws UNSUPPORTED for a reversed clip and an audio clip', () => {
+      for (const id of ['c2', addAudioClip()]) {
+        const error = rejected(() => studio.clips.applySmoothEdit(id))
+
+        expect(error.code).toBe('UNSUPPORTED')
+        expect(error.entity).toEqual({ kind: 'clip', id })
+      }
+    })
+
+    it('throws CONFLICT for a clip shorter than four frames', () => {
+      useItemsStore.getState().setItems([
+        ...useItemsStore.getState().items,
+        makeTimelineVideoItem({
+          id: 'tiny',
+          trackId: 'v2',
+          from: 700,
+          durationInFrames: 3,
+          sourceStart: 0,
+          sourceEnd: 3,
+          sourceDuration: 600,
+        }),
+      ])
+
+      const error = rejected(() => studio.clips.applySmoothEdit('tiny'))
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.entity).toEqual({ kind: 'clip', id: 'tiny' })
+    })
+
+    it('throws CONFLICT, changing nothing, when a transition sits on the first frame and a zoom is asked for', () => {
+      useItemsStore.getState().setItems([
+        ...useItemsStore.getState().items,
+        makeTimelineVideoItem({
+          id: 'c3',
+          trackId: 'v1',
+          from: 300,
+          durationInFrames: 100,
+          sourceStart: 0,
+          sourceEnd: 100,
+          sourceDuration: 600,
+          sourceFps: 30,
+        }),
+      ])
+      useTransitionsStore.getState().setTransitions([makeTransition()])
+
+      const error = rejected(() => studio.clips.applySmoothEdit('c3'))
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.argument).toBe('options.zoom')
+      // Without a zoom the same clip takes the curve and the blur.
+      expect(studio.clips.applySmoothEdit('c3', { zoom: 0 }).zoom).toBeNull()
+    })
+  })
+
   describe('speedAt', () => {
     it('reads the curve at an absolute timeline frame', () => {
       addCurvedClip()
@@ -1784,11 +2090,11 @@ describe('studio.clips', () => {
   })
 
   describe('getLook', () => {
-    it('answers null for a clip with no look and reads what setLook wrote', () => {
+    it('answers null for a clip with no look and reads what setLook wrote', async () => {
       useLooksStore.setState({ status: 'ready', looks: [LOOK] })
       expect(studio.clips.getLook('c1')).toBeNull()
 
-      studio.clips.setLook('c1', { id: 'look-1', intensity: 0.8 })
+      await studio.clips.setLook('c1', { id: 'look-1', intensity: 0.8 })
 
       expect(studio.clips.getLook('c1')).toEqual({ id: 'look-1', intensity: 0.8 })
     })
@@ -1810,51 +2116,65 @@ describe('studio.clips', () => {
   describe('setLook', () => {
     beforeEach(() => {
       useLooksStore.setState({ status: 'ready', looks: [LOOK] })
+      fakeLooksIndex.read.mockReset()
+      fakeLooksIndex.read.mockResolvedValue([LOOK])
     })
 
-    it('applies a library look with full blend by default, one undo step, and removes it with null', () => {
+    it('applies a library look with full blend by default, one undo step, and removes it with null', async () => {
       const depth = undoDepth()
 
-      studio.clips.setLook('c1', { id: 'look-1' })
+      await studio.clips.setLook('c1', { id: 'look-1' })
 
       expect(undoDepth()).toBe(depth + 1)
       expect(lastCommandType()).toBe('CLIPS_SET_LOOK')
       expect(studio.clips.getLook('c1')).toEqual({ id: 'look-1', intensity: 1 })
 
-      studio.clips.setLook('c1', null)
+      await studio.clips.setLook('c1', null)
       expect(studio.clips.getLook('c1')).toBeNull()
     })
 
-    it('throws NOT_FOUND for an unknown clip id', () => {
-      const error = rejected(() => studio.clips.setLook('c9', { id: 'look-1' }))
+    it('reads the looks library itself on a fresh session, without looks.list() first', async () => {
+      useLooksStore.setState({ status: 'idle', looks: [], error: null })
+
+      await studio.clips.setLook('c1', { id: 'look-1', intensity: 0.5 })
+
+      expect(fakeLooksIndex.read).toHaveBeenCalledTimes(1)
+      expect(studio.clips.getLook('c1')).toEqual({ id: 'look-1', intensity: 0.5 })
+    })
+
+    it('throws NOT_FOUND for an unknown clip id', async () => {
+      const error = await rejectedAsync(() => studio.clips.setLook('c9', { id: 'look-1' }))
 
       expect(error.code).toBe('NOT_FOUND')
     })
 
-    it('throws UNSUPPORTED for a clip that is not a video', () => {
+    it('throws UNSUPPORTED for a clip that is not a video', async () => {
       const audioId = addAudioClip()
-      const error = rejected(() => studio.clips.setLook(audioId, { id: 'look-1' }))
+      const error = await rejectedAsync(() => studio.clips.setLook(audioId, { id: 'look-1' }))
 
       expect(error.code).toBe('UNSUPPORTED')
     })
 
-    it('throws INVALID_ARGUMENT for an id outside the library and a blend outside 0..1', () => {
-      const unknown = rejected(() => studio.clips.setLook('c1', { id: 'nope' }))
+    it('throws INVALID_ARGUMENT for an id outside the library and a blend outside 0..1', async () => {
+      const unknown = await rejectedAsync(() => studio.clips.setLook('c1', { id: 'nope' }))
       expect(unknown.code).toBe('INVALID_ARGUMENT')
       expect(unknown.valid).toEqual(['look-1'])
 
-      const blend = rejected(() => studio.clips.setLook('c1', { id: 'look-1', intensity: 2 }))
+      const blend = await rejectedAsync(() =>
+        studio.clips.setLook('c1', { id: 'look-1', intensity: 2 }),
+      )
       expect(blend.code).toBe('INVALID_ARGUMENT')
       expect(blend.argument).toBe('look.intensity')
     })
 
-    it('throws CONFLICT while the library has not been read', () => {
-      useLooksStore.setState({ status: 'idle', looks: [] })
+    it('throws INTERNAL when the looks library cannot be read from the workspace', async () => {
+      useLooksStore.setState({ status: 'idle', looks: [], error: null })
+      fakeLooksIndex.read.mockRejectedValue(new Error('no workspace'))
 
-      const error = rejected(() => studio.clips.setLook('c1', { id: 'look-1' }))
+      const error = await rejectedAsync(() => studio.clips.setLook('c1', { id: 'look-1' }))
 
-      expect(error.code).toBe('CONFLICT')
-      expect(error.hint).toContain('studio.looks.list()')
+      expect(error.code).toBe('INTERNAL')
+      expect(studio.clips.getLook('c1')).toBeNull()
     })
   })
 
@@ -1922,6 +2242,17 @@ describe('studio.clips', () => {
       expect(studio.clips.getStabilization('c1')).toMatchObject({ enabled: false, fov: 1.2 })
     })
 
+    it('stores a framing on a clip that is already on, as one undo step, with no new engine key', async () => {
+      await studio.clips.setStabilization('c1', {})
+      expect(studio.clips.getStabilization('c1')).toMatchObject({ framingX: 0, framingY: 0 })
+      const depth = undoDepth()
+      await studio.clips.setStabilization('c1', { framingX: -0.5 })
+      expect(studio.clips.getStabilization('c1')).toMatchObject({ framingX: -0.5, framingY: 0 })
+      expect(undoDepth()).toBe(depth + 1)
+      await studio.clips.setStabilization('c1', { framingX: -0.5 })
+      expect(undoDepth()).toBe(depth + 1)
+    })
+
     it('throws NOT_FOUND for an unknown clip id', async () => {
       const error = await rejectedAsync(() => studio.clips.setStabilization('c9', {}))
 
@@ -1951,6 +2282,8 @@ describe('studio.clips', () => {
         [{ horizonLockPercent: 101 }, 'patch.horizonLockPercent'],
         [{ horizonLockRoll: -181 }, 'patch.horizonLockRoll'],
         [{ adaptiveZoomSeconds: -1 }, 'patch.adaptiveZoomSeconds'],
+        [{ framingX: 1.5 }, 'patch.framingX'],
+        [{ framingY: -2 }, 'patch.framingY'],
         [{ wobble: 1 }, 'patch.wobble'],
       ] as const) {
         const error = await rejectedAsync(() =>
@@ -1978,15 +2311,46 @@ describe('studio.clips', () => {
   // -------------------------------------------------------------------------
 
   describe('getMotionBlur', () => {
-    it('switches the slow-motion blend on with the blur and reads it back', () => {
-      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: true })
-      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, blendSlowMotion: true })
+    it('sets each smooth slow motion mode with the blur and reads it back', () => {
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'blend' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
 
-      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: false })
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180 })
       expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180 })
     })
 
-    it('refuses a slow-motion blend that is not a boolean', () => {
+    it('still takes the deprecated blendSlowMotion: true is the blend, false is off, and reads back the new field', () => {
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: true })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
+
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 270, blendSlowMotion: false })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 270 })
+    })
+
+    it('refuses settings that give both smoothSlowMotion and blendSlowMotion, and changes nothing', () => {
+      studio.clips.setMotionBlur('c1', { shutterDegrees: 90 })
+      for (const blendSlowMotion of [true, false]) {
+        const error = (() => {
+          try {
+            studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'blend', blendSlowMotion })
+          } catch (caught) {
+            return caught
+          }
+        })()
+        expect(error).toMatchObject({ code: 'INVALID_ARGUMENT' })
+        expect((error as Error).message).toContain('clips.setMotionBlur: ')
+        expect((error as Error).message).toContain('not both')
+      }
+      // Read from the store: this test is about setMotionBlur's refusals alone
+      expect((useItemsStore.getState().itemById['c1'] as { motionBlur?: unknown }).motionBlur).toEqual({
+        shutterDegrees: 90,
+      })
+    })
+
+    it('refuses a deprecated blendSlowMotion that is not a boolean', () => {
       const error = (() => {
         try {
           studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: 'yes' as unknown as boolean })
@@ -1996,6 +2360,23 @@ describe('studio.clips', () => {
       })()
       expect(error).toMatchObject({ code: 'INVALID_ARGUMENT' })
       expect((error as Error).message).toContain('clips.setMotionBlur: ')
+    })
+
+    it('refuses a smooth slow motion mode that is not one of the two', () => {
+      for (const smoothSlowMotion of ['rife', true, 1]) {
+        const error = (() => {
+          try {
+            studio.clips.setMotionBlur('c1', {
+              shutterDegrees: 180,
+              smoothSlowMotion: smoothSlowMotion as unknown as 'blend',
+            })
+          } catch (caught) {
+            return caught
+          }
+        })()
+        expect(error).toMatchObject({ code: 'INVALID_ARGUMENT' })
+        expect((error as Error).message).toContain('clips.setMotionBlur: ')
+      }
     })
 
     it('answers null for a clip with no blur, and reads what setMotionBlur wrote', () => {
@@ -2111,14 +2492,14 @@ describe('studio.clips', () => {
       expect(clip?.id).toBe('c1')
     })
 
-    it("const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0 })", () => {
-      const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v1', from: 0 })
+    it("const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v2', from: 0 })", () => {
+      const id = studio.clips.add({ mediaId: 'm-1', trackId: 'v2', from: 0 })
 
       expect(studio.clips.get(id)?.mediaId).toBe('m-1')
     })
 
-    it("studio.clips.addMany([{ mediaId: 'm-1', trackId: 'v1', from: 0 }])", () => {
-      const ids = studio.clips.addMany([{ mediaId: 'm-1', trackId: 'v1', from: 0 }])
+    it("studio.clips.addMany([{ mediaId: 'm-1', trackId: 'v2', from: 0 }])", () => {
+      const ids = studio.clips.addMany([{ mediaId: 'm-1', trackId: 'v2', from: 0 }])
 
       expect(ids).toHaveLength(1)
       expect(studio.clips.get(ids[0]!)?.mediaId).toBe('m-1')

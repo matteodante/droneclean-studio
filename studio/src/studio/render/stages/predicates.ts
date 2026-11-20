@@ -86,7 +86,7 @@ function lowestSpeed(video: VideoItem): number {
 
 /**
  * Whether motion blur can blend more than one source frame for this clip: it is on, and one output frame can cover
- * more than one source frame, or less than one with the slow-motion blend on. Every shutter angle is the identity at and below 1x with equal rates (design 7.2
+ * more than one source frame, or less than one with smooth slow motion on (blend or optical flow). Every shutter angle is the identity at and below 1x with equal rates (design 7.2
  * section 4.1), so a blurred clip at normal speed needs no stage. Without `rates` the clip's source rate and the project's
  * (`setProjectRate`) are used, or taken as equal while the project's is unknown; with them, a faster source than project counts like a faster clip.
  */
@@ -99,8 +99,8 @@ export function hasMotionBlurSpan(item: TimelineItem, rates?: PlaybackRates): bo
       ? 1
       : (known.source.num * known.project.den) / (known.source.den * known.project.num)
   if (peakSpeed(video) * rateRatio > 1) return true
-  // A slow-motion blend mixes two source frames wherever an output frame covers less than one (19 Nov 2026).
-  return video.motionBlur?.blendSlowMotion === true && lowestSpeed(video) * rateRatio < 1
+  // Smooth slow motion makes a frame from two source frames wherever an output frame covers less than one.
+  return video.motionBlur?.smoothSlowMotion !== undefined && lowestSpeed(video) * rateRatio < 1
 }
 
 /**

@@ -52,6 +52,7 @@ function createVmWindow(handler) {
             setTimeout,
             clearTimeout,
             console,
+            AbortController,
           }),
         ),
     },
@@ -139,7 +140,7 @@ test('a page without the bridge answers UNSUPPORTED instead of failing', async (
     { jobId: 'job-1' },
     {
       execute: (code) =>
-        Promise.resolve(vm.runInNewContext(code, { setTimeout, clearTimeout })),
+        Promise.resolve(vm.runInNewContext(code, { setTimeout, clearTimeout, AbortController })),
     },
   )
 

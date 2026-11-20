@@ -3,6 +3,7 @@ import type { SourceFrame, SourceFrameProvider } from '@/studio/render/frames/ty
 import type { VideoItem } from '@/types/timeline'
 import type { ClipStageState } from './failure'
 import type { MotionBlurStage } from '@/studio/motion-blur/stage'
+import type { OpticalFlow } from '@/studio/optical-flow'
 import { createStagePipeline, type StagePipelineOptions } from './pipeline'
 import type { PrepareStatus } from './preparer'
 import { createStageRegistry } from './registry'
@@ -139,8 +140,28 @@ function setup(mode: 'export' | 'preview', status: () => PrepareStatus | undefin
       }
     },
   )
+  const flowCalls: string[] = []
+  const gapsDestroyed: number[] = []
+  const flowDestroyed = vi.fn()
+  const flow = vi.fn(async (_device: GPUDevice, format: GPUTextureFormat, size: { width: number; height: number }): Promise<OpticalFlow> => {
+    flowCalls.push(`flow ${format} ${size.width}x${size.height}`)
+    let measured = 0
+    return {
+      frameSize: size,
+      flowSize: { width: size.width / 2, height: size.height / 2 },
+      measure: () => {
+        const gap = (measured += 1)
+        log.push(`measure ${gap}`)
+        return { forward: {} as GPUBuffer, backward: {} as GPUBuffer, destroy: () => gapsDestroyed.push(gap) }
+      },
+      interpolate: (_encoder, _uploads, _first, _second, _gap, phase, output) =>
+        log.push(`interpolate ${phase} into ${(output as unknown as { of: string }).of}`),
+      destroy: flowDestroyed,
+    }
+  })
   const options: StagePipelineOptions = {
     gather,
+    flow,
     device,
     mode,
     registry,
@@ -149,7 +170,7 @@ function setup(mode: 'export' | 'preview', status: () => PrepareStatus | undefin
     onState: (_item, state) => states.push(state),
     onReady,
   }
-  return { pipeline: createStagePipeline(options), gather, gatherCalls, gatherDestroyed, log, textures, stabilize, colour, look, provider, preparer, states, onReady }
+  return { pipeline: createStagePipeline(options), gather, gatherCalls, gatherDestroyed, flow, flowCalls, flowDestroyed, gapsDestroyed, log, textures, stabilize, colour, look, provider, preparer, states, onReady }
 }
 
 describe('the stage pipeline', () => {
@@ -218,6 +239,35 @@ describe('an export', () => {
     const staged = await rendering
     expect(staged.kind).toBe('fresh')
     expect(log).toContain('stabilize 4 320x240>300x170 rgba16float')
+  })
+
+  it('stops with a StageError when what a frame waits for has not come within a minute, instead of hanging', async () => {
+    vi.useFakeTimers()
+    try {
+      const { pipeline, stabilize, log } = setup('export')
+      stabilize.notReady()
+      let settled = false
+      const failure = pipeline.render(item({ stabilize: true }), 4).then(
+        () => {
+          settled = true
+        },
+        (error: unknown) => {
+          settled = true
+          return error
+        },
+      )
+      await vi.advanceTimersByTimeAsync(59_999)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      const error = await failure
+      expect(error).toBeInstanceOf(StageError)
+      expect((error as StageError).message).toBe(
+        "Clip 'Clip one', stabilization, source frame 4: what it needs for the frame did not arrive within 60 s",
+      )
+      expect(log).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
@@ -471,5 +521,127 @@ describe('the motion-blur gather (design 7.2 B)', () => {
       'pass last',
     ])
     expect(log.filter((line) => line.startsWith('release'))).toHaveLength(9)
+  })
+})
+
+describe('optical-flow slow motion (task 11.12)', () => {
+  /** The frame at `phase` between source frames `first` and `first + 1` */
+  const between = (first: number, phase: number) => ({
+    samples: [
+      { index: first, weight: 1 - phase },
+      { index: first + 1, weight: phase },
+    ],
+    flow: { phase },
+  })
+
+  it('interpolates from the two decoded frames, then runs every stage on that frame at its fractional position', async () => {
+    const { pipeline, log, provider, flowCalls, gather } = setup('export')
+    const staged = await pipeline.render(item({ stabilize: true, 'input-colour': true, look: true }), between(8, 0.5))
+
+    expect(log).toEqual([
+      'frame 8',
+      'frame 9',
+      'measure 1',
+      'interpolate 0.5 into interpolated-frame',
+      'submit',
+      'release',
+      'release',
+      'stabilize 8.5 320x240>300x170 rgba16float',
+      'input-colour 8.5 300x170>300x170 rgba16float',
+      'look 8.5 300x170>300x170 rgba16float',
+      'submit',
+    ])
+    expect(flowCalls).toEqual(['flow rgba16float 320x240'])
+    expect(gather).not.toHaveBeenCalled()
+    expect(provider.release).toHaveBeenCalledTimes(2)
+    expect(staged).toMatchObject({ kind: 'fresh', width: 300, height: 170 })
+  })
+
+  it('asks every stage whether it is ready at the fractional position, before decoding', async () => {
+    const { pipeline, stabilize } = setup('export')
+    const ready = vi.spyOn(stabilize.stage, 'ready')
+    await pipeline.render(item({ stabilize: true }), between(20, 0.25))
+    expect(ready.mock.calls.map((call) => call[1])).toEqual([20.25])
+  })
+
+  it('measures a gap once for every frame inside it, and frees the gaps an export has passed', async () => {
+    const { pipeline, log, gapsDestroyed } = setup('export')
+    const clip = item({})
+    await pipeline.render(clip, between(4, 0.25))
+    await pipeline.render(clip, between(4, 0.5))
+    await pipeline.render(clip, between(4, 0.75))
+    expect(log.filter((line) => line.startsWith('measure') || line.startsWith('interpolate'))).toEqual([
+      'measure 1',
+      'interpolate 0.25 into interpolated-frame',
+      'interpolate 0.5 into interpolated-frame',
+      'interpolate 0.75 into interpolated-frame',
+    ])
+    expect(gapsDestroyed).toEqual([])
+    await pipeline.render(clip, between(5, 0.25))
+    expect(log.filter((line) => line.startsWith('measure'))).toEqual(['measure 1', 'measure 2'])
+    expect(gapsDestroyed).toEqual([1])
+  })
+
+  it('keeps the gaps behind in a preview, where a scrub comes back', async () => {
+    const { pipeline, log, gapsDestroyed } = setup('preview')
+    const clip = item({})
+    await pipeline.render(clip, between(4, 0.5))
+    await pipeline.render(clip, between(5, 0.5))
+    await pipeline.render(clip, between(4, 0.5))
+    expect(log.filter((line) => line.startsWith('measure'))).toEqual(['measure 1', 'measure 2'])
+    expect(gapsDestroyed).toEqual([])
+  })
+
+  it('shows a frame with no phase as itself and a blend without flow as the gather: the flow is only for its plans', async () => {
+    const { pipeline, flow, gather } = setup('export')
+    await pipeline.render(item({}), { samples: [{ index: 3, weight: 1 }] })
+    expect(flow).not.toHaveBeenCalled()
+    await pipeline.render(item({}), { samples: [{ index: 3, weight: 0.5 }, { index: 4, weight: 0.5 }] })
+    expect(flow).not.toHaveBeenCalled()
+    expect(gather).toHaveBeenCalledOnce()
+  })
+
+  it('refuses a flow plan that is not two consecutive frames with a phase inside (0, 1)', async () => {
+    const { pipeline } = setup('export')
+    const clip = item({})
+    const refused = [
+      { samples: [{ index: 3, weight: 0.5 }, { index: 5, weight: 0.5 }], flow: { phase: 0.5 } },
+      { samples: [{ index: 3, weight: 1 }], flow: { phase: 0.5 } },
+      { samples: [{ index: 3, weight: 0.5 }, { index: 4, weight: 0.5 }], flow: { phase: 1 } },
+    ]
+    for (const source of refused) await expect(pipeline.render(clip, source)).rejects.toThrowError(RangeError)
+  })
+
+  it('stops an export with a StageError of the motion blur naming the frame when the second frame cannot be decoded', async () => {
+    const { pipeline, provider } = setup('export')
+    provider.frameAt.mockImplementation(async (_item, index) => {
+      if (index === 13) throw new Error('no such frame')
+      return { texture: {} as GPUTexture, index, width: 320, height: 240, origin: 'webcodecs' }
+    })
+    await expect(pipeline.render(item({}), between(12, 0.5))).rejects.toThrow(
+      "Clip 'Clip one', motion blur, source frame 13: its source frame could not be decoded: no such frame",
+    )
+    expect(provider.release).toHaveBeenCalledTimes(1)
+  })
+
+  it('holds the last good frame in a preview while the stabilization’s data for the position is arriving', async () => {
+    const { pipeline, stabilize, states, onReady } = setup('preview')
+    const clip = item({ stabilize: true })
+    const good = await pipeline.render(clip, between(8, 0.5))
+    const arrive = stabilize.notReady()
+    const held = await pipeline.render(clip, between(9, 0.5))
+    expect(held).toMatchObject({ kind: 'held', texture: good.texture })
+    expect(states.at(-1)).toMatchObject({ kind: 'opening', stage: 'stabilize' })
+    arrive()
+    await vi.waitFor(() => expect(onReady).toHaveBeenCalledOnce())
+  })
+
+  it('destroys its flows, its gaps and its interpolated frame with the pipeline', async () => {
+    const { pipeline, flowDestroyed, gapsDestroyed, textures } = setup('preview')
+    await pipeline.render(item({}), between(2, 0.5))
+    pipeline.destroy()
+    expect(flowDestroyed).toHaveBeenCalledOnce()
+    expect(gapsDestroyed).toEqual([1])
+    expect(textures.find((texture) => texture.label === 'interpolated-frame')?.destroyed).toBe(true)
   })
 })

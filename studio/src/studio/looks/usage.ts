@@ -45,3 +45,8 @@ export function countClipsUsingLook(id: string): number {
   }
   return count
 }
+
+/** The ids of the project's video clips that use a look, for a message that names what blocks a removal. */
+export function clipIdsUsingLook(id: string): string[] {
+  return projectItems().flatMap((item) => (lookIdOf(item) === id ? [item.id] : []))
+}
