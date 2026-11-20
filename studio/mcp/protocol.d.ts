@@ -28,8 +28,10 @@
  * message on every connection is an `initialize` request; the server answers
  * it without the editor page.
  *
- * The setting is off by default: while `enabled` is not `true` there is no
- * socket and the launcher exits with `ExitAgentAccessOff`.
+ * The setting is on by default (since 20 Nov 2026): a profile without the
+ * settings file listens; while a readable file says `enabled: false` (or a file
+ * cannot be read) there is no socket and the launcher exits with
+ * `ExitAgentAccessOff`.
  */
 
 // ---------------------------------------------------------------------------
@@ -423,7 +425,13 @@ export interface ExportJobJson {
   durationFrames: number
   exportMode: ExportMode
   fileName: string
+  /** Where the file is, relative to the workspace folder. */
   savedPath?: string
+  /**
+   * The same file on disk, in the desktop app once the workspace folder is known: the path to give the person (20 Nov
+   * 2026: an agent had only `projects/<id>/exports/<name>.mp4` and could not say where the video was).
+   */
+  absolutePath?: string
   fileSize?: number
   error?: string
   createdAt: number
@@ -482,14 +490,15 @@ export type LauncherWaitMs = 15000
 export type LauncherPollMs = 200
 
 /**
- * Contents of `userData/agent-access.json`. A missing or unreadable file means
- * the default: agent access is **off** (design §0 decision 3). The file is
- * small and readable so the launcher can tell why the socket is missing.
+ * Contents of `userData/agent-access.json`. A missing file means the default:
+ * agent access is **on** (design §0 decision 3, changed by Matteo on 20 Nov
+ * 2026); a file that is not this object reads as off. The file is small and
+ * readable so the launcher can tell why the socket is missing.
  */
 export interface AgentAccessSettings {
   /** Format version, `1`. */
   readonly version: ProtocolVersion
-  /** Whether the socket should exist; `false` when the file is missing. */
+  /** Whether the socket should exist; `true` when the file is missing. */
   readonly enabled: boolean
 }
 

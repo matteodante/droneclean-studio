@@ -60,6 +60,13 @@ const SNIPPET_MAX_CHARS = 420
 /** The context each side of the matched word in a snippet. */
 const SNIPPET_CONTEXT_CHARS = 180
 
+/**
+ * The longest SDK entry a hit carries whole instead of a snippet: a method's signature and a type's declaration are
+ * what an agent writes its call from, and a snippet cut them mid-field (20 Nov 2026: `ClipAddInput` stopped at
+ * "durat…", before `sourceStart` and `sourceEnd`). The longest entry of the reference is 1106 characters.
+ */
+const SDK_WHOLE_MAX_CHARS = 1600
+
 /** Lowercase, strip diacritics, split on everything that is not a letter or a digit. */
 export function tokenize(text: string): string[] {
   return text
@@ -189,7 +196,10 @@ export function createSearchIndex(documents: readonly SearchDocument[]): SearchI
       return scored.slice(0, limit).map(({ entry, score }) => ({
         title: entry.document.title,
         source: entry.document.source,
-        text: snippet(entry.document.text, words),
+        text:
+          entry.document.source === 'sdk' && entry.document.text.length <= SDK_WHOLE_MAX_CHARS
+            ? entry.document.text
+            : snippet(entry.document.text, words),
         location: entry.document.location,
         score: Math.round(score * 1000) / 1000,
       }))

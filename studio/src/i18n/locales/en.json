@@ -197,7 +197,7 @@
     },
     "agentAccess": {
       "title": "Agent access",
-      "description": "Lets an AI agent running on this Mac read the open project, change it and start exports. Nothing leaves your Mac; off by default.",
+      "description": "Lets an AI agent running on this Mac read the open project, change it and start exports. Nothing leaves your Mac; on by default, and only your user can reach it.",
       "enable": "Allow AI agents",
       "socketPath": "Socket",
       "socketDescription": "The app listens here while the switch is on; only your user can read it.",

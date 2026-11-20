@@ -102,13 +102,30 @@ function callTool(client, id, name, arguments_) {
 
 const textOf = (message) => JSON.parse(message.result.content[0].text)
 
-test('off by default: no settings file, no socket, and connecting fails', async () => {
+test('on by default: with no settings file the app listens at startup (Matteo, 20 Nov 2026)', async () => {
   const dir = tempDir()
   const access = makeAccess(dir)
   try {
     await access.startIfEnabled()
+    assert.equal(access.status(), 'on')
+    assert.equal(fs.existsSync(agentAccessSettingsPath(dir)), false, 'the default writes no file')
+    assert.equal(fs.statSync(access.socketPath).mode & 0o777, 0o600)
+    const client = await connectSocket(access.socketPath)
+    client.close()
+  } finally {
+    await access.dispose()
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('switched off: no socket at startup, and connecting fails', async () => {
+  const dir = tempDir()
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(agentAccessSettingsPath(dir), JSON.stringify(fixture.SETTINGS_OFF))
+  const access = makeAccess(dir)
+  try {
+    await access.startIfEnabled()
     assert.equal(access.status(), 'off')
-    assert.equal(fs.existsSync(agentAccessSettingsPath(dir)), false)
     assert.equal(fs.existsSync(access.socketPath), false)
     await assert.rejects(() => connectSocket(access.socketPath))
   } finally {

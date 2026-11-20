@@ -385,6 +385,62 @@ describe('the window', () => {
     expect(asked(worker())).toEqual(timestampsUs)
   })
 
+  it('peekFrame answers a frame the window has at once, and asks for the window when it has not', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+
+    expect(client.peekFrame('clip-1', 100)).toBeUndefined()
+    expect(worker().requests('frameData')).toHaveLength(1)
+    await client.getFrameData('clip-1', 100, { wait: true })
+    expect(worker().requests('frameData')).toHaveLength(1)
+
+    // The frames ahead are there for the next draws, without a wait and without another request
+    const ahead = client.peekFrame('clip-1', 100 + FRAMES_AHEAD)
+    expect(ahead?.sourceFrame).toBe(100 + FRAMES_AHEAD)
+    expect(ahead?.matrices[0]).toBe(100 + FRAMES_AHEAD)
+    // Sliding to it asks for the frames now ahead of it
+    expect(worker().requests('frameData')).toHaveLength(2)
+    expect(client.peekFrame('clip-1', 100.5)).toBeUndefined()
+    expect(client.peekFrame('nobody', 3)).toBeUndefined()
+  })
+
+  it('slideWindow moves the window and asks for the frames ahead, handing nothing out', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+    await client.getFrameData('clip-1', 100, { wait: true })
+    expect(worker().requests('frameData')).toHaveLength(1)
+
+    client.slideWindow('clip-1', 100 + FRAMES_AHEAD)
+    const requests = worker().requests('frameData')
+    expect(requests).toHaveLength(2)
+    // Only the frames the window did not hold yet: the ones past its old end
+    expect((requests.at(-1)?.timestampsUs as number[] | undefined)?.[0]).toBe(
+      sourceFrameToMicroseconds(RATE, 100 + FRAMES_AHEAD + 1),
+    )
+    client.slideWindow('clip-1', 100 + FRAMES_AHEAD)
+    expect(worker().requests('frameData')).toHaveLength(2)
+    client.slideWindow('clip-1', 100.5)
+    client.slideWindow('nobody', 3)
+    expect(worker().requests('frameData')).toHaveLength(2)
+  })
+
+  it('fetchFrames asks for exactly those frames in one request and leaves the window where it was', async () => {
+    const { client, worker } = setup()
+    await client.open(CLIP, SETTINGS)
+    await client.getFrameData('clip-1', 100, { wait: true })
+    const before = worker().requests('frameData').length
+
+    const frames = await client.fetchFrames('clip-1', [500, 501, 502])
+    expect(frames.map((frame) => frame.sourceFrame)).toEqual([500, 501, 502])
+    expect(frames[1]?.matrices[0]).toBe(501)
+    const requests = worker().requests('frameData')
+    expect(requests).toHaveLength(before + 1)
+    expect(requests.at(-1)?.timestampsUs).toEqual([500, 501, 502].map((frame) => sourceFrameToMicroseconds(RATE, frame)))
+    // The window still holds the frames around 100: reading 100 again asks for nothing
+    expect(client.peekFrame('clip-1', 100)?.sourceFrame).toBe(100)
+    expect(worker().requests('frameData')).toHaveLength(before + 1)
+  })
+
   it('starts at the file’s first frame and stops at its last', async () => {
     const { client, worker } = setup()
     await client.open(CLIP, SETTINGS)

@@ -74,6 +74,14 @@ const EXPORT_WAITS = 64
 const EXPORT_WAIT_MS = 60_000
 
 /**
+ * How long the preview waits for a stage's data before it holds the clip's last good frame. The stabilization engine
+ * answers a window of frames in 3 ms (median) to 30 ms (95th percentile), at most 99 ms, while the reel plays (clip
+ * 0023 at 1.6x, 20 Nov 2026); without the wait, every frame the playback skipped to past the window held a stale
+ * picture and flashed "waiting for stabilization" for 100-300 ms although its data came a few milliseconds later.
+ */
+const PREVIEW_WAIT_MS = 50
+
+/**
  * How many source gaps' optical flows a pipeline keeps (task 11.12): an export frees a clip's gaps once it is past them
  * and needs one per clip on screen (two through a transition); a preview keeps a few for scrubbing back and forth.
  */
@@ -465,6 +473,19 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
   }
 
+  /**
+   * The preview's short wait, before a clip is held: up to `PREVIEW_WAIT_MS` for what `checks` wait for. Whether it
+   * waited, in which case the caller asks its stages again; a failure, or nothing to wait for, answers at once.
+   */
+  async function waitedBriefly(checks: readonly Check[]): Promise<boolean> {
+    if (checks.some((answer) => answer.kind === 'fail')) return false
+    const waits = checks.flatMap((answer) => (answer.kind === 'wait' ? [answer.ready] : []))
+    if (waits.length === 0) return false
+    // A wait that rejects is reported by the stage's next answer
+    await settledWithin(waits, PREVIEW_WAIT_MS).catch(() => false)
+    return true
+  }
+
   /** The export's wait: asks `answers` again after each wait, throws the first failure, and gives up when stuck */
   async function untilReady(
     item: VideoItem,
@@ -504,7 +525,9 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     source: { acquire(): Promise<SourceFrame>; release(frame: SourceFrame): void },
   ): Promise<StagedFrame> {
     const stages = registry.activeStages(item)
-    const checks = stages.map((stage) => check(item, stage, sourceIndex))
+    const ask = () => stages.map((stage) => check(item, stage, sourceIndex))
+    let checks = ask()
+    if (await waitedBriefly(checks)) checks = ask()
     const held = blocked(item, checks)
     if (held) return held
     // No good frame to hold: the source with the stages that can draw
@@ -871,10 +894,13 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   ): Promise<StagedFrame> {
     const { stages, source, output } = byScope(item)
     const firstIndex = samples[0]!.index
-    const sourceChecks = source.map((stage) =>
-      firstBlocking(samples.map((sample) => check(item, stage, sample.index))),
-    )
-    const outputChecks = output.map((stage) => check(item, stage, firstIndex))
+    const ask = () => ({
+      sourceChecks: source.map((stage) => firstBlocking(samples.map((sample) => check(item, stage, sample.index)))),
+      outputChecks: output.map((stage) => check(item, stage, firstIndex)),
+    })
+    let answers = ask()
+    if (await waitedBriefly([...answers.sourceChecks, ...answers.outputChecks])) answers = ask()
+    const { sourceChecks, outputChecks } = answers
     const held = blocked(item, [...sourceChecks, ...outputChecks])
     if (held) return held
     // No good frame to hold: the samples with the stages that can draw

@@ -104,10 +104,17 @@ export interface StabilizationSeat {
   /** Resolves when the key's engine next settles (opens, fails, or finishes a move): when it is worth asking again */
   whenSettled(key: string): Promise<void>
   /**
-   * The key's data for a source frame if the host holds it. `sourceFrame` may be a position between two frames (an
-   * interpolated frame, task 11.12): the engine's correction at that moment.
+   * The key's data for a source frame if the host holds it, or the client's window already has it (each read also asks
+   * the client for the frames ahead, so playback finds them ready). `sourceFrame` may be a position between two frames
+   * (an interpolated frame, task 11.12): the engine's correction at that moment.
    */
   frame(key: string, sourceFrame: number): StabilizationFrameData | undefined
+  /**
+   * Asks the key's engine for these frames ahead of time and keeps them beside the window, which stays where the clip
+   * playing now needs it: the first frames of a clip that starts after a cut (20 Nov 2026: those frames were drawn
+   * unstabilized while the window slid to them).
+   */
+  warm(key: string, sourceFrames: readonly number[]): void
   /**
    * Starts fetching the key's data for a source frame (once) and resolves when the fetch is over; it never rejects: a
    * failure is read with `takeFrameFailure`. The engine's own window prefetches the neighbours.
@@ -176,6 +183,10 @@ interface Entry {
   readonly frames: Map<number, StabilizationFrameData>
   readonly inflight: Map<number, Promise<void>>
   readonly frameFailures: Map<number, Error>
+  /** Frames asked for ahead of a cut, beside the window (`warm`) */
+  readonly warmed: Map<number, StabilizationFrameData>
+  /** Whether a `warm` request is on its way */
+  warming: boolean
 }
 
 /** A promise and the call that resolves it */
@@ -336,7 +347,51 @@ class Seat implements StabilizationSeat {
   }
 
   frame(key: string, sourceFrame: number): StabilizationFrameData | undefined {
-    return this.entries.get(key)?.frames.get(sourceFrame)
+    const entry = this.entries.get(key)
+    if (!entry) return undefined
+    const kept = entry.frames.get(sourceFrame) ?? entry.warmed.get(sourceFrame)
+    if (!isUsable(entry.result) || !Number.isSafeInteger(sourceFrame)) return kept
+    if (kept !== undefined) {
+      // The clip's window follows the frames drawn from here too, so the ones after them are on their way in time
+      this.client.slideWindow(entry.clientId, sourceFrame)
+      return kept
+    }
+    const ready = this.client.peekFrame(entry.clientId, sourceFrame)
+    if (ready === undefined) return undefined
+    this.keepFrame(entry, sourceFrame, ready)
+    return ready
+  }
+
+  warm(key: string, sourceFrames: readonly number[]): void {
+    const entry = this.entries.get(key)
+    if (!entry || entry.warming || !isUsable(entry.result)) return
+    const missing = sourceFrames.filter((frame) => !entry.frames.has(frame) && !entry.warmed.has(frame))
+    if (missing.length === 0) return
+    const generation = entry.generation
+    entry.warming = true
+    void this.client
+      .fetchFrames(entry.clientId, missing)
+      .then(
+        (frames) => {
+          if (entry.generation !== generation) return
+          entry.warmed.clear()
+          for (const frame of frames) entry.warmed.set(frame.sourceFrame, frame)
+        },
+        (error: unknown) => log.debug('the frames after a cut could not be asked for ahead', { key, error }),
+      )
+      .finally(() => {
+        entry.warming = false
+      })
+  }
+
+  /** Keeps a frame's data, the oldest going once the host holds `FRAME_CACHE` of the key's frames */
+  private keepFrame(entry: Entry, sourceFrame: number, frame: StabilizationFrameData): void {
+    entry.frames.set(sourceFrame, frame)
+    while (entry.frames.size > FRAME_CACHE) {
+      const oldest = entry.frames.keys().next().value
+      if (oldest === undefined || oldest === sourceFrame) break
+      entry.frames.delete(oldest)
+    }
   }
 
   requestFrame(key: string, sourceFrame: number): Promise<void> {
@@ -352,12 +407,7 @@ class Seat implements StabilizationSeat {
         (frame) => {
           // A move to other settings landed meanwhile: these are the old settings' frames
           if (entry.generation !== generation || !frame) return
-          entry.frames.set(sourceFrame, frame)
-          while (entry.frames.size > FRAME_CACHE) {
-            const oldest = entry.frames.keys().next().value
-            if (oldest === undefined || oldest === sourceFrame) break
-            entry.frames.delete(oldest)
-          }
+          this.keepFrame(entry, sourceFrame, frame)
         },
         (error: unknown) => {
           if (entry.generation === generation) entry.frameFailures.set(sourceFrame, toError(error))
@@ -551,6 +601,8 @@ class Seat implements StabilizationSeat {
       frames: new Map(),
       inflight: new Map(),
       frameFailures: new Map(),
+      warmed: new Map(),
+      warming: false,
     }
   }
 
@@ -643,6 +695,7 @@ class Seat implements StabilizationSeat {
     entry.gone.resolve()
     entry.gone = signal()
     entry.frames.clear()
+    entry.warmed.clear()
     entry.inflight.clear()
     entry.frameFailures.clear()
     const before = entry.pending
@@ -672,6 +725,7 @@ class Seat implements StabilizationSeat {
     entry.closed = true
     entry.generation += 1
     entry.frames.clear()
+    entry.warmed.clear()
     entry.gone.resolve()
     if (this.entries.get(entry.key) === entry) this.entries.delete(entry.key)
     for (const itemId of entry.users) {

@@ -296,6 +296,27 @@ export interface StabilizationClient {
     options?: { wait?: boolean },
   ): Promise<StabilizationFrameData | undefined>
   /**
+   * The window's data for a source frame, synchronously: a copy of it when the engine has answered it, else
+   * `undefined`. Either way the window slides to the frame and the frames ahead of it are asked for, so a renderer that
+   * reads every frame it draws through here finds the next ones ready (20 Nov 2026: the preview read only frames it had
+   * awaited one by one, so each new frame was first drawn unstabilized and then again). Integer source frames only.
+   */
+  peekFrame(clipId: string, sourceFrame: number): StabilizationFrameData | undefined
+  /**
+   * Slides the window to a source frame and asks for the frames ahead of it, without handing anything out: for a
+   * caller that already holds the frame (the seat's kept frames, a frame fetched ahead of a cut). Without it the window
+   * stayed where it was while those were drawn, and the first frame after them waited for a whole window (20 Nov 2026:
+   * about 100 ms on the reel's clip 05, 18 frames after the cut). Integer source frames only; any other is ignored.
+   */
+  slideWindow(clipId: string, sourceFrame: number): void
+  /**
+   * The engine's data for these integer source frames, in one request, outside the window and without moving it: the
+   * first frames of a clip about to start after a cut, while the clip before it still plays from the window of the
+   * same engine (clips of one file with the same settings share it). Copies, like every frame handed out; an empty
+   * list when a settings change landed meanwhile (the answer belongs to the old settings).
+   */
+  fetchFrames(clipId: string, sourceFrames: readonly number[]): Promise<StabilizationFrameData[]>
+  /**
    * Gives the clip new settings, when the gesture ends (the client's timer waits until a drag's changes stop): the clip
    * moves to the engine that has them, or recomputes the engine it has to itself, or gets an engine opened for them
    * when its own serves other clips; an engine left with no clip is closed. Resolves when the clip's frames are the
@@ -877,6 +898,47 @@ class Client implements StabilizationClient {
     }
     await pending
     return this.answeredFrame(clip, sourceFrame)
+  }
+
+  peekFrame(clipId: string, sourceFrame: number): StabilizationFrameData | undefined {
+    const clip = this.slidTo(clipId, sourceFrame)
+    const cached = clip?.cache.window.get(sourceFrame)
+    return cached ? copyFrame(cached) : undefined
+  }
+
+  slideWindow(clipId: string, sourceFrame: number): void {
+    this.slidTo(clipId, sourceFrame)
+  }
+
+  /** The open clip whose window was slid to `sourceFrame`, or `undefined` when there is none or the frame is not one */
+  private slidTo(clipId: string, sourceFrame: number): ClipState | undefined {
+    const clip = this.clips.get(clipId)
+    if (!clip || !Number.isSafeInteger(sourceFrame) || sourceFrame < 0) return undefined
+    const info = clip.engine.info
+    if (!info || sourceFrame >= info.frames) return undefined
+    // The window's other frames are on their way for the next draws; a failure is reported by `engine.failure`
+    void this.fillWindow(clip, sourceFrame).catch(() => {})
+    return clip
+  }
+
+  async fetchFrames(clipId: string, sourceFrames: readonly number[]): Promise<StabilizationFrameData[]> {
+    const clip = this.requireClip(clipId)
+    const { engine } = clip
+    const info = this.requireInfo(engine)
+    for (const frame of sourceFrames) requireSourceFrame(info, frame)
+    if (sourceFrames.length === 0) return []
+    const cache = clip.cache
+    const reply = await engine.engine.call<{ frames: RawFrameData[]; ms: number }>('frameData', {
+      timestampsUs: sourceFrames.map((frame) => sourceFrameToMicroseconds(engine.rate, frame)),
+    })
+    if (clip.cache !== cache) return []
+    return sourceFrames.map((frame, index) => {
+      const answer = reply.frames[index]
+      if (!answer || answer.frame !== frame) {
+        throw new StabilizationError('engine', `the engine answered no data for source frame ${frame}`)
+      }
+      return { matrices: answer.matrices, params: answer.params, mesh: answer.mesh, sourceFrame: frame }
+    })
   }
 
   /** `getFrameData` for a position between two frames: one request of its own, outside the window */

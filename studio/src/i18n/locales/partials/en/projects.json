@@ -192,7 +192,8 @@
       "folderPermissionDenied": "Permission was not granted. Choose a folder and allow read/write access to continue.",
       "folderPickFailed": "DroneClean Studio could not open that folder. Try a normal folder you can edit, then grant read/write access.",
       "reconnectPermissionDenied": "Permission was denied. Reconnect the workspace or choose a different folder.",
-      "temporaryFolder": "This folder is a temporary system folder: the system may delete it, and your projects with it. Choose another folder."
+      "temporaryFolder": "This folder is a temporary system folder: the system may delete it, and your projects with it. Choose another folder.",
+      "unreachableFolder": "The workspace folder “{{name}}” could not be opened: it was moved, renamed or deleted, or it cannot be written. Choose a folder."
     },
     "workspaceOwner": {
       "title": "This folder is open in another DroneClean Studio window",
@@ -203,7 +204,8 @@
       "takeOver": "Take over",
       "readOnly": "This workspace is open in another window; changes here are not saved",
       "discardWarning": "Edits made in this window since it became read-only will be discarded. The project will reload as the other window saved it.",
-      "discardAndTakeOver": "Discard my edits and take over"
+      "discardAndTakeOver": "Discard my edits and take over",
+      "chooseAnother": "Choose another folder"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Workspace folder",

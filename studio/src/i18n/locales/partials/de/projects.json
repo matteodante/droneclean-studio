@@ -192,7 +192,8 @@
       "folderPermissionDenied": "Die Berechtigung wurde nicht erteilt. Wähle einen Ordner und erlaube Lese-/Schreibzugriff, um fortzufahren.",
       "folderPickFailed": "DroneClean Studio konnte diesen Ordner nicht öffnen. Versuche es mit einem normalen bearbeitbaren Ordner und erlaube Lese-/Schreibzugriff.",
       "reconnectPermissionDenied": "Berechtigung verweigert. Verbinde den Arbeitsbereich erneut oder wähle einen anderen Ordner.",
-      "temporaryFolder": "Dieser Ordner ist ein temporärer Systemordner: Das System kann ihn löschen, und Ihre Projekte mit ihm. Wählen Sie einen anderen Ordner."
+      "temporaryFolder": "Dieser Ordner ist ein temporärer Systemordner: Das System kann ihn löschen, und Ihre Projekte mit ihm. Wählen Sie einen anderen Ordner.",
+      "unreachableFolder": "Der Arbeitsordner „{{name}}“ konnte nicht geöffnet werden: Er wurde verschoben, umbenannt oder gelöscht, oder er ist schreibgeschützt. Wähle einen Ordner."
     },
     "workspaceOwner": {
       "title": "Dieser Ordner ist in einem anderen DroneClean Studio Fenster geöffnet",
@@ -203,7 +204,8 @@
       "takeOver": "Übernehmen",
       "readOnly": "Dieser Arbeitsbereich ist in einem anderen Fenster geöffnet; Änderungen hier werden nicht gespeichert",
       "discardWarning": "Änderungen, die in diesem Fenster seit dem Wechsel in den Nur-Lese-Modus vorgenommen wurden, werden verworfen. Das Projekt wird so neu geladen, wie das andere Fenster es gespeichert hat.",
-      "discardAndTakeOver": "Meine Änderungen verwerfen und übernehmen"
+      "discardAndTakeOver": "Meine Änderungen verwerfen und übernehmen",
+      "chooseAnother": "Anderen Ordner wählen"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Arbeitsbereich-Ordner",

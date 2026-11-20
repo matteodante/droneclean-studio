@@ -197,7 +197,7 @@
     },
     "agentAccess": {
       "title": "Ajan erişimi",
-      "description": "Bu Mac'te çalışan bir yapay zekâ ajanının açık projeyi okumasına, değiştirmesine ve dışa aktarma başlatmasına izin verir. Hiçbir şey Mac'inizden ayrılmaz; varsayılan olarak kapalıdır.",
+      "description": "Bu Mac'te çalışan bir yapay zekâ ajanının açık projeyi okumasına, değiştirmesine ve dışa aktarma başlatmasına izin verir. Hiçbir şey Mac'inizden ayrılmaz; varsayılan olarak açıktır ve yalnızca sizin kullanıcı hesabınız erişebilir.",
       "enable": "Yapay zekâ ajanlarına izin ver",
       "socketPath": "Soket",
       "socketDescription": "Anahtar açıkken uygulama burada dinler; yalnızca kullanıcınız okuyabilir.",

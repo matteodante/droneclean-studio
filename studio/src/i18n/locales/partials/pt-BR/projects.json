@@ -192,7 +192,8 @@
       "folderPermissionDenied": "A permissão não foi concedida. Escolha uma pasta e permita acesso de leitura/gravação para continuar.",
       "folderPickFailed": "O DroneClean Studio não conseguiu abrir essa pasta. Tente uma pasta normal que você possa editar e conceda acesso de leitura/gravação.",
       "reconnectPermissionDenied": "Permissão negada. Reconecte o espaço de trabalho ou escolha outra pasta.",
-      "temporaryFolder": "Esta pasta é uma pasta temporária do sistema: o sistema pode apagá-la, e seus projetos junto. Escolha outra pasta."
+      "temporaryFolder": "Esta pasta é uma pasta temporária do sistema: o sistema pode apagá-la, e seus projetos junto. Escolha outra pasta.",
+      "unreachableFolder": "Não foi possível abrir a pasta de trabalho “{{name}}”: ela foi movida, renomeada ou excluída, ou não pode ser gravada. Escolha uma pasta."
     },
     "workspaceOwner": {
       "title": "Esta pasta está aberta em outra janela do DroneClean Studio",
@@ -203,7 +204,8 @@
       "takeOver": "Assumir",
       "readOnly": "Este espaço de trabalho está aberto em outra janela; as alterações feitas aqui não são salvas",
       "discardWarning": "As edições feitas nesta janela desde que ela ficou somente leitura serão descartadas. O projeto será recarregado como a outra janela o salvou.",
-      "discardAndTakeOver": "Descartar minhas edições e assumir o controle"
+      "discardAndTakeOver": "Descartar minhas edições e assumir o controle",
+      "chooseAnother": "Escolher outra pasta"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Pasta de área de trabalho",

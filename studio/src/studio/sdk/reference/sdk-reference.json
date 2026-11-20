@@ -236,12 +236,12 @@
         {
           "name": "add",
           "signature": "add(input: TrackAddInput): TrackId",
-          "summary": "Add a track at `position` (0 = top). One undo step.",
+          "summary": "Add a track at `position` (0 = top; the bottom when absent, where a video track is hidden by the ones above). One undo step.",
           "mapsTo": "SET_TRACKS (track-actions.ts:10)",
           "throws": [
             "INVALID_ARGUMENT"
           ],
-          "example": "studio.tracks.add({ kind: 'audio', name: 'Music' })"
+          "example": "studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 })"
         },
         {
           "name": "update",
@@ -587,7 +587,8 @@
           "mapsTo": "createDefaultTextItem + ADD_ITEM (item-actions.ts:610)",
           "throws": [
             "NOT_FOUND",
-            "INVALID_ARGUMENT"
+            "INVALID_ARGUMENT",
+            "CONFLICT"
           ],
           "example": "studio.titles.add({ trackId: 'v1', from: 0, durationInFrames: 90, text: 'Cinque Terre' })"
         },

@@ -111,10 +111,19 @@ function isEnabledRecord(value) {
   )
 }
 
-/** Read the setting; a missing or broken file is off, like the app reads it. */
+/**
+ * Read the setting the way the app does (`desktop/src/main/mcp/settings.ts`): on when there is no file (the default
+ * since 20 Nov 2026), and otherwise on only for the version-1 object that says so; a broken file is off.
+ */
 function readAgentAccessSetting(filePath) {
+  let text
   try {
-    return isEnabledRecord(JSON.parse(fs.readFileSync(filePath, 'utf8')))
+    text = fs.readFileSync(filePath, 'utf8')
+  } catch (error) {
+    return error?.code === 'ENOENT'
+  }
+  try {
+    return isEnabledRecord(JSON.parse(text))
   } catch {
     return false
   }

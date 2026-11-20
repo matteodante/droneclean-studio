@@ -197,7 +197,8 @@
       "folderPermissionDenied": "İzin verilmedi. Devam etmek için bir klasör seçin ve okuma/yazma erişimine izin verin.",
       "folderPickFailed": "DroneClean Studio bu klasörü açamadı. Düzenleyebileceğiniz normal bir klasör deneyin ve okuma/yazma erişimine izin verin.",
       "reconnectPermissionDenied": "İzin reddedildi. Çalışma alanını yeniden bağlayın veya farklı bir klasör seçin.",
-      "temporaryFolder": "Bu klasör geçici bir sistem klasörü: sistem onu silebilir ve projeleriniz de onunla birlikte gider. Başka bir klasör seçin."
+      "temporaryFolder": "Bu klasör geçici bir sistem klasörü: sistem onu silebilir ve projeleriniz de onunla birlikte gider. Başka bir klasör seçin.",
+      "unreachableFolder": "“{{name}}” çalışma klasörü açılamadı: taşınmış, yeniden adlandırılmış ya da silinmiş veya yazılamıyor. Bir klasör seçin."
     },
     "workspaceOwner": {
       "title": "Bu klasör başka bir DroneClean Studio penceresinde açık",
@@ -208,7 +209,8 @@
       "takeOver": "Devral",
       "readOnly": "Bu çalışma alanı başka bir pencerede açık; burada yapılan değişiklikler kaydedilmez",
       "discardWarning": "Bu pencere salt okunur olduğundan beri yapılan düzenlemeler silinecek. Proje, diğer pencerenin kaydettiği haliyle yeniden yüklenecek.",
-      "discardAndTakeOver": "Düzenlemelerimi sil ve devral"
+      "discardAndTakeOver": "Düzenlemelerimi sil ve devral",
+      "chooseAnother": "Başka bir klasör seç"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Çalışma alanı klasörü",

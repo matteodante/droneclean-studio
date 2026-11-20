@@ -2,7 +2,7 @@
  * Settings → Agent access (task 2.2 slice 7, design §0 decisions 1 and 3).
  *
  * The one place a user meets the MCP server: a switch that starts and stops the
- * per-user socket ("Allow AI agents", off by default), the socket's path, the
+ * per-user socket ("Allow AI agents", on by default), the socket's path, the
  * three stdio client configurations with their real launcher path, and the last
  * calls the server logged. Nothing here carries a token or a port: v1 speaks
  * stdio only (design §0), and the launcher's file mode is the access control.

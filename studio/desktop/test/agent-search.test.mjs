@@ -79,3 +79,14 @@ test('the real SDK reference, guide and feature map load', async () => {
     `studio.clips.split should be in the top hits: ${hits.map((hit) => hit.title).join(', ')}`,
   )
 })
+
+test('an SDK hit carries its whole declaration, so an agent writes the call from it', async () => {
+  const load = await loadCorpusDocuments(corpusRootsFor(STUDIO_ROOT))
+  const index = createSearchIndex(load.documents)
+  const hit = index.search('clips.addMany', 8).find((candidate) => candidate.title === 'ClipAddInput')
+  assert.ok(hit, 'ClipAddInput should be among the hits for clips.addMany')
+  // 20 Nov 2026: the snippet stopped at "durat…", before the fields that pick a part of the file
+  assert.match(hit.text, /sourceStart\?: SourceFrame;/)
+  assert.match(hit.text, /sourceEnd\?: SourceFrame;/)
+  assert.doesNotMatch(hit.text, /…/)
+})

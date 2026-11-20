@@ -55,8 +55,8 @@ computer (it needs the File System Access API).
 
 ## Use it with an AI agent
 
-In the desktop app, turn on **Settings › Agent access › Allow AI agents**; the panel shows the exact command. For
-Claude Code on a Mac:
+Agent access is on by default in the desktop app (only your user can reach it; **Settings › Agent access › Allow AI
+agents** switches it off), and that panel shows the exact command. For Claude Code on a Mac:
 
 ```sh
 claude mcp add droneclean -- "/Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp"
@@ -91,7 +91,7 @@ and FFmpeg).
 | `studio/web/` | The static server of the web editor. |
 | `gyroflow/` | A fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its engine for the editor. |
 
-This repository is published by the release process: each release is one commit, tagged `v0.1.4` for this one.
+This repository is published by the release process: each release is one commit, tagged `v0.1.5` for this one.
 
 ## Contributing and security
 

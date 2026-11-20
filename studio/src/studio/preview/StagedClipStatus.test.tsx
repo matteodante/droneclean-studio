@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 import { i18n } from '@/i18n'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
+import { usePlaybackStore } from '@/shared/state/playback'
 import { setClipStageState, subscribeStagedFrameReady } from '@/studio/render/stages/failure'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { StagedClipStatus } from './StagedClipStatus'
@@ -47,6 +48,7 @@ beforeAll(() => {
 afterEach(() => {
   act(() => setClipStageState('clip-1', null))
   useItemsStore.setState({ items: [] })
+  usePlaybackStore.setState({ currentFrame: 0 })
 })
 
 describe('the staged clip status on the preview', () => {
@@ -60,6 +62,19 @@ describe('the staged clip status on the preview', () => {
 
     act(() => setClipStageState('clip-1', null))
     expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('says nothing about a clip the playhead is not on, and speaks again when the playhead comes back to it', () => {
+    useItemsStore.setState({ items: [clip as TimelineItem] })
+    render(<StagedClipStatus />)
+    act(() => setClipStageState('clip-1', { kind: 'opening', stage: 'stabilize' }))
+    expect(screen.getByTestId('staged-clip-opening')).toBeTruthy()
+
+    act(() => usePlaybackStore.setState({ currentFrame: 30 }))
+    expect(screen.queryByRole('status')).toBeNull()
+
+    act(() => usePlaybackStore.setState({ currentFrame: 29 }))
+    expect(screen.getByTestId('staged-clip-opening').textContent).toBe('Run 2: preparing stabilization')
   })
 
   it('shows a failure with Retry, which prepares the clip again and draws the frame again', async () => {

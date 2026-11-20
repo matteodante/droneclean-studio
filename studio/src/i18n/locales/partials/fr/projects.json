@@ -192,7 +192,8 @@
       "folderPermissionDenied": "L’autorisation n’a pas été accordée. Choisissez un dossier et autorisez l’accès en lecture/écriture pour continuer.",
       "folderPickFailed": "DroneClean Studio n’a pas pu ouvrir ce dossier. Essayez un dossier normal que vous pouvez modifier, puis autorisez l’accès en lecture/écriture.",
       "reconnectPermissionDenied": "Autorisation refusée. Reconnectez l’espace de travail ou choisissez un autre dossier.",
-      "temporaryFolder": "Ce dossier est un dossier système temporaire : le système peut le supprimer, et vos projets avec. Choisissez un autre dossier."
+      "temporaryFolder": "Ce dossier est un dossier système temporaire : le système peut le supprimer, et vos projets avec. Choisissez un autre dossier.",
+      "unreachableFolder": "Le dossier de travail « {{name}} » n’a pas pu être ouvert : il a été déplacé, renommé ou supprimé, ou il n’est pas accessible en écriture. Choisissez un dossier."
     },
     "workspaceOwner": {
       "title": "Ce dossier est ouvert dans une autre fenêtre de DroneClean Studio",
@@ -203,7 +204,8 @@
       "takeOver": "Prendre le relais",
       "readOnly": "Cet espace de travail est ouvert dans une autre fenêtre ; les modifications faites ici ne sont pas enregistrées",
       "discardWarning": "Les modifications faites dans cette fenêtre depuis qu'elle est passée en lecture seule seront supprimées. Le projet sera rechargé tel que l'autre fenêtre l'a enregistré.",
-      "discardAndTakeOver": "Supprimer mes modifications et prendre la main"
+      "discardAndTakeOver": "Supprimer mes modifications et prendre la main",
+      "chooseAnother": "Choisir un autre dossier"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Dossier d'espace de travail",

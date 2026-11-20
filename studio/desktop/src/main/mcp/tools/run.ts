@@ -22,6 +22,10 @@
  * and the editor window is reloaded (`page.ts`). The error code is `TIMEOUT`
  * for all of them, and says what was done.
  *
+ * An awaited script that throws after some of its SDK calls keeps their
+ * entries (only a synchronous script is rolled back whole by its transaction):
+ * the error then says how many are kept, saves them, and carries `undoSteps`.
+ *
  * An abandoned call — a timeout, or an MCP `notifications/cancelled` whose
  * signal aborts the handler — keeps the edits the synchronous part already made
  * as the one `agent: <label>` undo entry (they are not rolled back; Ctrl+Z or
@@ -171,7 +175,18 @@ export function buildRunScript(options: RunPageScriptOptions): string {
     const json = error && typeof error.toJSON === 'function'
       ? error.toJSON()
       : { name: 'StudioError', code: 'INTERNAL', message: String(error && error.message ? error.message : error) }
-    return { error: json, durationMs: Date.now() - startedAt }
+    // A synchronous script that throws is rolled back by its transaction; an awaited one keeps the entries its SDK
+    // calls made before the error. Those are saved and named, so the agent does not take the project for unchanged.
+    const kept = Math.max(0, STUDIO.history.depth() - before)
+    if (kept === 0) return { error: json, durationMs: Date.now() - startedAt }
+    const keptSaved = await saveAfterEdits(kept)
+    const keptHint = 'The ' + kept + ' undo ' + (kept === 1 ? 'entry' : 'entries') + ' the script made before the error ' + (kept === 1 ? 'is' : 'are') + ' kept and saved (studio.history.undo() takes ' + (kept === 1 ? 'it' : 'them') + ' back): read the project before trying again.'
+    return {
+      error: Object.assign({}, json, { hint: json.hint ? json.hint + ' ' + keptHint : keptHint }),
+      undoSteps: kept,
+      ...(keptSaved !== null && { saved: keptSaved }),
+      durationMs: Date.now() - startedAt,
+    }
   }
 })()`
 }

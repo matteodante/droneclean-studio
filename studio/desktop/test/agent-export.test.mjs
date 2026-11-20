@@ -101,6 +101,22 @@ test('a poll answers the job, so progress rises between calls', async () => {
   assert.ok(second.elapsed < 1000, `a poll took ${second.elapsed} ms`)
 })
 
+test('a finished job names its file on disk when the workspace folder is known', async () => {
+  const done = makeJob({ status: 'completed', progress: 100, savedPath: 'projects/p1/exports/Flight.mp4' })
+  const window = createVmWindow(async () => done)
+
+  const known = await exportTool({ jobId: 'job-1' }, pageFor(window), () => '/Users/pilot/Video workspace')
+  assert.equal(known.result.absolutePath, '/Users/pilot/Video workspace/projects/p1/exports/Flight.mp4')
+  assert.equal(known.result.savedPath, 'projects/p1/exports/Flight.mp4')
+
+  // Unknown folder, or a saved path that would leave it: the job as the page answered it
+  const unknown = await exportTool({ jobId: 'job-1' }, pageFor(window), () => null)
+  assert.equal(unknown.result.absolutePath, undefined)
+  const outside = createVmWindow(async () => ({ ...done, savedPath: '../elsewhere/Flight.mp4' }))
+  const escaped = await exportTool({ jobId: 'job-1' }, pageFor(outside), () => '/Users/pilot/Video workspace')
+  assert.equal(escaped.result.absolutePath, undefined)
+})
+
 test('a cancel answers the cancelled job', async () => {
   const window = createVmWindow(async () => makeJob({ status: 'cancelled', finishedAt: 2 }))
 

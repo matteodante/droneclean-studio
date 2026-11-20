@@ -354,6 +354,21 @@ describe('changes', () => {
     })
   })
 
+  it('names only the two projects when another one opens, not either timeline', () => {
+    useProjectStore.setState({ currentProject: makeProject() })
+    const before = captureChangeBaseline()
+
+    useProjectStore.setState({ currentProject: makeProject({ id: 'project-2' }) })
+    useItemsStore.getState().setItems([])
+    const after = captureChangeBaseline()
+
+    expect(diffChangeBaselines(before, after)).toEqual({
+      added: [{ kind: 'project', id: 'project-2' }],
+      removed: [{ kind: 'project', id: 'project-1' }],
+      updated: [],
+    })
+  })
+
   it('reports the open composition, not the Main timeline', () => {
     openComposition()
 

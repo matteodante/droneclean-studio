@@ -123,6 +123,14 @@ export type WorkspaceOwnerState =
    * another folder.
    */
   | { readonly kind: 'temporary' }
+  /**
+   * The desktop app could not prove the folder: the claim file could not be
+   * written into it (moved, renamed, deleted, read-only), or the shell found no
+   * folder with it. Nobody else holds it, so the gate asks for a folder instead
+   * of naming another window (20 Nov 2026: a remembered folder that a test had
+   * deleted left the app on "open in another window", with only Close).
+   */
+  | { readonly kind: 'unreachable' }
 
 /** The shell's answer to `window.dronecleanWorkspaceOwner` (`desktop/src/shared/workspace-owner.ts`). */
 export type DesktopWorkspaceOwnerStatus =
@@ -456,7 +464,7 @@ class WorkspaceOwnerGuardImpl implements WorkspaceOwnerGuard {
       await store.writeClaim(nonce)
       status = await this.desktopAnswer(() => this.desktop?.acquire(nonce))
     } catch (error) {
-      logger.error('could not write the claim file the shell looks for', error)
+      logger.error('could not write the claim file the shell looks for', describeError(error))
     } finally {
       await store
         .removeClaim(nonce)
@@ -466,9 +474,16 @@ class WorkspaceOwnerGuardImpl implements WorkspaceOwnerGuard {
       this.ownDesktop()
       return this.current
     }
-    // `free` cannot come from a claim (the shell takes a free folder), and
-    // `unowned` means the shell found no folder with the claim file: either way
-    // nothing proves this page may write, so the folder is not opened.
+    // `unowned`: the claim file could not be written, or the shell found no folder
+    // with it. No owner was found either, so this is no other window's folder: the
+    // gate asks for one (`unreachable`) instead of a modal with nothing to wait for.
+    if (status.kind === 'unowned') {
+      logger.error('the workspace folder could not be proved to the shell; asking for a folder')
+      this.set({ kind: 'unreachable' })
+      return this.current
+    }
+    // `free` cannot come from a claim (the shell takes a free folder): nothing
+    // proves this page may write, so the folder is not opened.
     if (status.kind !== 'blocked' && status.kind !== 'temporary') {
       logger.error(`the shell answered "${status.kind}" to the workspace claim; the folder stays closed`)
     }
@@ -745,11 +760,19 @@ function desktopBlocked(status: DesktopWorkspaceOwnerStatus): WorkspaceOwnerStat
   return { kind: 'blocked', stale: status.kind === 'free' }
 }
 
+/** An error as its name and message, so the log says what failed (a DOMException prints as "[object DOMException]"). */
+function describeError(error: unknown): string {
+  return error instanceof Error || (typeof DOMException !== 'undefined' && error instanceof DOMException)
+    ? `${error.name}: ${error.message}`
+    : String(error)
+}
+
 /** Whether two states say the same thing (so a subscriber is not woken for nothing). */
 function sameOwnerState(a: WorkspaceOwnerState, b: WorkspaceOwnerState): boolean {
   if (a.kind !== b.kind) return false
   if (a.kind === 'owned' || b.kind === 'owned') return true
   if (a.kind === 'temporary' || b.kind === 'temporary') return true
+  if (a.kind === 'unreachable' || b.kind === 'unreachable') return true
   return a.stale === b.stale && sameHolder(a.holder, b.holder)
 }
 

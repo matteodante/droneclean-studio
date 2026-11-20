@@ -21,11 +21,12 @@ import { useProjectStore } from '@/features/projects/stores/project-store'
 import { addItem, updateItem } from '@/features/timeline/stores/actions/item-actions'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { createDefaultTextItem } from '@/features/timeline/utils/generated-layer-items'
+import { placeItemsWithoutTimelineOverlap } from '@/features/timeline/stores/actions/item-placement'
 import { isTrackCompatibleWithItemType } from '@/features/timeline/utils/track-item-compatibility'
 import { DEFAULT_PROJECT_HEIGHT, DEFAULT_PROJECT_WIDTH } from '@/shared/projects/defaults'
 import { FONT_CATALOG } from '@/shared/typography/font-catalog'
 import { getTimelineContext, requireFrame, requireTrack } from '../context'
-import { invalidArgumentError, notFoundError } from '../errors'
+import { invalidArgumentError, notFoundError, studioError } from '../errors'
 import { transaction } from '../transaction'
 import type {
   ClipId,
@@ -477,6 +478,34 @@ function listTitles(): ClipInfo[] {
   return textItems.map(toTitleInfo)
 }
 
+/**
+ * A title that would overlap a clip on its track is a CONFLICT, as a clip is (`clips.add`): `addItem` would have put it
+ * at the first free frame without a word (20 Nov 2026: an agent's title asked for frame 30 of the video track landed
+ * after the last clip, frame 1800).
+ */
+function requireFreeRange(item: TextItem): void {
+  const firstFree = placeItemsWithoutTimelineOverlap([item])[0]?.from ?? item.from
+  if (firstFree === item.from) return
+  const end = item.from + item.durationInFrames
+  const blocker = useItemsStore
+    .getState()
+    .items.find(
+      (other) =>
+        other.trackId === item.trackId && other.from < end && other.from + other.durationInFrames > item.from,
+    )
+  const where = blocker
+    ? `clip "${blocker.id}" (frames ${blocker.from}..${blocker.from + blocker.durationInFrames})`
+    : 'another clip'
+  throw studioError({
+    code: 'CONFLICT',
+    method: 'titles.add',
+    argument: 'from',
+    message: `a title of ${item.durationInFrames} frames at frame ${item.from} overlaps ${where} on track "${item.trackId}"; the first free frame where it fits is ${firstFree}`,
+    ...(blocker && { entity: { kind: 'clip' as const, id: blocker.id } }),
+    hint: "A title over footage goes on a video track of its own above it: studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 }).",
+  })
+}
+
 /** Create a text clip from the editor's defaults plus the requested text and style. */
 function addTitle(input: TitleAddInput): ClipId {
   const source = requireObject(input, 'input', 'titles.add')
@@ -500,6 +529,7 @@ function addTitle(input: TitleAddInput): ClipId {
     }),
     ...style,
   }
+  requireFreeRange(item)
 
   return transaction('TITLES_ADD', () => {
     addItem(item)

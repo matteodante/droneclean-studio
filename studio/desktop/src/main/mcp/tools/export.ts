@@ -20,6 +20,7 @@
  * `START_DEADLINE_MS`. With `waitMs` the call may wait as long as the caller
  * asked (at most `MAX_WAIT_MS`), plus the same five-second grace `run` uses.
  */
+import path from 'node:path'
 import type { ExportRequest, ExportResult } from '../../../../../mcp/protocol'
 import { agentError, isStudioErrorJson } from '../errors'
 import { PageTimeoutError, RUN_ABORT_GLOBAL } from '../page'
@@ -108,6 +109,18 @@ function isExportJob(value: unknown): value is ExportResult {
 }
 
 /**
+ * The job with `absolutePath` beside its `savedPath` when the workspace folder is known and the saved path lies inside
+ * it; the job as the page answered it otherwise.
+ */
+function withAbsolutePath(job: ExportResult, workspaceFolder: string | null): ExportResult {
+  if (workspaceFolder === null || typeof job.savedPath !== 'string' || job.savedPath.length === 0) return job
+  const absolute = path.resolve(workspaceFolder, job.savedPath)
+  const relative = path.relative(workspaceFolder, absolute)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return job
+  return { ...job, absolutePath: absolute }
+}
+
+/**
  * Send one `export` call to the page and answer its result or the
  * `StudioError` JSON it threw. `page` is the server's bridge to the editor; the
  * tool answers `UNSUPPORTED` without one, so a server that forgets to wire it
@@ -116,6 +129,7 @@ function isExportJob(value: unknown): value is ExportResult {
 export async function exportTool(
   request: ExportRequest,
   page?: PageBridge,
+  workspaceFolder: () => string | null = () => null,
 ): Promise<ToolOutcome> {
   if (!page) {
     return {
@@ -156,5 +170,5 @@ export async function exportTool(
       error: agentError('INTERNAL', 'export: the editor answered a job this build does not understand').json,
     }
   }
-  return { result: answer.job }
+  return { result: withAbsolutePath(answer.job, workspaceFolder()) }
 }

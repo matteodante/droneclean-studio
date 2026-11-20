@@ -192,7 +192,8 @@
       "folderPermissionDenied": "권한이 부여되지 않았습니다. 계속하려면 폴더를 선택하고 읽기/쓰기 접근을 허용하세요.",
       "folderPickFailed": "DroneClean Studio이 해당 폴더를 열 수 없습니다. 편집할 수 있는 일반 폴더를 선택한 뒤 읽기/쓰기 접근을 허용하세요.",
       "reconnectPermissionDenied": "권한이 거부되었습니다. 워크스페이스를 다시 연결하거나 다른 폴더를 선택하세요.",
-      "temporaryFolder": "이 폴더는 임시 시스템 폴더입니다. 시스템이 삭제할 수 있으며 프로젝트도 함께 사라질 수 있습니다. 다른 폴더를 선택하세요."
+      "temporaryFolder": "이 폴더는 임시 시스템 폴더입니다. 시스템이 삭제할 수 있으며 프로젝트도 함께 사라질 수 있습니다. 다른 폴더를 선택하세요.",
+      "unreachableFolder": "작업 폴더 “{{name}}”을(를) 열 수 없습니다. 이동, 이름 변경 또는 삭제되었거나 쓸 수 없습니다. 폴더를 선택하세요."
     },
     "workspaceOwner": {
       "title": "이 폴더는 다른 DroneClean Studio 창에서 열려 있습니다",
@@ -203,7 +204,8 @@
       "takeOver": "인계",
       "readOnly": "이 작업 공간은 다른 창에서 열려 있습니다. 여기서 한 변경 사항은 저장되지 않습니다",
       "discardWarning": "이 창이 읽기 전용이 된 이후에 한 편집은 삭제됩니다. 프로젝트는 다른 창에서 저장한 상태로 다시 불러옵니다.",
-      "discardAndTakeOver": "내 편집을 삭제하고 넘겨받기"
+      "discardAndTakeOver": "내 편집을 삭제하고 넘겨받기",
+      "chooseAnother": "다른 폴더 선택"
     },
     "workspaceIndicator": {
       "workspaceFolder": "작업 공간 폴더",

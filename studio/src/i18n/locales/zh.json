@@ -197,7 +197,7 @@
     },
     "agentAccess": {
       "title": "代理访问",
-      "description": "允许在这台 Mac 上运行的 AI 代理读取已打开的项目、修改它并开始导出。数据不会离开你的 Mac；默认关闭。",
+      "description": "允许在这台 Mac 上运行的 AI 代理读取已打开的项目、修改它并开始导出。数据不会离开你的 Mac；默认开启，只有你的用户账户可以访问。",
       "enable": "允许 AI 代理",
       "socketPath": "套接字",
       "socketDescription": "开关打开时应用在此监听；只有你的用户账户可以读取。",

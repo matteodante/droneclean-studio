@@ -27,7 +27,14 @@ export function createFakeStudio() {
     transaction(label, fn) {
       labels.push(label)
       const before = entries.slice()
-      const value = fn(studio)
+      let value
+      try {
+        value = fn(studio)
+      } catch (error) {
+        // Like the real one (sdk/transaction.ts): a throw restores the state from before the call
+        entries = before
+        throw error
+      }
       const made = entries.length - before.length
       if (made > 0) {
         entries = before

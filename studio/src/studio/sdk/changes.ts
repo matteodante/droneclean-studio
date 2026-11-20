@@ -17,7 +17,8 @@
  * names the context (`main` on the Main timeline, the composition id inside a
  * composition): it appears when its first point is set, disappears when its
  * last point is cleared, and reports the `inPoint` / `outPoint` field that
- * moved. Project metadata is one entity of kind `project`.
+ * moved. Project metadata is one entity of kind `project`. A call that opens another project (or the first one)
+ * names only the project that closed and the one that opened, never their contents.
  */
 
 import type { ItemEffect } from '@/types/effects'
@@ -400,6 +401,13 @@ export function diffChangeBaselines(
     added: [],
     removed: [],
     updated: [],
+  }
+  // Another project opened (or the first one): its timeline is a different project, not an edit of the one before.
+  // Only the two projects are named; listing both timelines entry by entry ran to hundreds of lines in an agent's
+  // result (20 Nov 2026: opening the 12-clip reel listed 150 entries, and leaving it listed them again as removed).
+  if ((before.project?.id ?? null) !== (after.project?.id ?? null)) {
+    diffProject(before.project, after.project, changes)
+    return changes
   }
   diffCollection('track', before.tracks, after.tracks, changes)
   diffCollection('clip', before.items, after.items, changes)

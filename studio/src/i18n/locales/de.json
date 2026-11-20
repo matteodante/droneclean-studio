@@ -197,7 +197,7 @@
     },
     "agentAccess": {
       "title": "Agenten-Zugriff",
-      "description": "Erlaubt einem KI-Agenten auf diesem Mac, das geöffnete Projekt zu lesen, zu ändern und Exporte zu starten. Nichts verlässt deinen Mac; standardmäßig aus.",
+      "description": "Erlaubt einem KI-Agenten auf diesem Mac, das geöffnete Projekt zu lesen, zu ändern und Exporte zu starten. Nichts verlässt deinen Mac; standardmäßig an, und nur dein Benutzerkonto kann darauf zugreifen.",
       "enable": "KI-Agenten erlauben",
       "socketPath": "Socket",
       "socketDescription": "Die App lauscht hier, solange der Schalter an ist; nur dein Benutzer kann ihn lesen.",

@@ -406,7 +406,7 @@ studio.tracks.list()
 add(input: TrackAddInput): TrackId
 ```
 
-Add a track at `position` (0 = top). One undo step.
+Add a track at `position` (0 = top; the bottom when absent, where a video track is hidden by the ones above). One undo step.
 
 - Maps to: `SET_TRACKS (track-actions.ts:10)`
 - Throws: INVALID_ARGUMENT
@@ -414,7 +414,7 @@ Add a track at `position` (0 = top). One undo step.
 Example:
 
 ```ts
-studio.tracks.add({ kind: 'audio', name: 'Music' })
+studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 })
 ```
 
 ### `studio.tracks.update()`
@@ -927,7 +927,7 @@ add(input: TitleAddInput): ClipId
 Add a text clip with the editor's default style. One undo step.
 
 - Maps to: `createDefaultTextItem + ADD_ITEM (item-actions.ts:610)`
-- Throws: NOT_FOUND, INVALID_ARGUMENT
+- Throws: NOT_FOUND, INVALID_ARGUMENT, CONFLICT
 
 Example:
 

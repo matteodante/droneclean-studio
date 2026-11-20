@@ -114,6 +114,9 @@ function fakeClient(overrides: Partial<StabilizationClient> = {}) {
     stageAssets: vi.fn(async () => ASSETS),
     smoothingMethods: vi.fn(async () => []),
     getFrameData,
+    peekFrame: vi.fn(() => undefined),
+    slideWindow: vi.fn(),
+    fetchFrames: vi.fn(async (_id: string, frames: readonly number[]) => frames.map((sourceFrame) => ({ ...FRAME, sourceFrame }))),
     setSettings,
     close,
     destroy: vi.fn(),
@@ -380,6 +383,55 @@ describe('frames', () => {
     expect(seat.frame(key, 1001)).toBeUndefined()
     expect(seat.takeFrameFailure(key, 1001)?.message).toBe('no answer')
     expect(seat.takeFrameFailure(key, 1001)).toBeUndefined()
+  })
+
+  it('are read from the client’s window without a wait when it has them, kept, and asked ahead on every read', async () => {
+    const peekFrame = vi.fn((_id: string, sourceFrame: number) =>
+      sourceFrame === 12 ? { ...FRAME, sourceFrame } : undefined,
+    )
+    const slideWindow = vi.fn()
+    const { client, getFrameData } = fakeClient({ peekFrame, slideWindow } as never)
+    const seat = host(client)
+    await seat.open(clip())
+    const key = stabilizationEngineKey(clip())!
+    expect(seat.frame(key, 12)?.sourceFrame).toBe(12)
+    expect(seat.frame(key, 13)).toBeUndefined()
+    expect(peekFrame).toHaveBeenCalledWith(expect.any(String), 13)
+    expect(getFrameData).not.toHaveBeenCalled()
+    peekFrame.mockClear()
+    // A kept frame is served without a copy from the window, and the window still slides to it for the next frames
+    expect(seat.frame(key, 12)?.sourceFrame).toBe(12)
+    expect(peekFrame).not.toHaveBeenCalled()
+    expect(slideWindow).toHaveBeenCalledWith(expect.any(String), 12)
+  })
+
+  it('warm: the frames after a cut are asked for beside the window, served from there while the window slides to them, and dropped on a move', async () => {
+    const fetchFrames = vi.fn(async (_id: string, frames: readonly number[]) =>
+      frames.map((sourceFrame) => ({ ...FRAME, sourceFrame })),
+    )
+    const peekFrame = vi.fn(() => undefined)
+    const slideWindow = vi.fn()
+    const { client } = fakeClient({ fetchFrames, peekFrame, slideWindow } as never)
+    const seat = host(client)
+    const base = clip()
+    await seat.open(base)
+    const key = stabilizationEngineKey(base)!
+    seat.warm(key, [400, 401, 402])
+    seat.warm(key, [400, 401, 402])
+    await fetchFrames.mock.results[0]?.value
+    await Promise.resolve()
+    expect(seat.frame(key, 401)?.sourceFrame).toBe(401)
+    expect(fetchFrames).toHaveBeenCalledTimes(1)
+    expect(fetchFrames).toHaveBeenCalledWith(expect.any(String), [400, 401, 402])
+    // The warmed frame is served, and the window is told to start filling there for the frames that follow
+    expect(peekFrame).not.toHaveBeenCalled()
+    expect(slideWindow).toHaveBeenCalledWith(expect.any(String), 401)
+    seat.warm(key, [400, 401])
+    expect(fetchFrames).toHaveBeenCalledTimes(1)
+
+    const moved = withFov(base, 1.3)
+    await seat.open(moved)
+    expect(seat.frame(stabilizationEngineKey(moved)!, 401)).toBeUndefined()
   })
 
   it('are not asked of an engine that is not open', async () => {

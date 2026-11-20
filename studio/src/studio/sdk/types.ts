@@ -295,7 +295,10 @@ export interface TrackAddInput {
   kind: TrackKind
   /** Display name; a default name is chosen when absent. */
   name?: string
-  /** Insert position in the stack, 0 = top; appended when absent. */
+  /**
+   * Insert position in the stack, 0 = top. Appended at the bottom when absent, under every other track: a video track
+   * there is hidden by the footage above it, so a layer over the footage (a title, a picture in picture) takes 0.
+   */
   position?: number
 }
 
@@ -1764,11 +1767,12 @@ export interface TracksApi {
   list(): TrackInfo[]
 
   /**
-   * Add a track at `position` (0 = top). One undo step.
+   * Add a track at `position` (0 = top; the bottom when absent, where a video track is hidden by the ones above). One
+   * undo step.
    * @mapsTo SET_TRACKS (track-actions.ts:10)
    * @throws INVALID_ARGUMENT when `position` is outside the stack, `kind` is not
    *   `video` or `audio`, `name` is not a string, or the input is not an object
-   * @example studio.tracks.add({ kind: 'audio', name: 'Music' })
+   * @example studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 })
    */
   add(input: TrackAddInput): TrackId
 
@@ -2141,6 +2145,8 @@ export interface TitlesApi {
    * @throws NOT_FOUND when `trackId` does not exist
    * @throws INVALID_ARGUMENT when `trackId` is not a video track, `from` or
    *   `durationInFrames` is not a positive frame count, or a style field is out of range
+   * @throws CONFLICT when the title would overlap a clip on its track (it is never moved): a title over footage goes on
+   *   a video track of its own above it, `studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 })`
    * @example studio.titles.add({ trackId: 'v1', from: 0, durationInFrames: 90, text: 'Cinque Terre' })
    */
   add(input: TitleAddInput): ClipId

@@ -258,6 +258,25 @@ describe('titles', () => {
       expect(buildTimelineFromStores()).toEqual(before)
     })
 
+    it('rejects a title over a clip of its track with CONFLICT, instead of moving it after the clip', () => {
+      useItemsStore.getState().setItems([makeTimelineVideoItem({ id: 'clip-1', trackId: 'v1', from: 0, durationInFrames: 300 })])
+      const before = buildTimelineFromStores()
+
+      const error = captureError(() =>
+        titles.add({ trackId: 'v1', from: 30, durationInFrames: 90, text: 'Riomaggiore' }),
+      )
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.argument).toBe('from')
+      expect(error.entity).toEqual({ kind: 'clip', id: 'clip-1' })
+      expect(error.message).toBe(
+        'titles.add: a title of 90 frames at frame 30 overlaps clip "clip-1" (frames 0..300) on track "v1"; the first free frame where it fits is 300',
+      )
+      expect(error.hint).toContain("studio.tracks.add({ kind: 'video', name: 'Titles', position: 0 })")
+      expect(buildTimelineFromStores()).toEqual(before)
+      expect(undoDepth()).toBe(0)
+    })
+
     it('rejects a missing track with NOT_FOUND', () => {
       const before = buildTimelineFromStores()
 

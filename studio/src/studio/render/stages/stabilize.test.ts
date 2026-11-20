@@ -215,6 +215,31 @@ describe('the stabilization stage', () => {
     )
   })
 
+  it('near a clip’s end asks for the first frames of the stabilized clip after the cut, and nowhere else', () => {
+    const sizes = createDerivedSizeStore()
+    const { host, fake } = fakeHost()
+    const warm = vi.fn()
+    ;(host as unknown as { warm: typeof warm }).warm = warm
+    const next = item({ id: 'c2', from: 10, sourceStart: 400, sourceEnd: 600 })
+    let after: VideoItem | null = next
+    const stage = createStabilizeStage({ sizes, host: () => host, nextClip: () => after })
+    const clip = item({ sourceStart: 100, sourceEnd: 200 })
+    fake.frames.set(150, { sourceFrame: 150 } as StabilizationFrameData)
+    fake.frames.set(185, { sourceFrame: 185 } as StabilizationFrameData)
+
+    expect(stage.ready(clip, 150)).toBe(true)
+    expect(warm).not.toHaveBeenCalled()
+    expect(stage.ready(clip, 185)).toBe(true)
+    expect(warm).toHaveBeenCalledWith(stage.key(next), Array.from({ length: 12 }, (_, index) => 400 + index))
+
+    warm.mockClear()
+    after = item({ id: 'c3', from: 10, sourceStart: 400, sourceEnd: 600, stabilization: undefined })
+    expect(stage.ready(clip, 185)).toBe(true)
+    after = null
+    expect(stage.ready(clip, 185)).toBe(true)
+    expect(warm).not.toHaveBeenCalled()
+  })
+
   it('ready: true when the frame is held, else the fetch is the "not yet", and a failed fetch is thrown once', async () => {
     const { stage, fake } = make()
     const waiting = stage.ready(item(), 7)

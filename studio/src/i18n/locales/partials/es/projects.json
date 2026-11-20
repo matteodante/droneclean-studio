@@ -192,7 +192,8 @@
       "folderPermissionDenied": "No se concedió el permiso. Elige una carpeta y permite acceso de lectura/escritura para continuar.",
       "folderPickFailed": "DroneClean Studio no pudo abrir esa carpeta. Prueba una carpeta normal que puedas editar y concede acceso de lectura/escritura.",
       "reconnectPermissionDenied": "Permiso denegado. Reconecta el espacio de trabajo o elige otra carpeta.",
-      "temporaryFolder": "Esta carpeta es una carpeta temporal del sistema: el sistema puede borrarla, y tus proyectos con ella. Elige otra carpeta."
+      "temporaryFolder": "Esta carpeta es una carpeta temporal del sistema: el sistema puede borrarla, y tus proyectos con ella. Elige otra carpeta.",
+      "unreachableFolder": "No se pudo abrir la carpeta de trabajo «{{name}}»: se movió, se renombró o se eliminó, o no se puede escribir en ella. Elige una carpeta."
     },
     "workspaceOwner": {
       "title": "Esta carpeta está abierta en otra ventana de DroneClean Studio",
@@ -203,7 +204,8 @@
       "takeOver": "Tomar el control",
       "readOnly": "Este espacio de trabajo está abierto en otra ventana; los cambios aquí no se guardan",
       "discardWarning": "Las ediciones hechas en esta ventana desde que pasó a solo lectura se descartarán. El proyecto se recargará como lo guardó la otra ventana.",
-      "discardAndTakeOver": "Descartar mis ediciones y tomar el control"
+      "discardAndTakeOver": "Descartar mis ediciones y tomar el control",
+      "chooseAnother": "Elegir otra carpeta"
     },
     "workspaceIndicator": {
       "workspaceFolder": "Carpeta de espacio de trabajo",

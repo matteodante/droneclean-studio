@@ -6,7 +6,7 @@
  * Windows — speaking MCP over the SDK's stdio framing; `studio/mcp/launcher.mjs`
  * connects a client's stdin/stdout to it. There is no HTTP listener, no port and
  * no token in v1: the file mode is the access control, and the socket exists
- * only while "Allow AI agents" is on (off by default, `settings.ts`).
+ * only while "Allow AI agents" is on (on by default since 20 Nov 2026, `settings.ts`).
  *
  * `initialize` and `tools/list` are answered without the editor page; a tool
  * call reaches the page through `PageBridge` (design §4.2). One queue serialises
@@ -77,6 +77,8 @@ export interface AgentAccessOptions {
   logger?: (message: string) => void
   /** Told when a client connects or leaves and when a tool call starts or ends (the idle quit). */
   onActivity?: (event: AgentActivity) => void
+  /** The workspace folder on disk, or null while unknown: an export's `absolutePath` is its `savedPath` joined to it. */
+  workspaceFolder?: () => string | null
 }
 
 /** The object the shell (and, later, the Agent access panel) drives. */
@@ -123,23 +125,31 @@ function frameImage(
 
 /** The `initialize` instructions, shown by clients before the first call. */
 const INSTRUCTIONS =
-  'DroneClean Studio is a video editor; window.studio is its SDK. Use search to find a method, run to evaluate a ' +
-  'JavaScript function against the SDK (one undo step when it is synchronous; Ctrl+Z takes it back), and the ' +
-  'editor updates live. studio.project.create makes a project and opens it, so media can be imported next; ' +
-  'studio.project.open(id) switches to another one. run saves the project after every call that changed it ' +
-  '(its result says saved: true; saved: false means the save failed and studio.project.save() should be called ' +
-  'again). frame renders a frame or a contact sheet; export saves the project, queues a render and reports its ' +
-  'progress. In the desktop app studio.media.import names media by absolute path; a browser has only file handles. ' +
-  'A drone edit usually goes: studio.project.current() and studio.media.list() for what is already open and ' +
-  'imported; studio.tracks.list() for the track ids; studio.clips.addMany to lay clips end to end (sourceStart and ' +
-  'sourceEnd pick the part of each file, in frames of the file); await studio.clips.setStabilization(clipId, {}) ' +
-  'for each clip whose file carries gyro data (DJI, GoPro; UNSUPPORTED otherwise), one after another, since the ' +
-  'engine opens each clip in seconds (raise timeoutMs for many); studio.titles.add for a short text; ' +
-  'studio.transitions.add at a cut; for a before and after, the same range twice with stabilization on only one, ' +
-  'side by side (clips.update transform x and width) or one after the other with a title on each; frame with a ' +
-  'contactSheet to look at the whole edit; studio.export.presets() for the export settings (same-as-source, ' +
-  'youtube-4k, instagram-reel, small-file). Pass show: true on a run to bring the editor window up when the user ' +
-  'wants to watch.'
+  'DroneClean Studio is a video editor; window.studio is its SDK. Use search to find a method (an SDK hit carries its ' +
+  'whole signature or declaration; studio.reference() returns the full reference), run to evaluate a JavaScript ' +
+  'function against the SDK, and the editor updates live. A synchronous run is one undo step, rolled back whole if it ' +
+  'throws; an awaited script keeps the steps it made before an error, which the error says (Ctrl+Z or ' +
+  'studio.history.undo() takes them back). studio.project.create({ name, width, height, fps: { num: 60000, den: 1001 } }) ' +
+  'makes a project and opens it, so media can be imported next; studio.project.open(id) switches to another one. run ' +
+  'saves the project after every call that changed it (its result says saved: true; saved: false means the save ' +
+  'failed and studio.project.save() should be called again). frame renders a timeline frame or a contact sheet; export ' +
+  'saves the project, queues a render and reports its progress, and a finished job\'s absolutePath is the file to name ' +
+  'to the person. In the desktop app studio.media.import names media by absolute path; a browser has only file ' +
+  'handles. A drone edit usually goes: studio.project.current() and studio.media.list() (newest first; sort by ' +
+  'fileName for the order the files were shot) for what is open and imported; studio.tracks.list() for the track ids, ' +
+  'top first; studio.clips.addMany to lay clips end to end (sourceStart and sourceEnd pick the part of each file, in ' +
+  'frames of the file; a clip that would overlap another is a CONFLICT naming the first free frame); await ' +
+  'studio.clips.setStabilization(clipId, {}) for each clip whose file carries gyro data (DJI, GoPro; UNSUPPORTED ' +
+  'otherwise), one after another, since the engine opens each clip in seconds (raise timeoutMs for many; ' +
+  'studio.clips.getStabilization(id) reads it back); a title goes on a video track of its own above the footage, ' +
+  'studio.tracks.add({ kind: \'video\', name: \'Titles\', position: 0 }) (without position a track goes to the bottom, ' +
+  'hidden under the footage), then studio.titles.add on it; studio.transitions.add at a cut; for a before and after, ' +
+  'the same range twice, one after the other, the first without stabilization, with a title on each: a stabilized clip ' +
+  'fills the canvas, so give the unstabilized one a transform that covers it too (the file\'s width and height times ' +
+  'the larger of canvas width / file width and canvas height / file height, x and y 0: a 4:3 file in a 1920x1080 ' +
+  'project is 1920x1440); frame with a contactSheet to look at the whole edit; studio.export.presets() for the export ' +
+  'settings (same-as-source, youtube-4k, instagram-reel, small-file). Pass show: true on a run to bring the editor ' +
+  'window up when the user wants to watch.'
 
 /** The tool schemas; the wire shapes are in `studio/mcp/protocol.d.ts`. */
 const searchInput = {
@@ -271,7 +281,8 @@ function createMcpServer(tools: {
         'name } } saves the project (as studio.project.save() does), then queues a job and returns it; it never moves ' +
         'the window or touches the undo history, and the job renders the timeline as it was at the start. A second ' +
         'start while one runs for the same project is a CONFLICT naming the running job. { jobId } returns the job ' +
-        '(status, progress, phase, renderedFrames, totalFrames, savedPath, fileSize, error). { jobId, cancel: true } ' +
+        '(status, progress, phase, renderedFrames, totalFrames, savedPath, absolutePath: the file on disk, fileSize, ' +
+        'error). { jobId, cancel: true } ' +
         'stops it. waitMs (0..240000) waits for the job and still returns its progress on timeout; without waitMs a ' +
         'read answers within a second and a start once the save is done (at most 30 seconds).',
       inputSchema: exportInput,
@@ -373,7 +384,7 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
         return runScript(request, options.page, signal)
       },
       frame: (request) => frameTool(request, options.page),
-      export: (request) => exportTool(request, options.page),
+      export: (request) => exportTool(request, options.page, options.workspaceFolder),
       call,
     })
   }

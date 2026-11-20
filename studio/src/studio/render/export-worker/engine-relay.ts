@@ -321,6 +321,9 @@ class RelayedHost implements StabilizationSeat {
     return this.entries.get(key)?.frames.get(sourceFrame)
   }
 
+  /** The export waits for every frame it draws, in order: it asks for nothing ahead of a cut */
+  warm(): void {}
+
   requestFrame(key: string, sourceFrame: number): Promise<void> {
     const entry = this.entries.get(key)
     if (!entry || !isUsable(entry.result)) return Promise.resolve()

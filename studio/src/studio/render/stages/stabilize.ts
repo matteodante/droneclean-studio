@@ -26,10 +26,36 @@ import { StageError, type SourceStage } from './types'
 /** The formats every stage intermediate has (design 3.6 section 2.6) */
 const FLOAT_FORMATS: StabilizationFormats = { input: 'rgba16float', output: 'rgba16float' }
 
-/** What the stage is built with: the session's size store, and the host (the page's by default) */
+/**
+ * How close to its last source frame a clip has to be for the stage to ask for the next clip's first frames, and how
+ * many it asks for: at 59.94 fps half a second ahead of the cut, and the first fifth of a second after it, which is
+ * longer than the engine takes to fill the window once the next clip plays.
+ */
+const WARM_BEFORE_CUT = 30
+const WARM_FRAMES = 12
+
+/** What the stage is built with: the session's size store, the host (the page's by default), and the clip after a clip */
 export interface StabilizeStageDeps {
   sizes: DerivedSizeStore
   host?: () => StabilizationSeat
+  /**
+   * The clip that starts where `item` ends on its track, or `null`: the page's timeline knows it (`session.ts`); a
+   * renderer without the timeline (the export worker) passes nothing and asks for nothing ahead.
+   */
+  nextClip?: (item: VideoItem) => VideoItem | null
+}
+
+/** Whether `sourceIndex` is within `WARM_BEFORE_CUT` of the last source frame of a forward clip with a known end */
+function nearClipEnd(item: VideoItem, sourceIndex: number): boolean {
+  return !item.isReversed && item.sourceEnd !== undefined && item.sourceEnd - sourceIndex <= WARM_BEFORE_CUT
+}
+
+/** The first `WARM_FRAMES` source frames a clip shows (a reversed clip starts from its end) */
+function firstSourceFrames(item: VideoItem): number[] {
+  const first = item.isReversed
+    ? Math.max(0, (item.sourceEnd ?? WARM_FRAMES) - WARM_FRAMES)
+    : (item.sourceStart ?? 0)
+  return Array.from({ length: WARM_FRAMES }, (_, index) => first + index)
 }
 
 function clipName(item: VideoItem): string {
@@ -44,6 +70,16 @@ export function createStabilizeStage(deps: StabilizeStageDeps): SourceStage & {
   lost(key: string): Promise<void>
 } {
   const host = (): StabilizationSeat => (deps.host ?? stabilizationSeat)()
+
+  /** Near a clip's end, asks for the first frames of the stabilized clip after the cut, beside the window */
+  const warmNextClip = (item: VideoItem, sourceIndex: number): void => {
+    if (!deps.nextClip || !nearClipEnd(item, sourceIndex)) return
+    const next = deps.nextClip(item)
+    if (!next || !isStabilized(next)) return
+    const nextKey = stabilizationEngineKey(next)
+    if (nextKey === null || host().engineState(nextKey).status !== 'ready') return
+    host().warm(nextKey, firstSourceFrames(next))
+  }
 
   const keyOf = (item: VideoItem): string => {
     const key = stabilizationEngineKey(item)
@@ -129,7 +165,10 @@ export function createStabilizeStage(deps: StabilizeStageDeps): SourceStage & {
           cause: state.error,
         })
       }
-      if (seat.frame(key, sourceIndex) !== undefined) return true
+      if (seat.frame(key, sourceIndex) !== undefined) {
+        warmNextClip(item, sourceIndex)
+        return true
+      }
       const failure = seat.takeFrameFailure(key, sourceIndex)
       if (failure !== undefined) {
         throw new StageError({

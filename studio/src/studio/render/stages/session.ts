@@ -22,6 +22,7 @@ import { createStageRegistry, type StageRegistry } from './registry'
 import { createStabilizeStage } from './stabilize'
 import { isStabilized, setProjectRate } from './predicates'
 import { derivedSizes } from './staged-size'
+import type { VideoItem } from '@/types/timeline'
 
 // The predicates' project rate follows the timeline's, so a call site that asks about a clip alone (the preview's
 // status, smart copy before an export) knows it covers two source frames when a 120 fps clip sits in a 60 fps project.
@@ -56,12 +57,23 @@ if (typeof document !== 'undefined') {
   })
 }
 
+/** The video clip that starts where `item` ends on its track, for the stabilization's frames after a cut */
+function nextClipOnTrack(item: VideoItem): VideoItem | null {
+  const end = item.from + item.durationInFrames
+  for (const other of useItemsStore.getState().items) {
+    if (other.type === 'video' && other.id !== item.id && other.trackId === item.trackId && other.from === end) {
+      return other
+    }
+  }
+  return null
+}
+
 let registry: StageRegistry | null = null
 
 /** The registry, built the first time it is asked: importing this module reads nothing of the stages' modules */
 function sessionRegistry(): StageRegistry {
   registry ??= createStageRegistry([
-    createStabilizeStage({ sizes: derivedSizes }),
+    createStabilizeStage({ sizes: derivedSizes, nextClip: nextClipOnTrack }),
     createInputColourStage(),
     createLookStage(),
   ])

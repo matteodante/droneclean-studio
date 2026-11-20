@@ -71,6 +71,8 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   // The shell refused the chosen folder because it is a temporary one (E1).
   const [temporaryRefused, setTemporaryRefused] = useState(false)
+  // The folder could not be proved to the shell (moved, renamed, deleted, read-only): its name, for the message.
+  const [unreachableName, setUnreachableName] = useState<string | null>(null)
   const { t } = useTranslation()
   const pathname = usePathname()
   const needsWorkspace = isStorageProtectedPath(pathname)
@@ -112,6 +114,13 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
         // A folder the system may delete, projects and all: nothing is opened (E1).
         ownership.release()
         setTemporaryRefused(true)
+        setStatus({ kind: 'pick' })
+        return
+      }
+      if (claimed === 'unreachable') {
+        // Nobody holds it, but it cannot be written: ask for a folder, naming this one.
+        ownership.release()
+        setUnreachableName(handle.name)
         setStatus({ kind: 'pick' })
         return
       }
@@ -173,6 +182,7 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
   const handlePick = useCallback(async () => {
     setError(null)
     setTemporaryRefused(false)
+    setUnreachableName(null)
     try {
       const handle = await window.showDirectoryPicker({
         id: 'freecut-workspace',
@@ -231,14 +241,20 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Another instance owns the folder (task 2.3): name it, offer Close, and take
-  // over only once it is stale. There is deliberately no way past a live owner.
+  // Another instance owns the folder (task 2.3): name it, offer Close, another
+  // folder, and take over only once it is stale. There is deliberately no way
+  // past a live owner into this folder.
   if (status.kind === 'blocked') {
+    const ownership = status.ownership
     return (
       <WorkspaceOwnerModal
-        ownership={status.ownership}
+        ownership={ownership}
         handle={status.handle}
         onOpen={openWorkspace}
+        onChooseAnother={() => {
+          ownership.release()
+          setStatus({ kind: 'pick' })
+        }}
       />
     )
   }
@@ -253,11 +269,22 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
   return (
     <WorkspaceGateSplash
       status={status}
-      error={error ?? (temporaryRefused ? t('projects.workspaceGate.temporaryFolder') : null)}
+      error={error ?? gateMessage(t, temporaryRefused, unreachableName)}
       onPickFolder={handlePick}
       onReconnect={handleReconnect}
     />
   )
+}
+
+/** The splash's message for a folder the shell refused: temporary (E1), or one that could not be proved. */
+function gateMessage(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  temporaryRefused: boolean,
+  unreachableName: string | null,
+): string | null {
+  if (temporaryRefused) return t('projects.workspaceGate.temporaryFolder')
+  if (unreachableName !== null) return t('projects.workspaceGate.unreachableFolder', { name: unreachableName })
+  return null
 }
 
 /**
@@ -273,10 +300,13 @@ export function WorkspaceOwnerModal({
   ownership,
   handle,
   onOpen,
+  onChooseAnother,
 }: {
   ownership: WorkspaceOwnerGuard
   handle: FileSystemDirectoryHandle
   onOpen: (handle: FileSystemDirectoryHandle, ownership: WorkspaceOwnerGuard) => Promise<void>
+  /** Leave this folder to its owner and go back to the folder picker. */
+  onChooseAnother: () => void
 }) {
   const { t } = useTranslation()
   const [state, setState] = useState<WorkspaceOwnerState>(() => ownership.state())
@@ -320,6 +350,9 @@ export function WorkspaceOwnerModal({
         <div className="mt-6 flex items-center justify-center gap-2">
           <Button variant="outline" size="lg" onClick={() => ownership.close()}>
             {t('common.close')}
+          </Button>
+          <Button variant="outline" size="lg" onClick={onChooseAnother}>
+            {t('projects.workspaceOwner.chooseAnother')}
           </Button>
           {stale && (
             <Button size="lg" disabled={taking} onClick={takeOver}>

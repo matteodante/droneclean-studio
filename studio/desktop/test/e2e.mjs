@@ -898,6 +898,31 @@ async function main() {
       { first: first.pageErrors, second: second.pageErrors, third: third.pageErrors },
     )
   }
+
+  // ── fourth launch: the remembered workspace folder is gone (20 Nov 2026: a folder a test had deleted left the app on
+  // "open in another window", with only Close, at every launch). The app must ask for a folder and name the old one.
+  await third.app.close()
+  openApps.delete(third.app)
+  const movedWorkspace = `${workspaceDir}-moved`
+  fs.renameSync(workspaceDir, movedWorkspace)
+  try {
+    const fourth = await launch()
+    const shown = await fourth.page
+      .waitForFunction(() => /could not be opened/.test(document.body.innerText) && document.body.innerText, null, { timeout: 60000 })
+      .then((handle) => handle.jsonValue())
+      .catch(async () => fourth.page.evaluate(() => document.body.innerText))
+    const text = String(shown).replace(/\s+/g, ' ')
+    check(
+      'a remembered workspace folder that is gone brings back the folder picker, naming it, not "open in another window"',
+      /could not be opened/.test(text) && text.includes('“workspace”') && !/open in another DroneClean Studio window/.test(text) &&
+        (await fourth.page.getByRole('button', { name: 'Choose folder' }).count()) > 0,
+      { text: text.slice(0, 240) },
+    )
+    await fourth.app.close()
+    openApps.delete(fourth.app)
+  } finally {
+    fs.renameSync(movedWorkspace, workspaceDir)
+  }
 }
 
 let failure = null

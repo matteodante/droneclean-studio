@@ -105,6 +105,40 @@ test('an awaiting script that times out saves the edits it already made', async 
   assert.equal(saves, 1)
 })
 
+test('an awaited script that fails after some edits says they are kept, and saves them', async () => {
+  const studio = createFakeStudio()
+  let saves = 0
+  studio.project = { current: () => ({ id: 'p1' }), save: async () => { saves += 1 } }
+  const page = createVmPage(studio)
+  const outcome = await runScript(
+    {
+      script:
+        "async s => { s.edit(); await Promise.resolve(); s.edit(); const e = new Error('in the way'); e.toJSON = () => ({ name: 'StudioError', code: 'CONFLICT', message: 'clips.addMany: in the way', hint: 'Use from: 2100.' }); throw e }",
+      label: 'half done',
+    },
+    page,
+  )
+  assert.ok('error' in outcome)
+  assert.equal(outcome.error.code, 'CONFLICT')
+  assert.equal(outcome.undoSteps, page.studio.depth())
+  assert.ok(outcome.undoSteps >= 1)
+  // 20 Nov 2026: the rehearsal's failed run had removed three things and its error did not say so
+  assert.match(outcome.error.hint, /^Use from: 2100\. The \d+ undo entr(y|ies) the script made before the error (is|are) kept and saved/)
+  assert.equal(saves, 1)
+})
+
+test('a synchronous script that fails is rolled back and its error names nothing kept', async () => {
+  const page = createVmPage()
+  const outcome = await runScript(
+    { script: "s => { s.edit(); throw new Error('stop') }", label: 'sync failure' },
+    page,
+  )
+  assert.ok('error' in outcome)
+  assert.equal(page.studio.depth(), 0)
+  assert.equal(outcome.undoSteps, undefined)
+  assert.doesNotMatch(outcome.error.message + (outcome.error.hint ?? ''), /kept/)
+})
+
 test('a script that changes nothing adds no undo entry', async () => {
   const page = createVmPage()
   const outcome = await runScript({ script: 's => s.history.depth()', label: 'read only' }, page)

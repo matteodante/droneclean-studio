@@ -3,11 +3,14 @@
 // the picture says so, with Retry for a stage that failed. The export never holds a frame: it stops with the error.
 //
 // The states come from the renderer's stage pipeline (`render/stages/failure.ts`); a clip drawn with every stage again
-// has none. A clip that was deleted, or that no stage changes any more, is not listed.
+// has none. A clip that was deleted, or that no stage changes any more, is not listed, and neither is a clip the
+// playhead is not on: its state is the last draw's, and a line about a clip off the picture said nothing true (20 Nov
+// 2026: "the ridge tower: waiting for stabilization" stayed on screen over another clip).
 
 import { useMemo, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
+import { usePlaybackStore } from '@/shared/state/playback'
 import {
   clipStageStates,
   notifyStagedFrameReady,
@@ -56,14 +59,18 @@ function StatusLine({ item, state }: { item: VideoItem; state: ClipStageState })
 export function StagedClipStatus() {
   const states = useSyncExternalStore(subscribeClipStageStates, clipStageStates, clipStageStates)
   const items = useItemsStore((store) => store.items)
+  // The playhead only matters while some clip has a state: playback does not re-render this line otherwise
+  const frame = usePlaybackStore((store) => (states.size === 0 ? -1 : store.currentFrame))
   const rows = useMemo(() => {
     const list: Array<{ item: VideoItem; state: ClipStageState }> = []
     for (const item of items) {
       const state = states.get(item.id)
-      if (state && item.type === 'video' && needsSourceStages(item)) list.push({ item, state })
+      if (!state || item.type !== 'video' || !needsSourceStages(item)) continue
+      if (frame < item.from || frame >= item.from + item.durationInFrames) continue
+      list.push({ item, state })
     }
     return list
-  }, [items, states])
+  }, [items, states, frame])
   if (rows.length === 0) return null
   return (
     <div

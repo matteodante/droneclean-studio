@@ -572,6 +572,11 @@ export class WorkspaceOwnerHost {
     this.temporaryRoots = options.temporaryRoots
   }
 
+  /** The folder the page proved and this process holds the lock of, or null before the first claim. */
+  heldFolder(): string | null {
+    return this.lock?.workspaceDir ?? null
+  }
+
   /** Remember a folder the page was granted. Seeing a folder writes nothing into it. */
   observe(folder: string): void {
     const known = this.granted.indexOf(folder)
@@ -664,6 +669,14 @@ export function observeWorkspaceAccess(
   const filePath = details.filePath
   if (typeof filePath !== 'string' || filePath.length === 0) return
   installedHost?.observe(filePath)
+}
+
+/**
+ * The workspace folder on disk, as the page proved it, or null before the page claimed one: what a path the editor
+ * gives relative to the workspace (an export's `savedPath`) is joined to, so an agent can name the file.
+ */
+export function heldWorkspaceFolder(): string | null {
+  return installedHost?.heldFolder() ?? null
 }
 
 /** What the page may call; `close` quits, which is what a Close on the modal does. */

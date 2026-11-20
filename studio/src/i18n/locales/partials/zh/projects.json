@@ -192,7 +192,8 @@
       "folderPermissionDenied": "未授予权限。请选择一个文件夹并允许读写访问后继续。",
       "folderPickFailed": "DroneClean Studio 无法打开该文件夹。请尝试选择一个可编辑的普通文件夹，并授予读写访问权限。",
       "reconnectPermissionDenied": "权限被拒绝。请重新连接工作区或选择其他文件夹。",
-      "temporaryFolder": "此文件夹是系统临时文件夹：系统可能会将其删除，您的项目也会随之丢失。请选择其他文件夹。"
+      "temporaryFolder": "此文件夹是系统临时文件夹：系统可能会将其删除，您的项目也会随之丢失。请选择其他文件夹。",
+      "unreachableFolder": "无法打开工作区文件夹“{{name}}”：它已被移动、重命名或删除，或无法写入。请选择一个文件夹。"
     },
     "workspaceOwner": {
       "title": "此文件夹已在另一个 DroneClean Studio 窗口中打开",
@@ -203,7 +204,8 @@
       "takeOver": "接管",
       "readOnly": "此工作区已在另一个窗口中打开；在此处所做的更改不会被保存",
       "discardWarning": "自此窗口变为只读以来所做的编辑将被丢弃。项目将按另一个窗口保存的状态重新加载。",
-      "discardAndTakeOver": "丢弃我的编辑并接管"
+      "discardAndTakeOver": "丢弃我的编辑并接管",
+      "chooseAnother": "选择其他文件夹"
     },
     "workspaceIndicator": {
       "workspaceFolder": "工作区文件夹",

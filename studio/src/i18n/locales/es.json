@@ -197,7 +197,7 @@
     },
     "agentAccess": {
       "title": "Acceso de agentes",
-      "description": "Permite que un agente de IA que se ejecuta en este Mac lea el proyecto abierto, lo modifique e inicie exportaciones. Nada sale de tu Mac; desactivado por defecto.",
+      "description": "Permite que un agente de IA que se ejecuta en este Mac lea el proyecto abierto, lo modifique e inicie exportaciones. Nada sale de tu Mac; activado por defecto, y solo tu usuario puede acceder.",
       "enable": "Permitir agentes de IA",
       "socketPath": "Socket",
       "socketDescription": "La aplicación escucha aquí mientras el interruptor está activado; solo tu usuario puede leerlo.",

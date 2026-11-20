@@ -96,6 +96,8 @@ function fakeApp(
     busy?: boolean
     desktop?: DesktopWorkspaceOwnerBridge
     kept?: Map<string, string>
+    /** The claim file cannot be written: the folder is gone, renamed or read-only. */
+    claimFails?: boolean
   } = {},
 ): {
   environment: WorkspaceOwnerEnvironment
@@ -132,6 +134,7 @@ function fakeApp(
         faked.removed.push(token)
       },
       writeClaim: async (nonce) => {
+        if (options.claimFails) throw new DOMException('A requested file or directory could not be found', 'NotFoundError')
         faked.claims.add(nonce)
       },
       removeClaim: async (nonce) => {
@@ -655,13 +658,22 @@ describe('the desktop app', () => {
     expect(faked.closed).toBe(0)
   })
 
-  it('opens nothing when the shell cannot place the folder', async () => {
+  it('opens nothing when the shell cannot place the folder, and says it is unreachable, not held', async () => {
     const shell = fakeShell()
     shell.answerClaim({ kind: 'unowned' })
-    const { environment } = fakeApp({ desktop: shell.desktop })
+    const { environment, faked } = fakeApp({ desktop: shell.desktop })
     const guard = await claimWorkspaceOwnership(HANDLE, workspaceId(), environment)
-    expect(guard.state()).toEqual({ kind: 'blocked', stale: false })
+    expect(guard.state()).toEqual({ kind: 'unreachable' })
     await expect(requireWorkspaceOwnership()).rejects.toBeInstanceOf(WorkspaceNotOwnedError)
+    expect(faked.timers).toHaveLength(0)
+  })
+
+  it('a folder it cannot write its claim into (deleted, renamed, read-only) is unreachable, and the shell is not asked', async () => {
+    const shell = fakeShell()
+    const { environment } = fakeApp({ desktop: shell.desktop, claimFails: true })
+    const guard = await claimWorkspaceOwnership(HANDLE, workspaceId(), environment)
+    expect(guard.state()).toEqual({ kind: 'unreachable' })
+    expect(shell.calls).toEqual([])
   })
 
   it('E1: a temporary folder is not opened, and the guard says why', async () => {

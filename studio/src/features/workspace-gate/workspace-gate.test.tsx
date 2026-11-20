@@ -63,12 +63,19 @@ function blocked(stale: boolean): WorkspaceOwnerState {
 }
 
 describe('the workspace owner modal', () => {
-  it('offers Close and nothing else while the owner is live', () => {
-    const { guard } = fakeGuard(blocked(false))
-    const view = render(<WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async () => {}} />)
+  it('offers Close and another folder, and no way into this one, while the owner is live', () => {
+    const { guard, calls } = fakeGuard(blocked(false))
+    const chosen: string[] = []
+    const view = render(
+      <WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async () => {}} onChooseAnother={() => chosen.push('another')} />,
+    )
 
     expect(view.getByRole('heading').textContent?.trim().length ?? 0).toBeGreaterThan(0)
-    expect(view.getAllByRole('button')).toHaveLength(1)
+    const buttons = view.getAllByRole('button')
+    expect(buttons).toHaveLength(2)
+    fireEvent.click(buttons[1] as HTMLElement)
+    expect(chosen).toEqual(['another'])
+    expect(calls).toEqual([])
   })
 
   it('offers Take over once the owner is stale, and opens the folder after it', async () => {
@@ -77,12 +84,12 @@ describe('the workspace owner modal', () => {
     const view = render(
       <WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async (handle) => {
         opened.push(handle)
-      }} />,
+      }} onChooseAnother={() => {}} />,
     )
 
     const buttons = view.getAllByRole('button')
-    expect(buttons).toHaveLength(2)
-    await act(async () => fireEvent.click(buttons[1] as HTMLElement))
+    expect(buttons).toHaveLength(3)
+    await act(async () => fireEvent.click(buttons[2] as HTMLElement))
     expect(calls).toEqual(['takeOver'])
     expect(opened).toEqual([HANDLE])
   })
@@ -93,7 +100,7 @@ describe('the workspace owner modal', () => {
     render(
       <WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async (handle) => {
         opened.push(handle)
-      }} />,
+      }} onChooseAnother={() => {}} />,
     )
 
     await act(async () => emit({ kind: 'owned' }))
@@ -102,9 +109,9 @@ describe('the workspace owner modal', () => {
 
   it('closes the app instead of opening the folder', () => {
     const { guard, calls } = fakeGuard(blocked(false))
-    const view = render(<WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async () => {}} />)
+    const view = render(<WorkspaceOwnerModal ownership={guard} handle={HANDLE} onOpen={async () => {}} onChooseAnother={() => {}} />)
 
-    fireEvent.click(view.getByRole('button'))
+    fireEvent.click(view.getAllByRole('button')[0] as HTMLElement)
     expect(calls).toEqual(['close'])
   })
 })

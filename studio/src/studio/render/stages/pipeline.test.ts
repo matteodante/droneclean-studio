@@ -346,6 +346,20 @@ describe('a preview', () => {
     expect(onReady).toHaveBeenCalledTimes(1)
   })
 
+  it('waits a moment for data that is on its way, and draws the frame fresh without saying it waited', async () => {
+    const { pipeline, stabilize, states, onReady } = setup('preview')
+    const clip = item({ stabilize: true })
+    await pipeline.render(clip, 1)
+
+    const arrive = stabilize.notReady()
+    const rendering = pipeline.render(clip, 2)
+    setTimeout(arrive, 5)
+    const staged = await rendering
+    expect(staged.kind).toBe('fresh')
+    expect(states.filter((state) => state !== null)).toEqual([])
+    expect(onReady).not.toHaveBeenCalled()
+  })
+
   it('holds the last good frame of a clip whose stage failed and shows the failure; it is not asked again by itself', async () => {
     const { pipeline, colour, states, onReady } = setup('preview')
     const clip = item({ 'input-colour': true })

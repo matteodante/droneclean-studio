@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import {
+  AGENT_ACCESS_DEFAULT,
   AGENT_ACCESS_OFF,
   isAgentAccessEnabled,
   readAgentAccessSettings,
@@ -20,11 +21,23 @@ function tempFolder() {
   return { dir, file: path.join(dir, 'agent-access.json') }
 }
 
-test('a profile without the file is off', () => {
+test('a profile without the file is on: agent access is on by default (Matteo, 20 Nov 2026)', () => {
   const { file } = tempFolder()
+  assert.deepEqual(readAgentAccessSettings(file), AGENT_ACCESS_DEFAULT)
+  assert.equal(isAgentAccessEnabled(file), true)
+  assert.equal(fs.existsSync(file), false, 'reading writes nothing')
+})
+
+test('switched off, it stays off', () => {
+  const { file } = tempFolder()
+  writeAgentAccessSettings(file, { version: 1, enabled: false })
   assert.deepEqual(readAgentAccessSettings(file), AGENT_ACCESS_OFF)
-  assert.equal(isAgentAccessEnabled(file), false)
-  assert.equal(fs.existsSync(file), false)
+})
+
+test('a setting path that cannot be read (a folder) is off, not the default', () => {
+  const { file } = tempFolder()
+  fs.mkdirSync(file)
+  assert.deepEqual(readAgentAccessSettings(file), AGENT_ACCESS_OFF)
 })
 
 test('on is written and read back; the file says version 1 and enabled', () => {

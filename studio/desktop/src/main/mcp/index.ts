@@ -23,6 +23,7 @@ import { createPageBridge } from './page'
 import { corpusRootsFor, loadCorpusDocuments, type CorpusRoots } from './search/corpus'
 import type { SearchDocument } from './search/bm25'
 import { createAgentAccess, type AgentAccess } from './server'
+import { heldWorkspaceFolder } from '../workspace-lock'
 
 /** Where the three corpora are for this launch. */
 function studioCorpusRoots(): CorpusRoots {
@@ -83,6 +84,7 @@ export async function installAgentAccess(
     loadDocuments: loadDocumentsForSearch,
     showWindow,
     onActivity: (event) => idle.activity(event),
+    workspaceFolder: heldWorkspaceFolder,
   })
   await access.startIfEnabled()
   app.on('before-quit', () => {

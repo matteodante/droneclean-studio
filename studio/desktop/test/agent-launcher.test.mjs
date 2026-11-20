@@ -83,9 +83,15 @@ async function waitForLines(process_, count, timeoutMs = 5000) {
   }
 }
 
+function disableAccess(layout) {
+  fs.mkdirSync(layout.userDataDir, { recursive: true })
+  fs.writeFileSync(layout.settingsPath, JSON.stringify(fixture.SETTINGS_OFF))
+}
+
 test('off: the launcher says so, starts nothing and exits 1', async () => {
   const home = tempHome()
   const layout = layoutFor(home)
+  disableAccess(layout)
   const process_ = startLauncher(home, {
     DRONECLEAN_APP_BINARY: path.join(home, 'does-not-exist'),
   })
@@ -100,8 +106,22 @@ test('off: the launcher says so, starts nothing and exits 1', async () => {
   }
 })
 
+test('on by default: with no settings file the launcher goes on to start the app', async () => {
+  const home = tempHome()
+  const binary = path.join(home, 'missing-app-binary')
+  const process_ = startLauncher(home, { DRONECLEAN_APP_BINARY: binary })
+  try {
+    const { code } = await process_.exited
+    assert.equal(code, 2, 'past the setting, to the missing app')
+    assert.doesNotMatch(process_.getStderr(), /agent access is off/i)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
 test('reached through a symlinked folder, the launcher still runs (it used to exit 0 without a word)', async () => {
   const home = tempHome()
+  disableAccess(layoutFor(home))
   const linked = path.join(home, 'linked-mcp')
   fs.symlinkSync(path.dirname(LAUNCHER), linked, 'dir')
   const child = spawn(process.execPath, [path.join(linked, 'launcher.mjs')], {

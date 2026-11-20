@@ -96,7 +96,7 @@ const page = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'In the desktop app, **Settings › Agent access › Allow AI agents** turns on a local MCP server. The panel shows the command for Claude Code or the config for other clients. An agent can then build and grade a project and export it through the same SDK the editor uses, and every change is an undo step you can see. Every call that changes the project saves it.',
+          text: 'The desktop app runs a local MCP server for AI agents on your computer, on by default: **Settings › Agent access › Allow AI agents** switches it off or on again, and only your user can reach it. The panel shows the command for Claude Code or the config for other clients. An agent can then build and grade a project and export it through the same SDK the editor uses, and every change is an undo step you can see. Every call that changes the project saves it.',
         },
       ],
     },
