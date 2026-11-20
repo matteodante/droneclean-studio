@@ -152,7 +152,9 @@
       "textShadowOffsetX": "Shadow X",
       "textShadowOffsetY": "Shadow Y",
       "textShadowBlur": "Shadow Blur",
-      "strokeWidth": "Stroke Width"
+      "strokeWidth": "Stroke Width",
+      "framingX": "Stabilization Framing X",
+      "framingY": "Stabilization Framing Y"
     }
   }
 }

@@ -89,6 +89,18 @@ export function buildRunScript(options: RunPageScriptOptions): string {
   } catch (error) {
     return { error: failure('INVALID_ARGUMENT', 'run: the script could not be parsed: ' + String(error && error.message ? error.message : error), { argument: 'script', hint: 'Pass a function expression such as "s => s.clips.list()", or an expression such as "studio.clips.list()".' }) }
   }
+  // The project is written after every call that changed it, so a crash or a reload of a stuck editor loses
+  // nothing the agent did (the editor's own auto-save runs only every 5-30 minutes). null: nothing to save.
+  const saveAfterEdits = async (made) => {
+    if (made <= 0 || !STUDIO.project || typeof STUDIO.project.current !== 'function') return null
+    try {
+      if (STUDIO.project.current() === null) return null
+      await STUDIO.project.save()
+      return true
+    } catch {
+      return false
+    }
+  }
   const evaluate = (studio) => {
     const evaluated = scriptFn(studio)
     return typeof evaluated === 'function' ? evaluated(studio) : evaluated
@@ -126,6 +138,7 @@ export function buildRunScript(options: RunPageScriptOptions): string {
         abortController.abort()
         globalThis.${RUN_BUSY_GLOBAL} = false
         const kept = Math.max(0, STUDIO.history.depth() - before)
+        const keptSaved = await saveAfterEdits(kept)
         return {
           error: failure('TIMEOUT', raced.state === 'timeout'
             ? 'run: the script was still running after ' + ${timeoutMs} + ' ms, so it was stopped and the editor is free again'
@@ -133,6 +146,7 @@ export function buildRunScript(options: RunPageScriptOptions): string {
             hint: 'The script is told to stop: its next SDK call fails. ' + (kept > 0 ? 'The ' + kept + ' undo ' + (kept === 1 ? 'entry' : 'entries') + ' it already made ' + (kept === 1 ? 'is' : 'are') + ' kept (its synchronous part is under "' + agentLabel + '"; studio.history.undo() takes them back). ' : '') + 'Make the script resolve sooner, or pass a larger timeoutMs (max 600000).',
           }),
           undoSteps: kept,
+          ...(keptSaved !== null && { saved: keptSaved }),
           durationMs: Date.now() - startedAt,
         }
       }
@@ -144,10 +158,13 @@ export function buildRunScript(options: RunPageScriptOptions): string {
     const plain = (input) => {
       try { return JSON.parse(JSON.stringify(input)) } catch { return null }
     }
+    const undoSteps = Math.max(0, STUDIO.history.depth() - before)
+    const saved = await saveAfterEdits(undoSteps)
     return plain({
       value: value === undefined ? null : value,
       changes: changes || { commands: [], added: [], removed: [], updated: [], undoSteps: 0 },
-      undoSteps: Math.max(0, STUDIO.history.depth() - before),
+      undoSteps,
+      ...(saved !== null && { saved }),
       durationMs: Date.now() - startedAt,
     })
   } catch (error) {
@@ -321,6 +338,7 @@ export async function runScript(
           undoSteps: answer.changes.undoSteps,
         },
         undoSteps: answer.undoSteps,
+        ...(answer.saved !== undefined && { saved: answer.saved }),
         durationMs: answer.durationMs,
         truncated: true,
         hint: `The result was over ${MAX_RESULT_BYTES} bytes; return less from the script (ids or counts instead of whole lists).`,

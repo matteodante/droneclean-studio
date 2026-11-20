@@ -5,6 +5,7 @@
 
 import { createLogger } from '@/shared/logging/logger'
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
+import { createPrimedAudioSampleSink } from '@/studio/media/aac-priming'
 import { ensureAc3DecoderRegistered, isAc3AudioCodec } from '@/shared/utils/ac3-decoder'
 import { NoAudioTrackError } from '@/studio/render/no-audio-track'
 import type { DecodedAudio } from './types'
@@ -154,7 +155,7 @@ async function decodeAudioWithMediabunny(params: {
       totalDuration: duration,
     })
     return await decodeAudioRangeFromSink(
-      new mb.AudioSampleSink(audioTrack),
+      await createPrimedAudioSampleSink(mb, input, audioTrack),
       params.itemId,
       actualStartTime,
       actualEndTime,

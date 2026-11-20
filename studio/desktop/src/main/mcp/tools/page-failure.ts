@@ -66,10 +66,10 @@ export function timeoutOutcome(
   if (recovery?.action === 'reloaded') {
     const state = recovery.back
       ? 'reopened the project'
-      : 'is still reopening the project (the next call waits for it)'
+      : 'is still reopening the project (the next call waits for the editor; check studio.project.current() and studio.project.open(id) it if it is not open)'
     const edits = recovery.unsavedEditsKept
       ? 'The project was saved before the reload, so no edit was lost.'
-      : 'The editor could not save before the reload, so edits made since the last save are lost: redo them, and call studio.project.save() after each step.'
+      : 'The editor could not save before the reload: what earlier calls changed was saved after each of them (their results said saved: true) and is in the reopened project, but what this call changed before it stuck is lost.'
     return {
       error: agentError(
         'TIMEOUT',

@@ -15,6 +15,8 @@
 <p align="center">
   <a href="https://github.com/matteodante/droneclean-studio/releases/latest/download/DroneClean-Studio-arm64.dmg"><strong>Download for Mac</strong></a>
   &nbsp;·&nbsp;
+  <a href="https://github.com/matteodante/droneclean-studio/releases/latest/download/DroneClean-Studio-x64.exe"><strong>Download for Windows</strong></a>
+  &nbsp;·&nbsp;
   <a href="https://droneclean.app/studio/"><strong>Open in your browser</strong></a>
   &nbsp;·&nbsp;
   <a href="https://droneclean.app">droneclean.app</a>
@@ -24,11 +26,11 @@
 
 - **Stabilization from the gyro.** DJI and GoPro files carry the camera's motion; Studio steadies them with
   [Gyroflow](https://github.com/gyroflow/gyroflow)'s engine compiled to WebAssembly, with no analysis pass. A 4:3
-  clip in a 9:16 project fills the vertical frame by itself.
+  clip in a 9:16 project fills the vertical frame by itself, and a keyframable framing keeps the subject in view.
 - **Colour for drone footage.** DJI D-Log M and D-Log to Rec.709, creative looks from `.cube` files, colour wheels,
-  curves, secondary qualifiers and power windows.
-- **Speed.** Speed curves and ramps, motion blur with a shutter angle, and smooth slow motion that blends frames
-  instead of repeating them.
+  curves, secondary qualifiers, power windows and a sky gradient for washed-out skies.
+- **Speed.** Speed curves with eased segments, a one-click "smooth ramp + zoom", motion blur with a shutter angle,
+  and smooth slow motion by frame blending or optical flow instead of repeated frames. Beat markers from the song.
 - **Keyframes** on every property and effect parameter, with bezier and spring easing.
 - **Export.** Presets for YouTube 4K and Instagram Reels, and 10-bit masters (ProRes 422 HQ, HEVC Main 10) in the
   desktop app.
@@ -44,17 +46,24 @@
 DroneClean Studio to Applications. This build is not signed by Apple yet, so macOS stops it the first time: open it
 once, then go to System Settings › Privacy & Security and press **Open Anyway**.
 
+**Windows 10 and 11 (x64):** download `DroneClean-Studio-x64.exe` from the [latest release](../../releases/latest)
+and run it; it installs for your user, with no administrator prompt. It is not signed yet, so SmartScreen stops it
+the first time: choose **More info › Run anyway**. It carries its own FFmpeg with NVIDIA, Intel and AMD encoders.
+
 **Browser:** [droneclean.app/studio](https://droneclean.app/studio/) runs the same editor in Chrome or Edge on a
 computer (it needs the File System Access API).
 
 ## Use it with an AI agent
 
 In the desktop app, turn on **Settings › Agent access › Allow AI agents**; the panel shows the exact command. For
-Claude Code:
+Claude Code on a Mac:
 
 ```sh
 claude mcp add droneclean -- "/Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp"
 ```
+
+On Windows the command names
+`%LOCALAPPDATA%\Programs\DroneClean Studio\resources\mcp\droneclean-mcp.cmd` (the panel shows it with your user's path).
 
 The server has four tools: `search` (the SDK reference, the user guide and the feature map), `run` (a script against
 the editor's SDK), `frame` (a rendered frame or contact sheet) and `export`.
@@ -82,7 +91,7 @@ and FFmpeg).
 | `studio/web/` | The static server of the web editor. |
 | `gyroflow/` | A fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its engine for the editor. |
 
-This repository is published by the release process: each release is one commit, tagged `v0.1.3` for this one.
+This repository is published by the release process: each release is one commit, tagged `v0.1.4` for this one.
 
 ## Contributing and security
 

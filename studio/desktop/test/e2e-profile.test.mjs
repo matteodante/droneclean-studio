@@ -92,6 +92,22 @@ test('E1: the packaged e2e launches only the test variant', () => {
   assert.throws(() => e2ePackagedLaunch({ appBinary: '', readPackageJson: () => TEST_PACKAGE, ...MAC }), /not given/)
 })
 
+test('8.1: on Windows the packaged e2e launches only DroneClean Studio Test.exe, never the real app', () => {
+  const WIN = { platform: 'win32', home: 'C:\\Users\\pilot', env: { APPDATA: 'C:\\Users\\pilot\\AppData\\Roaming' } }
+  const testExe = 'C:\\p\\dist\\test-app\\win-unpacked\\DroneClean Studio Test.exe'
+  const options = e2ePackagedLaunch({ appBinary: testExe, readPackageJson: () => TEST_PACKAGE, ...WIN })
+  assert.equal(options.executablePath, testExe)
+  assert.throws(
+    () =>
+      e2ePackagedLaunch({
+        appBinary: 'C:\\p\\dist\\win-unpacked\\DroneClean Studio.exe',
+        readPackageJson: () => TEST_PACKAGE,
+        ...WIN,
+      }),
+    /refusing to launch/,
+  )
+})
+
 test('E1: the test variant has a profile of its own', () => {
   const [appData, real] = realProfileDirs(MAC)
   assert.equal(testProfileDir(MAC), path.join(appData, 'DroneClean Studio Test'))

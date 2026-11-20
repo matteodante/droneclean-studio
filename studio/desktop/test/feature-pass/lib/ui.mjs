@@ -186,6 +186,17 @@ export async function openClipMenu(page, index = 0) {
   await page.getByRole('menu').first().waitFor({ timeout: 10000 })
 }
 
+/**
+ * Opens the menu of the timeline item `id`, after Zoom To Fit so it is on screen: the first item of the timeline may
+ * be a title or a shape an earlier feature added, so a feature that needs a video clip names it.
+ */
+export async function openItemMenu(page, id) {
+  await page.locator('button[data-tooltip="Zoom To Fit"]').first().click()
+  await page.waitForTimeout(400)
+  await page.locator(`[data-timeline-item][data-item-id="${id}"]`).click({ button: 'right' })
+  await page.getByRole('menu').first().waitFor({ timeout: 10000 })
+}
+
 export async function openCardMenu(page, fileName) {
   await openTab(page, 'Media')
   await mediaCard(page, fileName).click({ button: 'right' })

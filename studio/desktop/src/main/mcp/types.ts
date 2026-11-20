@@ -38,8 +38,8 @@ export interface ExecuteOptions {
  * page answered the abort request, so its script was stopped and the editor is
  * as it was (unsaved edits are still in it). `reloaded`: the page did not
  * answer, so the editor window was reloaded; `unsavedEditsKept` says whether a
- * save went through first, and `back` whether the new page was ready again
- * before the call answered.
+ * save went through first, and `back` whether the new page was ready again, with
+ * the project that was open before the reload open again, before the call answered.
  */
 export type PageRecovery =
   | { readonly action: 'aborted' }

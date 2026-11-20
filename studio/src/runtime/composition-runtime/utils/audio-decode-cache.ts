@@ -17,6 +17,7 @@
 
 import { createLogger } from '@/shared/logging/logger'
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
+import { createPrimedAudioSampleSink } from '@/studio/media/aac-priming'
 import {
   getObjectUrlBlob,
   getObjectUrlSourceMetadata,
@@ -421,7 +422,7 @@ async function decodeAudioWindow(
       // AudioBufferSink can fail for custom codecs even after their decoder is
       // registered, which used to turn a small playback-window request into a
       // slow full decode and leave transport advancing without audio.
-      const sink = new mb.AudioSampleSink(audioTrack)
+      const sink = await createPrimedAudioSampleSink(mb, input, audioTrack)
 
       let sliceStartTime: number | null = null
       let coverageEndTime = safeStartTime
@@ -1261,7 +1262,7 @@ async function decodeFullAudio(
         throw new Error(`No audio track found for media ${mediaId}`)
       }
 
-      const sink = new mb.AudioSampleSink(audioTrack)
+      const sink = await createPrimedAudioSampleSink(mb, input, audioTrack)
 
       let sampleRate = 48000
 

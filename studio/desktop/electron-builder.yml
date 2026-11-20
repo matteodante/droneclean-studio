@@ -75,9 +75,29 @@ mac:
   hardenedRuntime: false
   gatekeeperAssess: false
 
-# Windows (task 8.1); the icon is ready, no Windows target is built yet.
+# Windows x64 (task 8.1): a per-user installer, DroneClean-Studio-x64.exe (no version in the name, like the Mac's
+# disk image, so the site's link to the latest release never changes); the test package is the unpacked folder
+# (`-c.win.target=dir`). Not signed for now (Matteo, 19 Nov 2026): SmartScreen asks once, "More info" › "Run anyway".
 win:
   icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # The app's own FFmpeg (scripts/build-ffmpeg-win.sh, run through scripts/vendor-ffmpeg.mjs by `npm run package`):
+  # resources/ffmpeg/ffmpeg.exe and ffprobe.exe, the first place src/main/media/ffmpeg.ts looks.
+  extraResources:
+    - from: vendor/ffmpeg-win
+      to: ffmpeg
+      filter:
+        - ffmpeg.exe
+        - ffprobe.exe
+        - COPYING.LGPLv2.1
+        - NOTICE.txt
+
+nsis:
+  oneClick: true
+  perMachine: false
 
 # The release's disk image (scripts/release-mac.mjs): the app and a link to Applications, dragged across.
 dmg:

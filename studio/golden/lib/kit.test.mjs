@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { CASES } from '../cases.mjs'
-import { diffImage, diffStats, isIdentical } from './compare.mjs'
+import { diffImage, diffStats, flatColour, isIdentical } from './compare.mjs'
 import { HEIGHT, IMAGE_NAMES, WIDTH, imagePng } from './images.mjs'
 import {
   RAMP_LEVELS,
@@ -88,6 +88,31 @@ test('every stored frame is a readable PNG of the project size', () => {
       assert.deepEqual([image.width, image.height], size, `${c.id}/${frame}`)
     }
   }
+})
+
+test('no stored frame, of this Mac or of the PC, is one flat colour (an empty canvas)', () => {
+  for (const folder of [EXPECTED, path.join(GOLDEN, 'expected-pc')]) {
+    for (const c of CASES) {
+      for (const frame of c.frames) {
+        const file = path.join(folder, c.id, `frame-${frame}.png`)
+        if (!fs.existsSync(file)) continue
+        const bytes = fs.readFileSync(file)
+        const image = c.float ? decodePng16(bytes) : decodePng(bytes)
+        assert.equal(flatColour(image), null, `${path.basename(folder)}/${c.id}/${frame}`)
+      }
+    }
+  }
+})
+
+test('flatColour names the colour of a flat image and nothing for one differing pixel, 8- and 16-bit', () => {
+  assert.deepEqual(flatColour(solid(32)), [32, 32, 32])
+  const one = solid(32)
+  one.data[4 * 9 + 2] = 33
+  assert.equal(flatColour(one), null)
+  const deep = { width: 2, height: 1, data: new Uint16Array([500, 600, 700, 65535, 500, 600, 700, 65535]) }
+  assert.deepEqual(flatColour(deep), [500, 600, 700])
+  deep.data[4] = 501
+  assert.equal(flatColour(deep), null)
 })
 
 test('identical frames are identical, and any one-level difference is not', () => {

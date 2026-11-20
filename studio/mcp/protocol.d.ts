@@ -234,6 +234,11 @@ export interface RunResult {
   undoSteps: number
   /** Time spent in the page, milliseconds. */
   durationMs: number
+  /**
+   * Whether the project was written after the call: present only when the call made undo entries and a project is
+   * open; `false` means the save failed and the edits live only in the editor until `studio.project.save()`.
+   */
+  saved?: boolean
   /** Present and `true` when `value` + `changes` exceeded `MaxResultBytes`. */
   truncated?: true
   /** How to get a smaller result, when `truncated` is set. */

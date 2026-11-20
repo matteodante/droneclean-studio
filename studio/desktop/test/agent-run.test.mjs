@@ -66,6 +66,45 @@ test('an awaiting script reports every entry it added, the transaction’s one i
   assert.equal(page.studio.depth(), 2)
 })
 
+test('a call that changed the open project saves it and says so; a read-only call does not save', async () => {
+  const studio = createFakeStudio()
+  let saves = 0
+  studio.project = { current: () => ({ id: 'p1' }), save: async () => { saves += 1 } }
+  const page = createVmPage(studio)
+  const edited = await runScript({ script: 's => { s.edit(); return 1 }', label: 'one edit' }, page)
+  assert.ok('result' in edited)
+  assert.equal(edited.result.saved, true)
+  assert.equal(saves, 1)
+  const read = await runScript({ script: 's => s.history.depth()', label: 'read only' }, page)
+  assert.ok('result' in read)
+  assert.equal(read.result.saved, undefined)
+  assert.equal(saves, 1)
+})
+
+test('a save that fails answers saved: false and keeps the edit', async () => {
+  const studio = createFakeStudio()
+  studio.project = { current: () => ({ id: 'p1' }), save: async () => { throw new Error('disk full') } }
+  const page = createVmPage(studio)
+  const outcome = await runScript({ script: 's => { s.edit() }', label: 'one edit' }, page)
+  assert.ok('result' in outcome)
+  assert.equal(outcome.result.saved, false)
+  assert.equal(page.studio.depth(), 1)
+})
+
+test('an awaiting script that times out saves the edits it already made', async () => {
+  const studio = createFakeStudio()
+  let saves = 0
+  studio.project = { current: () => ({ id: 'p1' }), save: async () => { saves += 1 } }
+  const page = createVmPage(studio)
+  const outcome = await runScript(
+    { script: 'async s => { s.edit(); await new Promise(() => {}) }', label: 'stuck', timeoutMs: 200 },
+    page,
+  )
+  assert.ok('error' in outcome)
+  assert.equal(outcome.error.code, 'TIMEOUT')
+  assert.equal(saves, 1)
+})
+
 test('a script that changes nothing adds no undo entry', async () => {
   const page = createVmPage()
   const outcome = await runScript({ script: 's => s.history.depth()', label: 'read only' }, page)

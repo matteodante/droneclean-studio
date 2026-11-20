@@ -100,6 +100,34 @@ test('off: the launcher says so, starts nothing and exits 1', async () => {
   }
 })
 
+test('reached through a symlinked folder, the launcher still runs (it used to exit 0 without a word)', async () => {
+  const home = tempHome()
+  const linked = path.join(home, 'linked-mcp')
+  fs.symlinkSync(path.dirname(LAUNCHER), linked, 'dir')
+  const child = spawn(process.execPath, [path.join(linked, 'launcher.mjs')], {
+    env: { ...process.env, HOME: home, DRONECLEAN_APP_BINARY: path.join(home, 'does-not-exist') },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8')
+  })
+  try {
+    const code = await new Promise((resolve) => child.once('exit', resolve))
+    assert.equal(code, 1)
+    assert.match(stderr, /agent access is off/i)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('isEntryScript compares real paths, and a missing argv is not the entry', () => {
+  const url = pathToFileURL(fs.realpathSync(LAUNCHER)).href
+  assert.equal(launcher.isEntryScript(LAUNCHER, url), true)
+  assert.equal(launcher.isEntryScript(undefined, url), false)
+  assert.equal(launcher.isEntryScript(path.join(path.dirname(LAUNCHER), 'fixture.mjs'), url), false)
+})
+
 test('an app that is not installed exits 2 with the path', async () => {
   const home = tempHome()
   const layout = layoutFor(home)

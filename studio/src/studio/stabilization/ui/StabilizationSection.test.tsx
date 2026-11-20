@@ -5,7 +5,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { i18n } from '@/i18n'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
+import { useKeyframesStore } from '@/features/timeline/stores/keyframes-store'
+import { usePlaybackStore } from '@/shared/state/playback'
 import { useTimelineCommandStore } from '@/features/timeline/stores/timeline-command-store'
 import type { TextItem, TimelineItem, VideoItem } from '@/types/timeline'
 import { NoLensProfileError, NoMotionDataError } from '../client'
@@ -100,7 +103,11 @@ function makeEngine(overrides: Partial<StabilizationEngine> = {}) {
 /** The panel's wiring: the item comes from the store, so a change comes back as a new selection */
 function StoreHarness({ itemId, engine }: { itemId: string; engine: StabilizationEngine }) {
   const item = useItemsStore((state) => state.itemById[itemId])
-  return item ? <StabilizationSection items={[item]} engine={engine} /> : null
+  return item ? (
+    <TooltipProvider>
+      <StabilizationSection items={[item]} engine={engine} />
+    </TooltipProvider>
+  ) : null
 }
 
 function renderStored(item: TimelineItem, engine: StabilizationEngine) {
@@ -334,5 +341,68 @@ describe('StabilizationSection', () => {
     await waitFor(() => expect(stored()?.fov).toBe(1.25))
     expect(undoDepth()).toBe(1)
     expect(engine.applySettings).toHaveBeenCalledTimes(1)
+  })
+
+  describe('the framing keyframes (task 11.23)', () => {
+    const lane = (property: string) =>
+      useKeyframesStore.getState().keyframesByItemId['clip-1']?.properties.find((entry) => entry.property === property)
+        ?.keyframes ?? []
+
+    beforeEach(() => {
+      useKeyframesStore.getState().setKeyframes([])
+      usePlaybackStore.getState().setCurrentFrame(0)
+    })
+
+    it('stores a drag on a framing slider as the clip setting while the lane has no keyframe', async () => {
+      renderStored(clip({ stabilization: ON }), makeEngine())
+      await screen.findByTestId('stabilization-controls')
+      dragSlider('stabilization-framing-x', 75)
+      await waitFor(() => expect(stored()?.framingX).toBeCloseTo(0.5, 5))
+      expect(lane('framingX')).toEqual([])
+    })
+
+    it('has a diamond that adds a keyframe at the playhead with the value shown, and removes it', async () => {
+      renderStored(clip({ stabilization: { ...ON, framingX: 0.3 } }), makeEngine())
+      await screen.findByTestId('stabilization-controls')
+      usePlaybackStore.getState().setCurrentFrame(20)
+      const diamond = () =>
+        screen.getByTestId('stabilization-framing-x').querySelector('button') as HTMLButtonElement
+      await waitFor(() => expect(diamond().disabled).toBe(false))
+      fireEvent.click(diamond())
+      await waitFor(() => expect(lane('framingX')).toHaveLength(1))
+      expect(lane('framingX')[0]).toMatchObject({ frame: 20, value: 0.3 })
+      expect(lane('framingY')).toEqual([])
+      fireEvent.click(diamond())
+      await waitFor(() => expect(lane('framingX')).toEqual([]))
+    })
+
+    it('shows the animated value at the playhead and stores a drag there as a keyframe, not as the setting', async () => {
+      renderStored(clip({ stabilization: { ...ON, framingX: 0.3 } }), makeEngine())
+      useKeyframesStore.getState().setKeyframes([
+        {
+          itemId: 'clip-1',
+          properties: [
+            {
+              property: 'framingX',
+              keyframes: [
+                { id: 'a', frame: 0, value: -1, easing: 'linear' },
+                { id: 'b', frame: 100, value: 1, easing: 'linear' },
+              ],
+            },
+          ],
+        },
+      ])
+      await screen.findByTestId('stabilization-controls')
+      usePlaybackStore.getState().setCurrentFrame(50)
+      // Half way between -1 and 1 is 0, not the stored 0.3 (the slider's number reads it)
+      await waitFor(() =>
+        expect(Number(screen.getByTestId('stabilization-framing-x').textContent)).toBe(0),
+      )
+      dragSlider('stabilization-framing-x', 90)
+      await waitFor(() => expect(lane('framingX')).toHaveLength(3))
+      expect(lane('framingX').find((keyframe) => keyframe.frame === 50)?.value).toBeCloseTo(0.8, 5)
+      // The setting is what the lane has where it has no keyframe: untouched
+      expect(stored()?.framingX).toBe(0.3)
+    })
   })
 })

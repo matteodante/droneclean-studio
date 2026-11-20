@@ -673,10 +673,11 @@ export interface StabilizationPatch {
   /**
    * Moves the stabilized window sideways in the source picture, `-1..1`: a fraction of the room the stabilization has
    * on that side, so the window never shows a black border (`-1` left, `1` right, 0 the engine's framing). For a 4:3
-   * clip in a 9:16 project, it chooses which strip of the frame the reel shows.
+   * clip in a 9:16 project, it chooses which strip of the frame the reel shows. A clip with keyframes on `framingX` is
+   * framed by them instead (`keyframes.add`); this value is then not read.
    */
   framingX?: number
-  /** The same, up and down (`-1` up, `1` down). */
+  /** The same, up and down (`-1` up, `1` down). With keyframes on `framingX` or `framingY` (`keyframes.add`) this is the value only where the lane has none. */
   framingY?: number
 }
 
@@ -923,7 +924,9 @@ export type PathVertexComponent = 'positionX' | 'positionY' | 'inX' | 'inY' | 'o
  * A scalar property that can be animated (`AnimatableProperty` in
  * `@/types/keyframe`). `effect:<gpuEffectType>:<effectId>:<paramKey>` addresses
  * an effect parameter (`buildEffectAnimatableProperty`),
- * `pathVertex:<index>:<component>` one vertex of a path shape.
+ * `pathVertex:<index>:<component>` one vertex of a path shape. `framingX` and `framingY` (each -1..1) animate the
+ * stabilized window's framing of a video clip whose stabilization is on (`clips.setStabilization`'s `framingX` and
+ * `framingY`, which are the value where the lane has no keyframe).
  */
 export type KeyframeProperty =
   | 'x'
@@ -957,6 +960,8 @@ export type KeyframeProperty =
   | 'taperEndWidth'
   | 'taperStartLength'
   | 'taperEndLength'
+  | 'framingX'
+  | 'framingY'
   | `effect:${string}:${string}:${string}`
   | `pathVertex:${number}:${PathVertexComponent}`
 
@@ -2224,7 +2229,10 @@ export interface KeyframesApi {
   list(clip: ClipId, property?: KeyframeProperty): KeyframeInfo[]
 
   /**
-   * Add a keyframe at a clip-relative frame. One undo step.
+   * Add a keyframe at a clip-relative frame. One undo step. The property `framingX` or `framingY` (`-1..1`) animates the
+   * stabilized window's framing of a clip whose stabilization is on: with a keyframe on it, the animated value replaces
+   * the clip's stored `framingX` or `framingY` (each lane on its own), and the window is still held to the room the
+   * stabilization has at every frame.
    * @mapsTo ADD_KEYFRAME (keyframe-actions.ts:36)
    * @throws NOT_FOUND when `clip` is not a clip in the active context
    * @throws INVALID_ARGUMENT when `property` is not animatable for the clip, `frame` is not

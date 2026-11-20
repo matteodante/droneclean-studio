@@ -320,9 +320,23 @@ async function main(
   return pipeClient(socket)
 }
 
-const invokedDirectly =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+/**
+ * Whether this file is the script the process was started with. Node loads the main module from its real path, so a
+ * path through a symlinked folder is resolved the same way before comparing: compared as given, an app reached
+ * through a symlink got a launcher that did nothing and exited 0, which a client sees as a closed connection.
+ */
+export function isEntryScript(argv1, moduleUrl) {
+  if (argv1 === undefined) return false
+  let entry = path.resolve(argv1)
+  try {
+    entry = fs.realpathSync(entry)
+  } catch {
+    // a missing path compares as given
+  }
+  return moduleUrl === pathToFileURL(entry).href
+}
+
+const invokedDirectly = isEntryScript(process.argv[1], import.meta.url)
 
 if (invokedDirectly) {
   main().then(

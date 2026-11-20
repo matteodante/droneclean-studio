@@ -1,4 +1,5 @@
 import type { AnimatableProperty, CropAnimatableProperty } from '@/types/keyframe'
+import { framingBaseValue, isFramingProperty } from '@/studio/stabilization/framing-property'
 import type { TimelineItem } from '@/types/timeline'
 import type { CanvasSettings } from '@/types/transform'
 import { getSourceDimensions, resolveTransform } from '../deps/composition-runtime-contract'
@@ -49,6 +50,7 @@ export function getAnimatablePropertyBaseValue(
   if (property.startsWith('effect:')) {
     return getEffectPropertyBaseValue(item, property) ?? 0
   }
+  if (isFramingProperty(property)) return framingBaseValue(item, property)
 
   const itemSpecificValue = getItemSpecificBaseValue(item, property)
   if (itemSpecificValue !== undefined) return itemSpecificValue

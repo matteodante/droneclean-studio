@@ -22,6 +22,7 @@ src/shared/workspace-owner.ts   the owner record's shape and numbers, shared by 
 test/protocol.test.mjs       the mapping: headers, MIME, SPA fallback, traversal
 test/permissions.test.mjs    the policy: allowed, refused
 test/e2e.mjs                 the packaged test variant (or the built main), driven with Playwright
+test/e2e-mcp.mjs             the MCP in the packaged test variant, through the app's own stdio launcher
 test/support/e2e-profile.mjs the e2e launcher's guard: never the real profile
 electron-builder.yml         appId, product name, arm64 `dir` target, icons
 scripts/make-icons.mjs       regenerates resources/icon.icns and icon.ico from the brand SVG
@@ -33,10 +34,11 @@ output and the `.app`). Both are ignored by `studio/.gitignore`.
 
 ## Requirements
 
-- macOS on Apple Silicon for the packaged app (`dir` target, arm64 only).
+- macOS on Apple Silicon for the Mac app (`dir` target, arm64 only), or Windows 10/11 x64 for the Windows app (task
+  8.1; see "Windows" below).
 - Node 22.18+ or 24.11+ (there is no Node version pin here beyond what Electron 45
-  needs), FFmpeg at `/opt/homebrew/bin/ffmpeg` for the e2e's 10 s clip excerpt
-  (`FFMPEG=` overrides the path).
+  needs), FFmpeg at `/opt/homebrew/bin/ffmpeg` (on Windows the vendored `vendor/ffmpeg-win/`) for the e2e's test
+  clips and measurements (`FFMPEG=` and `FFPROBE=` override the paths, `test/support/ffmpeg-path.mjs`).
 - A long HEVC clip for the e2e, named by `DRONECLEAN_E2E_CLIP=/path/to/clip.mp4` (no default; the
   reference runs used clip 0020 of the 15 Nov flight). Read only.
 
@@ -56,6 +58,7 @@ Run them in `studio/desktop/`.
 | `npm run package:test` | the packaged test variant, `dist/test-app/.../DroneClean Studio Test.app` (own name and app id, so its own profile) |
 | `npm run e2e` | the packaged test variant under Playwright; prints a JSON result, exits non-zero on a failure |
 | `npm run e2e:quick` | the same checks on the built main process in a throwaway profile (no packaging) |
+| `npm run e2e:mcp` | the MCP in the packaged test variant: an MCP client through the app's launcher, as Claude Code runs it, edits, renders and exports generated clips; with `DRONECLEAN_E2E_CLIP` also stabilizes that clip and keys its framing |
 
 `npm start` and `npm run dev` use the same profile as the packaged app
 (`~/Library/Application Support/DroneClean Studio`), so a workspace picked in one is
@@ -63,6 +66,28 @@ there in the others. Two copies cannot run at the same time (Chromium's profile
 lock). The e2e never uses that profile (review finding E1): it runs the packaged
 test variant, whose profile is `DroneClean Studio Test`, or a throwaway one, so the
 real app may stay open.
+
+### Windows
+
+Built and tested on the PC (Windows 11, RTX 5070 Ti) on 20 Nov 2026:
+
+- **FFmpeg**: `npm run package` and `npm run package:test` call `scripts/vendor-ffmpeg.mjs`, which on Windows runs
+  `scripts/build-ffmpeg-win.sh` inside WSL (`wsl -e sh ...`): a cross-build with mingw-w64 of the same pinned FFmpeg,
+  with NVENC/NVDEC, Quick Sync (libvpl), AMF, Media Foundation, D3D11VA and DXVA2, into `vendor/ffmpeg-win/`. It needs
+  WSL with Ubuntu (24.04) and `curl`, `cmake`, `make`, `pkg-config` there; the mingw-w64 compiler and nasm are taken
+  from Ubuntu's packages with `apt-get download` and unpacked in `~/.cache/droneclean-ffmpeg-win/` when they are not
+  installed, so no root is needed. About 10 minutes the first time; then the stamp makes it a no-op.
+- **The stabilization engine** (`gyroflow/wasm/pkg`) is built by `gyroflow/wasm/build.sh`, which needs Rust and
+  wasm-bindgen. Without them, copy `gyroflow/wasm/pkg` from a machine that built it from the same sources: the
+  WebAssembly is the same on every system and its `source-stamp.txt` tells the build it is current.
+- **Packages**: `npm run package` writes `dist/DroneClean-Studio-x64.exe`, a per-user NSIS installer, unsigned;
+  `npm run package:test` writes the unpacked test variant `dist/test-app/win-unpacked/DroneClean Studio Test.exe`.
+- **e2e**: `DRONECLEAN_E2E_CLIP=<a long 10-bit HEVC clip>` (a synthetic one from the bundled FFmpeg is fine) and
+  `DRONECLEAN_E2E_GPU_VENDOR=nvidia` to check WebGPU runs on the discrete card. Run it, `npm run e2e:mcp` and the
+  golden run from a desktop session: over SSH there is no desktop, the video never advances, the run stops at the
+  first drag, and the GPU draws nothing (the golden run refuses the empty frames). `npm run e2e:mcp` refuses to start
+  while a DroneClean Studio answers on the MCP pipe, which on Windows is per user, not per profile.
+- **Golden**: on Windows `npm run golden` reads and writes `golden/expected-pc/` (the PC's GPU), never the Mac's set.
 
 Versions in the packaged app: Electron 45.3.4, Chromium 156.0.8078.100, Node 24.22.3,
 V8 15.6.75.57-electron.0.

@@ -45,7 +45,8 @@ export async function routeDownloadsTo(app, folder) {
       globalThis.__e2eSaves = []
       dialog.showSaveDialog = async (...args) => {
         const options = args.find((arg) => arg && typeof arg === 'object' && !('webContents' in arg)) ?? {}
-        const name = String(options.defaultPath || 'export.mp4').split('/').pop()
+        // The file name alone: Windows hands a path with backslashes (C:\Users\...\Downloads\name.mp4)
+        const name = String(options.defaultPath || 'export.mp4').split(/[\\/]/).pop()
         const filePath = `${globalThis.__e2eDownloadFolder}/${name}`
         globalThis.__e2eSaves.push(filePath)
         return { canceled: false, filePath }
@@ -100,15 +101,26 @@ export async function previewSamplePoint(page) {
 }
 
 /**
- * Exports the timeline with the export dialog's own defaults and saves the file: Export, Export Video (menu item),
- * Export Video (dialog button), wait for the finished dialog, then Download (web) or the file it saved to (desktop). Returns the saved file's path and the dialog's text at the end.
+ * Exports the timeline and saves the file: Export, Export Video (menu item), the preset's button when `preset` names
+ * one (else the dialog's own defaults), Export Video (dialog button), wait for the finished dialog, then Download (web)
+ * or the file it saved to (desktop). Returns the saved file's path, the dialog's text at the end and, with a preset,
+ * whether its button was pressed and the numbers the dialog showed for it.
  */
-export async function exportAndDownload(page, nextDownload, { timeout = 300000 } = {}) {
+export async function exportAndDownload(page, nextDownload, { timeout = 300000, preset } = {}) {
   // The toolbar's Export button opens a menu (Export Video, Download Project); the item opens the dialog.
   await page.getByRole('button', { name: 'Export', exact: true }).first().click()
   await page.getByRole('menuitem', { name: 'Export Video' }).click()
   const dialog = page.getByRole('dialog').first()
   await dialog.waitFor({ timeout: 30000 })
+  let chosen = null
+  if (preset) {
+    const button = dialog.getByRole('button', { name: preset, exact: true })
+    await button.click()
+    chosen = {
+      pressed: (await button.getAttribute('aria-pressed')) === 'true',
+      numbers: await dialog.getByTestId('export-preset-numbers').innerText({ timeout: 5000 }).catch(() => null),
+    }
+  }
   await dialog.getByRole('button', { name: 'Export Video' }).click()
   // The web build ends with a Download button; the desktop app writes straight to the chosen file (task 3.5) and
   // ends with "Saved to <path>".
@@ -129,7 +141,62 @@ export async function exportAndDownload(page, nextDownload, { timeout = 300000 }
   }
   await dialog.getByRole('button', { name: 'Close', exact: true }).first().click()
   await dialog.waitFor({ state: 'detached', timeout: 15000 }).catch(() => {})
-  return { file, finished: finished.slice(0, 200), bytes: fs.statSync(file).size, name: path.basename(file) }
+  return { file, finished: finished.slice(0, 200), bytes: fs.statSync(file).size, name: path.basename(file), preset: chosen }
+}
+
+/** A PNG of what the main preview shows on screen (the largest visible canvas or video of the preview area). */
+export async function previewPicture(page) {
+  const box = await page.evaluate(() => {
+    const best = [...document.querySelectorAll('canvas, video')]
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 200 && rect.height > 100)
+      .sort((a, b) => b.width * b.height - a.width * a.height)[0]
+    return best ? { x: best.x, y: best.y, width: best.width, height: best.height } : null
+  })
+  if (!box) throw new Error('no preview picture on screen')
+  return page.screenshot({ clip: box })
+}
+
+/**
+ * How different two preview PNGs of the same size are: the mean absolute difference of their red, green and blue,
+ * 0 (identical) to 255; and the mean colour of a region { x, y, w, h } (fractions) of the second one, when given.
+ */
+export async function pictureDifference(page, before, after, region) {
+  return page.evaluate(
+    async ({ a, b, region: area }) => {
+      const decode = async (base64) => {
+        const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+        const context = canvas.getContext('2d')
+        context.drawImage(bitmap, 0, 0)
+        return context.getImageData(0, 0, bitmap.width, bitmap.height)
+      }
+      const [first, second] = [await decode(a), await decode(b)]
+      if (first.width !== second.width || first.height !== second.height) return { difference: null }
+      let sum = 0
+      for (let index = 0; index < first.data.length; index += 4) {
+        for (let channel = 0; channel < 3; channel += 1) sum += Math.abs(first.data[index + channel] - second.data[index + channel])
+      }
+      const result = { difference: sum / ((first.data.length / 4) * 3) }
+      if (area) {
+        const totals = [0, 0, 0]
+        let count = 0
+        const x0 = Math.round(area.x * second.width)
+        const y0 = Math.round(area.y * second.height)
+        for (let y = y0; y < y0 + Math.round(area.h * second.height); y += 1) {
+          for (let x = x0; x < x0 + Math.round(area.w * second.width); x += 1) {
+            const index = (y * second.width + x) * 4
+            for (let channel = 0; channel < 3; channel += 1) totals[channel] += second.data[index + channel]
+            count += 1
+          }
+        }
+        result.region = totals.map((total) => Math.round(total / count))
+      }
+      return result
+    },
+    { a: before.toString('base64'), b: after.toString('base64'), region },
+  )
 }
 
 /** The media panel's empty-area centre, where a file dropped is imported (the same point `e2e.mjs` drops on). */

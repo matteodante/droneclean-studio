@@ -11,6 +11,7 @@
  */
 
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
+import { createPrimedAudioSampleSink } from '@/studio/media/aac-priming'
 import { writeDecodedPreviewAudioToRoot } from '@/infrastructure/storage/workspace-fs/decoded-preview-audio'
 import { createLogger } from '@/shared/logging/logger'
 import { ensureAc3DecoderRegistered, isAc3AudioCodec } from '@/shared/utils/ac3-decoder'
@@ -115,7 +116,7 @@ async function decode(
       await ensureAc3DecoderRegistered()
     }
 
-    const sink = new mb.AudioSampleSink(audioTrack)
+    const sink = await createPrimedAudioSampleSink(mb, input, audioTrack)
 
     let sampleRate = 48000
     let binLeftChunks: Float32Array[] = []
@@ -248,7 +249,7 @@ async function decodeWindow(
 
     const safeStartTime = Math.max(0, startTime)
     const targetCoverageEndTime = safeStartTime + Math.max(0.5, durationSeconds)
-    const sink = new mb.AudioSampleSink(audioTrack)
+    const sink = await createPrimedAudioSampleSink(mb, input, audioTrack)
 
     let sliceStartTime: number | null = null
     let coverageEndTime = safeStartTime

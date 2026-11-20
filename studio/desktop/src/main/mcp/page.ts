@@ -111,6 +111,8 @@ export interface PageBridgeOptions {
   abortGraceMs?: number
   /** How long a page that did not acknowledge the abort gets to answer a save. */
   saveGraceMs?: number
+  /** How long a reloaded page gets to open the project that was open before the reload. */
+  reopenGraceMs?: number
 }
 
 /** The wait of design §4.9. */
@@ -124,6 +126,9 @@ export const PAGE_ABORT_GRACE_MS = 5_000
 
 /** How long the page gets to save before the app reloads it anyway. */
 export const PAGE_SAVE_GRACE_MS = 10_000
+
+/** How long a reloaded page gets to open again the project that was open before the reload. */
+export const PAGE_REOPEN_GRACE_MS = 30_000
 
 /**
  * The page global a `run` script sets while its promise is pending. A timed-out
@@ -162,6 +167,34 @@ export const SAVE_PROJECT_SCRIPT = `(async () => {
     return { kept: false }
   }
 })()`
+
+/**
+ * The page script that names the open project, or null. The SDK opens a project
+ * without moving the editor's route (`studio/src/studio/sdk/namespaces/project.ts`),
+ * so a reload lands on whatever page the window showed: the bridge asks this
+ * before every call, and reopens that project after a reload of its own.
+ */
+const OPEN_PROJECT_SCRIPT = `(() => {
+  try {
+    return globalThis.studio?.project?.current()?.id ?? null
+  } catch {
+    return null
+  }
+})()`
+
+/** The page script that opens `id` again after a reload; true once it is the open project. */
+function reopenProjectScript(id: string): string {
+  const quoted = JSON.stringify(id)
+  return `(async () => {
+  const s = globalThis.studio
+  try {
+    if (s.project.current()?.id !== ${quoted}) await s.project.open(${quoted})
+    return s.project.current()?.id === ${quoted}
+  } catch {
+    return false
+  }
+})()`
+}
 
 /**
  * The page's readiness: `window.studio` installed, no earlier `run` script still
@@ -228,7 +261,12 @@ export function createPageBridge(
   const pollMs = options.pollMs ?? PAGE_READY_POLL_MS
   const abortGraceMs = options.abortGraceMs ?? PAGE_ABORT_GRACE_MS
   const saveGraceMs = options.saveGraceMs ?? PAGE_SAVE_GRACE_MS
+  const reopenGraceMs = options.reopenGraceMs ?? PAGE_REOPEN_GRACE_MS
   let running: Promise<unknown> | null = null
+  /** The project open when the last call found the page ready: the one a reload of the bridge's own reopens. */
+  let openProject: string | null = null
+  /** The project a reload of the bridge's own closed, opened again once the new page is ready. */
+  let reopenPending: string | null = null
   let everReady = false
   let workspaceSeen = false
   /** The last renderer exit Electron reported and no call has reported yet. */
@@ -274,16 +312,18 @@ export function createPageBridge(
     const details = gone
     gone = null
     forgetReadiness()
+    reopenPending = openProject
     window.webContents.reload?.()
     if (goneTold) {
       goneTold = false
       return null
     }
     const why = details === null ? '' : ` (${details.reason}, exit code ${details.exitCode})`
-    return new PageUnavailableError(
-      `the editor page crashed${why}; the app reloaded it, so the open project and every edit no save wrote are gone`,
-      'crashed',
-    )
+    const project =
+      reopenPending === null
+        ? 'every edit no save wrote is gone'
+        : 'the next call reopens the project from its last save (run saves after every call that changed it); an edit no save wrote is gone'
+    return new PageUnavailableError(`the editor page crashed${why}; the app reloaded it, and ${project}`, 'crashed')
   }
 
   /** Reload the page when its renderer is gone; throws the crash when no call has told it yet. */
@@ -391,12 +431,40 @@ export function createPageBridge(
     }
     gone = null
     forgetReadiness()
+    reopenPending = openProject
     window.webContents.reload()
-    const back = await waitUntilReady(window, readyTimeoutMs).then(
+    const ready = await waitUntilReady(window, readyTimeoutMs).then(
       () => true,
       () => false,
     )
+    const back = ready && (await reopenAfterReload(window))
     return { action: 'reloaded', unsavedEditsKept, back }
+  }
+
+  /** Open again the project a reload of the bridge's own closed; true when there was none or it is open. */
+  async function reopenAfterReload(window: PageWindow): Promise<boolean> {
+    const id = reopenPending
+    reopenPending = null
+    if (id === null) return true
+    const answer = await askPage(window, reopenProjectScript(id), reopenGraceMs)
+    if (answer?.value !== true) return false
+    openProject = id
+    return true
+  }
+
+  /**
+   * Note the open project of a ready page, without waiting: the page runs scripts in the order they are sent, so
+   * this one answers before the call's own script starts, and a page that never answers just keeps the last one known.
+   */
+  function rememberOpenProject(window: PageWindow): void {
+    void Promise.resolve()
+      .then(() => window.webContents.executeJavaScript(OPEN_PROJECT_SCRIPT, false))
+      .then(
+        (value) => {
+          if (typeof value === 'string' || value === null) openProject = value
+        },
+        () => undefined,
+      )
   }
 
   async function waitUntilReady(
@@ -468,6 +536,9 @@ export function createPageBridge(
       const recovery = await recoverStuckPage(window)
       throw new PageTimeoutError(error.message, recovery ?? undefined)
     }
+    // A page a crash reloaded gets its project back before the call runs
+    if (reopenPending !== null) await reopenAfterReload(window)
+    rememberOpenProject(window)
     if (running !== null) throw new PageBusyError('a previous script is still running in the editor')
   }
 

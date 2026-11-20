@@ -7,6 +7,7 @@
  */
 
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
+import { createPrimedAudioSampleSink } from '@/studio/media/aac-priming'
 import type { ObjectUrlSourceMetadata } from '@/infrastructure/browser/object-url-registry'
 import { ensureAc3DecoderRegistered, isAc3AudioCodec } from '@/shared/utils/ac3-decoder'
 
@@ -106,7 +107,7 @@ self.onmessage = async (event: MessageEvent<WaveformWorkerMessage>) => {
 
     // Load mediabunny. Register AC-3 decoder lazily only for matching codecs.
     const mediabunny = await getMediabunny()
-    const { Input, AudioSampleSink, ALL_FORMATS } = mediabunny
+    const { Input, ALL_FORMATS } = mediabunny
 
     if (state.aborted) throw new Error('Aborted')
 
@@ -151,7 +152,7 @@ self.onmessage = async (event: MessageEvent<WaveformWorkerMessage>) => {
     if (state.aborted) throw new Error('Aborted')
 
     // Create audio sample sink
-    const sink = new AudioSampleSink(audioTrack)
+    const sink = await createPrimedAudioSampleSink(mediabunny, input, audioTrack)
 
     const stereo = channels >= 2
     const numOutputSamples = Math.max(1, Math.ceil(duration * samplesPerSecond))

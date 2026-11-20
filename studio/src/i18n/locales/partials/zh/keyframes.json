@@ -142,7 +142,9 @@
       "textShadowOffsetX": "阴影 X",
       "textShadowOffsetY": "阴影 Y",
       "textShadowBlur": "阴影模糊",
-      "strokeWidth": "描边宽度"
+      "strokeWidth": "描边宽度",
+      "framingX": "稳定画面取景 X",
+      "framingY": "稳定画面取景 Y"
     }
   }
 }

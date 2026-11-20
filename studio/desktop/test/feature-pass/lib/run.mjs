@@ -22,6 +22,7 @@ import {
   waitForRender,
   workspaceFiles,
 } from './app.mjs'
+import { isTemporaryFolder } from '../../../out/main/workspace-lock.js'
 import { STATUS, featureTable, finalStatus, summariseRequests } from './report.mjs'
 import { LANGUAGE_KEY, closeDialogs, pageText, toasts } from './ui.mjs'
 
@@ -59,8 +60,13 @@ export async function runPass({ passName, features, argv = process.argv.slice(2)
   const outDir = path.join(outRoot, `${passName}-${timestampSlug()}`)
   const shotsDir = path.join(outDir, 'shots')
   fs.mkdirSync(shotsDir, { recursive: true })
-  const workspaceDir = path.join(work, 'workspace')
+  // The app refuses a workspace in a temporary folder (the system may delete it), so the workspace lives under
+  // `dist/` (git-ignored), as in `e2e.mjs`; the profile and the fixtures stay in the throwaway folder
+  fs.mkdirSync(path.join(desktopDir, 'dist'), { recursive: true })
+  const workspaceRoot = fs.mkdtempSync(path.join(desktopDir, 'dist', `feature-pass-${passName}-`))
+  const workspaceDir = path.join(workspaceRoot, 'workspace')
   fs.mkdirSync(workspaceDir)
+  if (isTemporaryFolder(workspaceDir)) throw new Error(`the throwaway workspace is in a temporary folder: ${workspaceDir}`)
   const fixtures = makeFixtures(path.join(work, 'fixtures'))
   if (prepare) Object.assign(fixtures, await prepare(path.join(work, 'fixtures')))
 
@@ -211,6 +217,12 @@ export async function runPass({ passName, features, argv = process.argv.slice(2)
   } catch (error) {
     exitCode = 1
     console.error(String(error?.stack ?? error))
+    // What the page showed when the pass stopped: a stop before the first feature otherwise leaves nothing to read
+    if (session.page) {
+      await session.page.screenshot({ path: path.join(shotsDir, 'stopped.png') }).catch(() => {})
+      const text = await session.page.evaluate(() => `${location.href}\n${document.body.innerText}`).catch(() => null)
+      if (text) fs.writeFileSync(path.join(shotsDir, 'stopped.txt'), text.slice(0, 4000))
+    }
   } finally {
     const profileBytes = session.paths ? [...folderSizes(session.paths.userData).values()].reduce((sum, size) => sum + size, 0) : null
     await stop()
@@ -235,8 +247,10 @@ export async function runPass({ passName, features, argv = process.argv.slice(2)
     const table = featureTable(records)
     fs.writeFileSync(path.join(outDir, 'table.md'), table)
     console.log(`\nRECORD ${path.join(outDir, 'record.json')}\nTABLE  ${path.join(outDir, 'table.md')}\n\n${table}`)
-    if (!args.keep) fs.rmSync(work, { recursive: true, force: true })
-    else console.log(`throwaway folder kept: ${work}`)
+    if (!args.keep) {
+      fs.rmSync(work, { recursive: true, force: true })
+      fs.rmSync(workspaceRoot, { recursive: true, force: true })
+    } else console.log(`throwaway folders kept: ${work} and ${workspaceRoot}`)
   }
   return exitCode
 }

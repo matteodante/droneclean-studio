@@ -4,6 +4,20 @@ import { encodePng } from './png.mjs'
 const CHANNELS = ['R', 'G', 'B', 'A']
 
 /**
+ * The colour of an RGBA image (8- or 16-bit) whose every pixel has the same red, green and blue, or null. No case
+ * renders one flat colour: one that does means the GPU drew nothing but the empty canvas (on 20 Nov 2026 the PC's
+ * golden run over SSH stored 28 such frames, the editor's background 32,32,32, and they compared equal to each other).
+ */
+export function flatColour(image) {
+  const d = image.data
+  for (let i = 4; i < d.length; i += 4) if (differsFromFirst(d, i)) return null
+  return [d[0], d[1], d[2]]
+}
+
+/** Whether the pixel at index `i` differs from the first one in red, green or blue. */
+const differsFromFirst = (d, i) => d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2]
+
+/**
  * Compare two RGBA images of the same size.
  * Returns per-channel mean and maximum absolute difference (in 8-bit levels),
  * the signed mean difference per channel (a uniform shift shows here), the share

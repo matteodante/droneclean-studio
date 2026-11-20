@@ -142,7 +142,9 @@
       "textShadowOffsetX": "Schatten X",
       "textShadowOffsetY": "Schatten Y",
       "textShadowBlur": "Schattenunschärfe",
-      "strokeWidth": "Konturbreite"
+      "strokeWidth": "Konturbreite",
+      "framingX": "Stabilisierung Bildausschnitt X",
+      "framingY": "Stabilisierung Bildausschnitt Y"
     }
   }
 }

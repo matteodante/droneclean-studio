@@ -19,8 +19,8 @@ import { describe, expect, it } from 'vite-plus/test'
  * carry the priming come before time 0 by exactly the declared delay (1024 here, 2112 for the
  * platform's encoder).
  *
- * Not covered, measured but not fixed: a file with the delay only in an `iTunSMPB` tag and no edit list is
- * not trimmed (it decodes 1024 samples late); mediabunny does not read that tag.
+ * A file with the delay only in an `iTunSMPB` tag and no edit list is handled by `aac-priming.ts`
+ * (task 11.22, tested in `aac-priming.test.ts`).
  */
 const SAMPLE_RATE = 48_000
 

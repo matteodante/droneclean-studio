@@ -108,7 +108,8 @@ export function testProfileDir(system = {}) {
 
 /**
  * The options for `_electron.launch` of the packaged test variant. Throws unless
- * the binary is inside `DroneClean Studio Test.app`: the real app is never launched.
+ * the binary is inside `DroneClean Studio Test.app`, or on Windows is `DroneClean Studio Test.exe` (task 8.1): the real
+ * app is never launched.
  */
 export function e2ePackagedLaunch({
   appBinary,
@@ -118,11 +119,13 @@ export function e2ePackagedLaunch({
   readPackageJson = readPackagedPackageJson,
 }) {
   if (typeof appBinary !== 'string' || appBinary.trim() === '') throw new Error('the packaged test app was not given')
-  const parts = path.resolve(appBinary).split(path.sep)
-  const bundle = parts.find((part) => part.endsWith('.app'))
-  if (bundle !== `${TEST_APP_NAME}.app`) {
+  const api = platform === 'win32' ? path.win32 : path.posix
+  const windowsTestApp = platform === 'win32' && api.basename(appBinary) === `${TEST_APP_NAME}.exe`
+  const bundle = api.resolve(appBinary).split(api.sep).find((part) => part.endsWith('.app'))
+  if (!windowsTestApp && bundle !== `${TEST_APP_NAME}.app`) {
     throw new Error(
-      `refusing to launch ${appBinary}: the packaged e2e runs only ${TEST_APP_NAME}.app (npm run package:test), ` +
+      `refusing to launch ${appBinary}: the packaged e2e runs only ${TEST_APP_NAME}.app or, on Windows, ` +
+        `${TEST_APP_NAME}.exe (npm run package:test), ` +
         'never the real app and its real profile',
     )
   }
@@ -150,11 +153,17 @@ export function assertTestVariantPackage(packageJson, appBinary = 'the packaged 
 }
 
 /** The `package.json` inside the packaged app's `app.asar` (or `app/` folder) of the bundle `appBinary` is in. */
-export function readPackagedPackageJson(appBinary) {
-  const parts = path.resolve(appBinary).split(path.sep)
-  const index = parts.findIndex((part) => part.endsWith('.app'))
-  if (index === -1) throw new Error(`${appBinary} is not inside an .app bundle`)
-  const resources = path.join(parts.slice(0, index + 1).join(path.sep) || path.sep, 'Contents', 'Resources')
+export function readPackagedPackageJson(appBinary, platform = process.platform) {
+  let resources
+  if (platform === 'win32') {
+    // Windows' unpacked app: the .exe with resources\ beside it
+    resources = path.win32.join(path.win32.dirname(appBinary), 'resources')
+  } else {
+    const parts = path.resolve(appBinary).split(path.sep)
+    const index = parts.findIndex((part) => part.endsWith('.app'))
+    if (index === -1) throw new Error(`${appBinary} is not inside an .app bundle`)
+    resources = path.join(parts.slice(0, index + 1).join(path.sep) || path.sep, 'Contents', 'Resources')
+  }
   const asarFile = path.join(resources, 'app.asar')
   if (fs.existsSync(asarFile)) {
     const asar = createRequire(import.meta.url)('@electron/asar')

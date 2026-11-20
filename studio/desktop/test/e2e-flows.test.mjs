@@ -1,7 +1,9 @@
 // The pure parts of the e2e flows' media tools: the channel-swap `.cube` the looks flow adds, and the colour
 // comparisons it judges with. The flows themselves run in `npm run e2e`.
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import test from 'node:test'
+import { ffmpegTool, h264ArgsFor } from './support/ffmpeg-path.mjs'
 import {
   colourWithin,
   LOOK_CLIP_RGB,
@@ -65,4 +67,22 @@ test('the PSNR average is read from the filter summary, and identical frames sco
   assert.equal(parsePsnrAverage('[Parsed_psnr_5 @ 0x1] PSNR y:21.4 u:30.1 v:29.9 average:23.17 min:23.17 max:23.17'), 23.17)
   assert.equal(parsePsnrAverage('PSNR y:inf u:inf v:inf average:inf min:inf max:inf'), 100)
   assert.equal(parsePsnrAverage('no summary here'), null)
+})
+
+test('the e2e FFmpeg is Homebrew on the Mac and the vendored build on Windows, and the environment overrides both', () => {
+  assert.equal(ffmpegTool('ffmpeg', 'darwin', {}), '/opt/homebrew/bin/ffmpeg')
+  assert.equal(ffmpegTool('ffprobe', 'darwin', {}), '/opt/homebrew/bin/ffprobe')
+  const win = ffmpegTool('ffprobe', 'win32', {})
+  assert.equal(path.basename(win), 'ffprobe.exe')
+  assert.equal(path.basename(path.dirname(win)), 'ffmpeg-win')
+  assert.equal(ffmpegTool('ffmpeg', 'win32', { FFMPEG: 'C:/tools/ffmpeg.exe' }), 'C:/tools/ffmpeg.exe')
+  assert.equal(ffmpegTool('ffprobe', 'darwin', { FFPROBE: '/usr/local/bin/ffprobe' }), '/usr/local/bin/ffprobe')
+})
+
+test('test clips use libx264 where it is built in, else Media Foundation tagged BT.709 limited range', () => {
+  assert.deepEqual(h264ArgsFor(true, { gop: 10 }), ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', '-g', '10'])
+  const windows = h264ArgsFor(false)
+  assert.deepEqual(windows.slice(0, 2), ['-c:v', 'h264_mf'])
+  assert.equal(windows.includes('-g'), false)
+  assert.match(windows.at(-1), /h264_metadata=video_full_range_flag=0:colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1/)
 })

@@ -142,7 +142,9 @@
       "textShadowOffsetX": "Gölge X",
       "textShadowOffsetY": "Gölge Y",
       "textShadowBlur": "Gölge Bulanıklığı",
-      "strokeWidth": "Kontur Genişliği"
+      "strokeWidth": "Kontur Genişliği",
+      "framingX": "Stabilizasyon çerçevesi X",
+      "framingY": "Stabilizasyon çerçevesi Y"
     }
   }
 }

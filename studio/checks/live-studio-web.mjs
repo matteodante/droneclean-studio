@@ -1,7 +1,8 @@
 // Checks the live web editor after a deploy of the `studio-web` service (studio/web/README.md): https://droneclean.app/studio/
 // lands on /studio/projects, is cross-origin isolated (the gyro engine needs it), links no manifest and registers no
-// service worker, points a first visit to the desktop app and to the docs, throws no page error, and sends no request
-// outside the site. Network and Chrome: not part of `verify`. Usage, from studio/: npm run check:live-web
+// service worker, points a first visit to the desktop app and to the docs, loads the agents' SDK (`globalThis.studio`),
+// starts the gyro engine's worker and gets its smoothing methods, throws no page error, and sends no request outside
+// the site. Network and Chrome: not part of `verify`. Usage, from studio/: npm run check:live-web
 import { chromium } from 'playwright'
 
 const site = process.env.STUDIO_SITE ?? 'https://droneclean.app'
@@ -26,6 +27,20 @@ try {
     workers: ((await navigator.serviceWorker?.getRegistrations?.()) ?? []).length,
     desktopNotice: [...document.querySelectorAll('a')].some((a) => a.href.includes('/#get-studio')),
     docs: Boolean(document.querySelector('a[href*="/docs"]')),
+    sdk: typeof globalThis.studio === 'object' && globalThis.studio !== null,
+    // The gyro engine's worker, the way the editor starts it: a number of smoothing methods, or what went wrong
+    gyroMethods: await new Promise((resolve) => {
+      const worker = new Worker('/studio/gyroflow/wasm/js/gyro-worker.js', { type: 'module' })
+      const timer = setTimeout(() => resolve('timeout'), 30_000)
+      const finish = (value) => {
+        clearTimeout(timer)
+        worker.terminate()
+        resolve(value)
+      }
+      worker.onmessage = (event) => finish(Array.isArray(event.data?.result) ? event.data.result.length : JSON.stringify(event.data).slice(0, 100))
+      worker.onerror = (event) => finish(`error ${event.message}`)
+      worker.postMessage({ id: 1, type: 'smoothingMethods' })
+    }),
   }))
 } finally {
   await browser.close()
@@ -37,6 +52,8 @@ const problems = [
   state.workers > 0 && `${state.workers} service worker(s) registered`,
   !state.desktopNotice && 'no link to the desktop app',
   !state.docs && 'no link to the docs',
+  !state.sdk && 'the agents\' SDK (globalThis.studio) is not loaded',
+  !(typeof state.gyroMethods === 'number' && state.gyroMethods > 0) && `the gyro engine's worker gave ${state.gyroMethods}`,
   errors.length > 0 && `page errors: ${errors.join(' | ')}`,
   outside.length > 0 && `requests outside the site: ${outside.slice(0, 5).join(', ')}`,
 ].filter(Boolean)

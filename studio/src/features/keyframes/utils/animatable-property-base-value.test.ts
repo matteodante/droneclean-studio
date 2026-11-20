@@ -54,6 +54,25 @@ describe('getAnimatablePropertyBaseValue', () => {
     expect(getAnimatablePropertyBaseValue(item, 'cropSoftness', CANVAS)).toBe(54)
   })
 
+  it("reads the stabilized window's framing from the clip, 0 where it is not set or the clip is not video", () => {
+    const item = {
+      id: 'video-2',
+      type: 'video',
+      trackId: 'track-1',
+      from: 0,
+      durationInFrames: 90,
+      label: 'Video',
+      src: 'video.mp4',
+      volume: -6,
+      stabilization: { framingX: 0.4 },
+    } as unknown as VideoItem
+
+    expect(getAnimatablePropertyBaseValue(item, 'framingX', CANVAS)).toBe(0.4)
+    expect(getAnimatablePropertyBaseValue(item, 'framingY', CANVAS)).toBe(0)
+    expect(getAnimatablePropertyBaseValue(item, 'volume', CANVAS)).toBe(-6)
+    expect(getAnimatablePropertyBaseValue({ ...item, stabilization: undefined }, 'framingX', CANVAS)).toBe(0)
+  })
+
   it('uses the resolved fit-to-canvas transform for implicit dimensions', () => {
     const item: ImageItem = {
       id: 'image-1',

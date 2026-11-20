@@ -134,6 +134,12 @@ Stored frames are exact for **that** GPU, driver and Chrome. What happens elsewh
   node golden/run.mjs --expected golden/out/local
   ```
 
+- **The Windows PC has its own committed set** (task 8.1): on Windows the run reads and writes `golden/expected-pc/`
+  (NVIDIA GeForce RTX 5070 Ti), so neither machine's frames are ever rewritten by the other. `--expected` still
+  overrides the folder. Run it from the PC's desktop: over SSH the GPU drew only the empty canvas, and the first set
+  stored that way (20 Nov 2026) held 28 flat grey frames that compared equal to themselves. Since then a frame of one
+  flat colour fails the comparison and is never stored (`flatColour`, `lib/compare.mjs`); the set stored from the
+  desktop on 20 Nov 2026 matches the Mac's pictures.
 - `--update` refuses to overwrite the committed frames from a different machine unless you pass `--new-machine`
   (and then the whole set moves to that GPU: do it only when the baseline is meant to move), and refuses a partial
   `--update --case` across machines, so a stored set always comes from one machine.

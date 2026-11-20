@@ -60,6 +60,9 @@ const BUILT_IN_PROPERTY_VALUE_RANGES: Record<BuiltInAnimatableProperty, Property
   taperEndWidth: { property: 'taperEndWidth', min: 0, max: 200, unit: '%', decimals: 1 },
   taperStartLength: { property: 'taperStartLength', min: 0, max: 100, unit: '%', decimals: 1 },
   taperEndLength: { property: 'taperEndLength', min: 0, max: 100, unit: '%', decimals: 1 },
+  // The stabilized window's framing (`studio/stabilization/reframe.ts`): the fraction of the room on that side
+  framingX: { property: 'framingX', min: -1, max: 1, unit: '', decimals: 2 },
+  framingY: { property: 'framingY', min: -1, max: 1, unit: '', decimals: 2 },
 }
 
 /** FreeCut's pixel bounds were written for a 1920 px frame; they grow with a bigger project. */

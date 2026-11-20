@@ -4,9 +4,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-
-const FFMPEG = process.env.FFMPEG || '/opt/homebrew/bin/ffmpeg'
-const FFPROBE = process.env.FFPROBE || '/opt/homebrew/bin/ffprobe'
+import { FFMPEG, FFPROBE, h264Args } from './ffmpeg-path.mjs'
 
 /** The flat colour of the looks clip: strongly asymmetric in red and blue, so a channel swap cannot be missed. */
 export const LOOK_CLIP_RGB = [200, 80, 40]
@@ -51,7 +49,7 @@ export function makeColourClip(file, [r, g, b] = LOOK_CLIP_RGB) {
   ffmpeg([
     '-f', 'lavfi', '-i', `color=c=0x${hex}:s=640x360:r=30:d=3`,
     '-vf', 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14',
+    ...h264Args(),
     '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
     file,
   ])
@@ -62,7 +60,7 @@ export function makeColourClip(file, [r, g, b] = LOOK_CLIP_RGB) {
 export function makeCountingClip(file, seconds = 10) {
   ffmpeg([
     '-f', 'lavfi', '-i', `testsrc2=size=320x180:rate=25:duration=${seconds}`,
-    '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-g', '10',
+    '-pix_fmt', 'yuv420p', ...h264Args({ gop: 10 }),
     file,
   ])
   return file
@@ -108,6 +106,15 @@ export function probeVideo(file) {
     height: stream.height ?? 0,
     codec: stream.codec_name ?? '',
   }
+}
+
+/** The width and height of `file`'s first video stream, read from its header (no decoding, so fast on a long clip). */
+export function probeSize(file) {
+  const out = JSON.parse(
+    execFileSync(FFPROBE, ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'json', file]).toString(),
+  )
+  const stream = out.streams?.[0] ?? {}
+  return { width: stream.width ?? 0, height: stream.height ?? 0 }
 }
 
 /** The average PSNR (dB) in FFmpeg's `psnr` filter summary, or null when there is none. `inf` (identical) is 100. */

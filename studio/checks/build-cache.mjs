@@ -96,6 +96,11 @@ export function cacheRoot(studio = STUDIO) {
 function copyTree(from, to) {
   fs.rmSync(to, { recursive: true, force: true })
   fs.mkdirSync(path.dirname(to), { recursive: true })
+  if (process.platform === 'win32') {
+    // Windows has no cp (the PC, task 8.1): Node copies the tree, keeping the times
+    fs.cpSync(from, to, { recursive: true, preserveTimestamps: true })
+    return
+  }
   // -c clones on APFS (instant, no disk); where it cannot, cp falls back to a copy. -p keeps modes and times.
   const flags = process.platform === 'darwin' ? ['-c', '-R', '-p'] : ['-R', '-p']
   const result = spawnSync('cp', [...flags, from, to], { stdio: 'inherit' })
@@ -143,12 +148,15 @@ export function useCache({ kind, key, parts, produce, fresh = false, log = conso
   return 'built'
 }
 
+// On Windows npm and the .bin shims are .cmd files, which Node runs only through a shell (the PC, task 8.1)
+const WINDOWS = process.platform === 'win32'
+
 function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit', env: process.env })
+  const result = spawnSync(WINDOWS ? `"${command}"` : command, args, { cwd, stdio: 'inherit', env: process.env, shell: WINDOWS })
   return result.status === 0
 }
 
-const vp = (args) => run(path.join(STUDIO, 'node_modules', '.bin', 'vp'), args, STUDIO)
+const vp = (args) => run(path.join(STUDIO, 'node_modules', '.bin', WINDOWS ? 'vp.cmd' : 'vp'), args, STUDIO)
 
 export function studioDist({ out = 'dist', fresh = false } = {}) {
   const target = path.resolve(STUDIO, out)

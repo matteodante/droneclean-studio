@@ -6,14 +6,20 @@
 // The section is behind the `stabilization` feature switch. Each change is one `updateItem`, so one undo step;
 // the sliders store when released, never while they move.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Move3d } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
+import { KeyframeToggle } from '@/features/keyframes/components/keyframe-toggle'
+import { useThrottledFrame } from '@/features/keyframes/deps/preview-contract'
+import { getAutoKeyframeOperation } from '@/features/keyframes/utils/auto-keyframe'
+import { applyAutoKeyframeOperations } from '@/features/timeline/stores/actions/keyframe-actions'
+import { useKeyframesStore } from '@/features/timeline/stores/keyframes-store'
 import { PropertyRow, PropertySection, SliderInput } from '@/shared/ui/property-controls'
 import { NumberInput } from '@/shared/ui/property-controls/number-input'
 import { isFeatureShown } from '@/studio/feature-switches'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
+import { framingValueAt } from '../framing-keyframes'
 import type { StabilizationSettings } from '../settings'
 import {
   FRAMING_SLIDER_RANGE,
@@ -121,35 +127,62 @@ function NumberControl({
   )
 }
 
-/** The two framing sliders: where the stabilized window sits in the source picture (`reframe.ts`) */
+/**
+ * The two framing sliders: where the stabilized window sits in the source picture (`reframe.ts`). Each one is
+ * keyframable like the clip panel's other sliders (task 11.23): the slider shows the value at the playhead, the diamond
+ * adds or removes a keyframe there, and an edit on a lane that has keyframes is stored as a keyframe at the playhead
+ * (`getAutoKeyframeOperation`, the rule every keyframable control follows) rather than as the clip's setting, which is
+ * what the lane holds where it has none.
+ */
 function FramingSliders({
+  item,
   settings,
   onChange,
 }: {
+  item: VideoItem
   settings: StabilizationSettings
   onChange: StabilizationControls['change']
 }) {
   const { t } = useTranslation()
+  const currentFrame = useThrottledFrame()
+  const itemKeyframes = useKeyframesStore((state) => state.keyframesByItemId[item.id])
+  const itemIds = useMemo(() => [item.id], [item.id])
   const sliders = [
-    { kind: 'framingX', testId: 'stabilization-framing-x', value: settings.framingX, label: t('editor.stabilization.framingX', { defaultValue: 'Framing, sideways' }) },
-    { kind: 'framingY', testId: 'stabilization-framing-y', value: settings.framingY, label: t('editor.stabilization.framingY', { defaultValue: 'Framing, up and down' }) },
+    { kind: 'framingX', testId: 'stabilization-framing-x', label: t('editor.stabilization.framingX', { defaultValue: 'Framing, sideways' }) },
+    { kind: 'framingY', testId: 'stabilization-framing-y', label: t('editor.stabilization.framingY', { defaultValue: 'Framing, up and down' }) },
   ] as const
   return (
     <>
-      {sliders.map(({ kind, testId, value, label }) => (
-        <PropertyRow key={kind} label={label}>
-          <div className="flex-1 min-w-0" data-testid={testId}>
-            <SliderInput
-              value={value ?? 0}
-              min={FRAMING_SLIDER_RANGE.min}
-              max={FRAMING_SLIDER_RANGE.max}
-              step={0.01}
-              onLiveChange={NO_LIVE_CHANGE}
-              onChange={(next) => onChange({ kind, value: next })}
-            />
-          </div>
-        </PropertyRow>
-      ))}
+      {sliders.map(({ kind, testId, label }) => {
+        const value = framingValueAt(settings, itemKeyframes, currentFrame - item.from, kind)
+        const commit = (next: number) => {
+          const operation = getAutoKeyframeOperation(
+            item,
+            itemKeyframes,
+            kind,
+            Math.min(FRAMING_SLIDER_RANGE.max, Math.max(FRAMING_SLIDER_RANGE.min, next)),
+            currentFrame,
+          )
+          if (operation) applyAutoKeyframeOperations([operation])
+          else onChange({ kind, value: next })
+        }
+        return (
+          <PropertyRow key={kind} label={label}>
+            <div className="flex items-center gap-1 w-full" data-testid={testId}>
+              <SliderInput
+                value={value}
+                min={FRAMING_SLIDER_RANGE.min}
+                max={FRAMING_SLIDER_RANGE.max}
+                step={0.01}
+                onLiveChange={NO_LIVE_CHANGE}
+                onChange={commit}
+                className="flex-1 min-w-0"
+              />
+              <KeyframeToggle itemIds={itemIds} property={kind} currentValue={value} />
+            </div>
+          </PropertyRow>
+        )
+      })}
     </>
   )
 }
@@ -216,7 +249,7 @@ function Controls({
           />
         </div>
       </PropertyRow>
-      <FramingSliders settings={settings} onChange={controls.change} />
+      <FramingSliders item={item} settings={settings} onChange={controls.change} />
       <NumberControl
         label={t('editor.stabilization.zoom')}
         testId="stabilization-fov"

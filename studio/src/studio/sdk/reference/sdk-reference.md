@@ -1085,7 +1085,7 @@ studio.keyframes.list('c1', 'opacity')
 add(clip: ClipId, property: KeyframeProperty, frame: Frame, value: number, easing?: Easing): KeyframeId
 ```
 
-Add a keyframe at a clip-relative frame. One undo step.
+Add a keyframe at a clip-relative frame. One undo step. The property `framingX` or `framingY` (`-1..1`) animates the stabilized window's framing of a clip whose stabilization is on: with a keyframe on it, the animated value replaces the clip's stored `framingX` or `framingY` (each lane on its own), and the window is still held to the room the stabilization has at every frame.
 
 - Maps to: `ADD_KEYFRAME (keyframe-actions.ts:36)`
 - Throws: NOT_FOUND, INVALID_ARGUMENT, CONFLICT
@@ -2938,10 +2938,10 @@ export type PathVertexComponent = 'positionX' | 'positionY' | 'inX' | 'inY' | 'o
 
 ### `KeyframeProperty`
 
-A scalar property that can be animated (`AnimatableProperty` in `@/types/keyframe`). `effect:<gpuEffectType>:<effectId>:<paramKey>` addresses an effect parameter (`buildEffectAnimatableProperty`), `pathVertex:<index>:<component>` one vertex of a path shape.
+A scalar property that can be animated (`AnimatableProperty` in `@/types/keyframe`). `effect:<gpuEffectType>:<effectId>:<paramKey>` addresses an effect parameter (`buildEffectAnimatableProperty`), `pathVertex:<index>:<component>` one vertex of a path shape. `framingX` and `framingY` (each -1..1) animate the stabilized window's framing of a video clip whose stabilization is on (`clips.setStabilization`'s `framingX` and `framingY`, which are the value where the lane has no keyframe).
 
 ```ts
-export type KeyframeProperty = 'x' | 'y' | 'width' | 'height' | 'anchorX' | 'anchorY' | 'rotation' | 'opacity' | 'cornerRadius' | 'cropLeft' | 'cropRight' | 'cropTop' | 'cropBottom' | 'cropSoftness' | 'volume' | 'textStyleScale' | 'fontSize' | 'lineHeight' | 'textPadding' | 'backgroundRadius' | 'textShadowOffsetX' | 'textShadowOffsetY' | 'textShadowBlur' | 'strokeWidth' | 'trimPathStart' | 'trimPathEnd' | 'trimPathOffset' | 'taperStartWidth' | 'taperEndWidth' | 'taperStartLength' | 'taperEndLength' | `effect:${string}:${string}:${string}` | `pathVertex:${number}:${PathVertexComponent}`;
+export type KeyframeProperty = 'x' | 'y' | 'width' | 'height' | 'anchorX' | 'anchorY' | 'rotation' | 'opacity' | 'cornerRadius' | 'cropLeft' | 'cropRight' | 'cropTop' | 'cropBottom' | 'cropSoftness' | 'volume' | 'textStyleScale' | 'fontSize' | 'lineHeight' | 'textPadding' | 'backgroundRadius' | 'textShadowOffsetX' | 'textShadowOffsetY' | 'textShadowBlur' | 'strokeWidth' | 'trimPathStart' | 'trimPathEnd' | 'trimPathOffset' | 'taperStartWidth' | 'taperEndWidth' | 'taperStartLength' | 'taperEndLength' | 'framingX' | 'framingY' | `effect:${string}:${string}:${string}` | `pathVertex:${number}:${PathVertexComponent}`;
 ```
 
 ### `KeyframeInfo`

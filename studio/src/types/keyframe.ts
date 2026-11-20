@@ -36,6 +36,8 @@ export type BuiltInAnimatableProperty =
   | 'taperEndWidth'
   | 'taperStartLength'
   | 'taperEndLength'
+  | 'framingX'
+  | 'framingY'
 
 export type EffectAnimatableProperty = `effect:${string}:${string}:${string}`
 
@@ -490,6 +492,8 @@ const BUILT_IN_PROPERTY_LABELS: Record<BuiltInAnimatableProperty, string> = {
   taperEndWidth: 'Taper End Width',
   taperStartLength: 'Taper Start Length',
   taperEndLength: 'Taper End Length',
+  framingX: 'Stabilization Framing X',
+  framingY: 'Stabilization Framing Y',
 }
 
 const BUILT_IN_ANIMATABLE_PROPERTIES = new Set<BuiltInAnimatableProperty>(

@@ -7,7 +7,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { STATUS } from './lib/report.mjs'
-import { answerMatchDialog, clickMenuItem, clipCount, closeDialogs, dragCardToTimeline, importByDrop, mediaCard, openCardMenu, openClipMenu, openTab, pageText, toasts } from './lib/ui.mjs'
+import { answerMatchDialog, clickMenuItem, clipCount, closeDialogs, importByDrop, mediaCard, openCardMenu, openItemMenu, openTab, pageText, toasts } from './lib/ui.mjs'
 import { ensureClipOnTimeline, ensureMedia, ensureProject, selectFirstClip } from './lib/steps.mjs'
 import { waitForRender } from './lib/app.mjs'
 
@@ -369,11 +369,13 @@ export const lightFeatures = [
     where: 'timeline clip menu → Reverse',
     async run(ctx) {
       await ensureClipOnTimeline(ctx)
-      await openClipMenu(ctx.page)
+      const videoId = await ctx.page.evaluate(() => window.studio.clips.list().find((clip) => clip.type === 'video')?.id ?? null)
+      if (!videoId) return { status: STATUS.scriptError, notes: 'no video clip on the timeline' }
+      await openItemMenu(ctx.page, videoId)
       ctx.act('click Reverse')
       await clickMenuItem(ctx.page, /^reverse$/i)
       await ctx.page.waitForTimeout(8000)
-      await openClipMenu(ctx.page)
+      await openItemMenu(ctx.page, videoId)
       const unreverse = await ctx.page.getByRole('menuitem', { name: /unreverse/i }).first().isVisible().catch(() => false)
       await closeDialogs(ctx.page)
       return unreverse ? ok('the clip is reversed (the menu now offers Unreverse)') : broken('the clip was not reversed after 8 s')
@@ -425,13 +427,17 @@ export const lightFeatures = [
       await page.getByText(/subtitles cached|cached/i).first().waitFor({ timeout: 60000 })
       ctx.note('the media card scan finished ("Subtitle scan complete", the file shows Cached).')
       await scan.getByRole('button', { name: /^close$/i }).first().click()
-      // Step 2, on the timeline: the clip's own menu opens the track list and inserts the captions.
-      const before = await clipCount(page)
-      await dragCardToTimeline(page, name)
-      const placed = await clipCount(page)
-      if (placed <= before) return { status: STATUS.scriptError, notes: `the .mkv clip could not be placed on the timeline (${before} → ${placed})` }
-      await page.locator('[data-timeline-item][data-item-id]').last().click({ button: 'right' })
-      await page.getByRole('menu').first().waitFor({ timeout: 10000 })
+      // Step 2, on the timeline: the clip's own menu opens the track list and inserts the captions. Placing the .mkv
+      // is set-up (through the SDK, at the timeline's end): a drag fails once earlier features filled the timeline
+      const placedId = await page.evaluate((fileName) => {
+        const s = window.studio
+        const media = s.media.list().find((item) => item.fileName === fileName)
+        const track = s.tracks.list().find((candidate) => candidate.kind === 'video')
+        if (!media || !track) return null
+        return s.clips.add({ mediaId: media.id, trackId: track.id, from: s.project.duration(), onOverlap: 'move' }).id
+      }, name)
+      if (!placedId) return { status: STATUS.scriptError, notes: 'the .mkv clip could not be placed on the timeline' }
+      await openItemMenu(page, placedId)
       await clickMenuItem(page, /extract embedded subtitles/i)
       const dialog = page.getByRole('dialog').filter({ hasText: /embedded subtitles/i })
       await dialog.first().waitFor({ timeout: 30000 })

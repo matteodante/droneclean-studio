@@ -10,7 +10,9 @@
  * the preview, exported, seen in the exported file, undone) and subclips (task 1.6: made
  * in the source monitor with Alt+S, saved, the app restarted, the subclip found in the
  * library, dropped on the timeline, exported, the output's duration and first frame
- * checked against the range).
+ * checked against the range). Then the controls of waves 22-23 (`flows/new-controls.mjs`) and a drone edit through
+ * the panels on the e2e clip (`flows/drone.mjs`: stabilization and framing, Sky, a title, a keyframe, a Fade, Mark
+ * Beats, the export with the Instagram Reel preset).
  *
  * Prints one JSON result and exits non-zero if any check fails.
  *
@@ -39,6 +41,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   e2eLaunch,
   e2ePackagedLaunch,
@@ -46,28 +49,36 @@ import {
 } from './support/e2e-profile.mjs'
 import { dragCardToTimeline, waitForMatchDialog } from './support/timeline-drag.mjs'
 import { routeDownloadsTo } from './support/flow-page.mjs'
+import { createChecks, fatal } from './support/e2e-checks.mjs'
+import { FFMPEG } from './support/ffmpeg-path.mjs'
+import { probeSize } from './support/flow-media.mjs'
 import { runLooksFlow } from './flows/looks.mjs'
+import { runNewControlsFlow } from './flows/new-controls.mjs'
 import { createSubclipFlow, reopenSubclipFlow } from './flows/subclips.mjs'
+import { runDroneFlow } from './flows/drone.mjs'
 import { isTemporaryFolder } from '../out/main/workspace-lock.js'
 
-const here = path.dirname(new URL(import.meta.url).pathname)
+const here = path.dirname(fileURLToPath(import.meta.url))
 const desktopDir = path.resolve(here, '..')
 const electronPath = createRequire(import.meta.url)('electron')
 const builtMain = path.join(desktopDir, 'out', 'main', 'index.js')
 const MODE = process.env.DRONECLEAN_E2E_MODE === 'main' ? 'main' : 'packaged'
-const testApp = path.join(
-  desktopDir, 'dist', 'test-app', 'mac-arm64', 'DroneClean Studio Test.app', 'Contents', 'MacOS', 'DroneClean Studio Test',
-)
+// `npm run package:test`: the Mac's .app, or Windows' unpacked folder (`-c.win.target=dir`, task 8.1)
+const testApp =
+  process.platform === 'win32'
+    ? path.join(desktopDir, 'dist', 'test-app', 'win-unpacked', 'DroneClean Studio Test.exe')
+    : path.join(
+        desktopDir, 'dist', 'test-app', 'mac-arm64', 'DroneClean Studio Test.app', 'Contents', 'MacOS', 'DroneClean Studio Test',
+      )
 const electronVersion = JSON.parse(
   fs.readFileSync(path.join(desktopDir, 'node_modules', 'electron', 'package.json'), 'utf8'),
 ).version
 
 // No default: the footage is the maintainer's own. Set DRONECLEAN_E2E_CLIP to a long HEVC clip.
 const CLIP = process.env.DRONECLEAN_E2E_CLIP || ''
-const FFMPEG = process.env.FFMPEG || '/opt/homebrew/bin/ffmpeg'
 const LANGUAGE_KEY = 'freecut-language'
 
-const results = []
+const { results, check } = createChecks()
 const observations = {}
 const openApps = new Set()
 const allMainOutput = []
@@ -78,16 +89,6 @@ let profileRoot = null
 let packagedProfile = null
 /** Screenshots and page text of a run: kept only when the run fails. */
 let artifacts = null
-
-function check(name, ok, details) {
-  results.push({ name, ok: Boolean(ok), details })
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${details === undefined ? '' : ' ' + JSON.stringify(details)}`)
-  return ok
-}
-
-function fatal(message) {
-  throw new Error(message)
-}
 
 async function dumpState(page, label) {
   if (!artifacts) return
@@ -113,7 +114,15 @@ async function launch() {
       : e2ePackagedLaunch({ appBinary: testApp })
   const app = await _electron.launch({
     ...options,
-    args: [...options.args, '--use-fake-device-for-media-stream'],
+    // On Windows a window that other windows cover is drawn less often (Chromium's native occlusion tracking); the
+    // checks that count presented frames would then measure the desktop's other windows, not the app
+    args: [
+      ...options.args,
+      '--use-fake-device-for-media-stream',
+      ...(process.platform === 'win32'
+        ? ['--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion']
+        : []),
+    ],
   })
   openApps.add(app)
   const mainOutput = []
@@ -285,6 +294,12 @@ async function main() {
     })
     observations.webgpu = gpu
     check('WebGPU adapter and device', Boolean(gpu.adapter) && Array.isArray(gpu.features), gpu)
+    // On a machine with two GPUs the app must pick the discrete one (force-high-performance-gpu, task 8.1): the PC run
+    // names the vendor it expects, e.g. DRONECLEAN_E2E_GPU_VENDOR=nvidia for its RTX 5070 Ti
+    const expectedVendor = process.env.DRONECLEAN_E2E_GPU_VENDOR
+    if (expectedVendor) {
+      check(`WebGPU runs on the ${expectedVendor} GPU`, gpu.adapter?.vendor === expectedVendor, gpu.adapter)
+    }
   }
 
   {
@@ -294,7 +309,7 @@ async function main() {
       const load = (id) => (process.mainModule ? Promise.resolve(process.mainModule.require(id)) : import(id))
       const { execFileSync } = await load('node:child_process')
       const path = await load('node:path')
-      const binary = path.join(process.resourcesPath, 'ffmpeg', 'ffmpeg')
+      const binary = path.join(process.resourcesPath, 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
       try {
         const encoders = execFileSync(binary, ['-hide_banner', '-encoders'], { encoding: 'utf8' })
         return {
@@ -302,6 +317,10 @@ async function main() {
           binary,
           hevcVideoToolbox: encoders.includes('hevc_videotoolbox'),
           proresKs: encoders.includes('prores_ks'),
+          // Windows (task 8.1): the three vendors' encoders are built in; the driver decides which ones run
+          nvenc: encoders.includes('hevc_nvenc') && encoders.includes('h264_nvenc'),
+          qsv: encoders.includes('hevc_qsv') && encoders.includes('h264_qsv'),
+          amf: encoders.includes('hevc_amf') && encoders.includes('h264_amf'),
         }
       } catch (error) {
         return { packaged: app.isPackaged, binary, error: String(error).slice(0, 200) }
@@ -309,8 +328,14 @@ async function main() {
     })
     observations.ffmpeg = ffmpeg
     check(
-      'the app carries its own FFmpeg with the Mac encoders',
-      process.platform !== 'darwin' || (ffmpeg.hevcVideoToolbox === true && ffmpeg.proresKs === true),
+      process.platform === 'win32'
+        ? 'the app carries its own FFmpeg with NVENC, Quick Sync and AMF'
+        : 'the app carries its own FFmpeg with the Mac encoders',
+      process.platform === 'darwin'
+        ? ffmpeg.hevcVideoToolbox === true && ffmpeg.proresKs === true
+        : process.platform === 'win32'
+          ? ffmpeg.nvenc === true && ffmpeg.qsv === true && ffmpeg.amf === true && ffmpeg.proresKs === true
+          : true,
       ffmpeg,
     )
   }
@@ -410,12 +435,15 @@ async function main() {
       }
     })
     observations.clipPlayback = playback
+    // The clip's own size, from its header: clip 0020 is 3840x2880, the PC's generated clip 3840x2160 (task 8.1).
+    const size = probeSize(CLIP)
     check(
-      'clip 0020 decodes and plays in a <video>',
-      playback.width === 3840 && playback.height === 2880 && playback.frames >= 150 && playback.advanced > 2,
+      'the e2e clip decodes and plays in a <video>',
+      playback.width === size.width && playback.height === size.height && playback.frames >= 150 && playback.advanced > 2,
       {
         width: playback.width,
         height: playback.height,
+        expected: size,
         framesIn3Seconds: playback.frames,
         secondsAdvanced: Math.round((playback.advanced ?? 0) * 100) / 100,
         fileSize: playback.fileSize,
@@ -827,6 +855,10 @@ async function main() {
   const flowResultsFrom = results.length
   await runLooksFlow({ page: second.page, check, observations, work, nextDownload })
   if (results.slice(flowResultsFrom).some((result) => !result.ok)) await dumpState(second.page, 'looks-failed')
+  // The controls of waves 22-23 (D-Log M question, speed readout, Smooth ramp + zoom, optical flow) on that clip
+  const controlsFrom = results.length
+  await runNewControlsFlow({ page: second.page, check, observations, work, dropFiles })
+  if (results.slice(controlsFrom).some((result) => !result.ok)) await dumpState(second.page, 'controls-failed')
   await createSubclipFlow({ page: second.page, check, observations, work })
   const savedSubclip = observations.subclip
   if (!savedSubclip) fatal('no subclip was made, so there is nothing to reopen')
@@ -844,6 +876,11 @@ async function main() {
   const reopenResultsFrom = results.length
   await reopenSubclipFlow({ page: third.page, check, observations, work, nextDownload: thirdDownload, savedSubclip })
   if (results.slice(reopenResultsFrom).some((result) => !result.ok)) await dumpState(third.page, 'subclips-failed')
+  // A drone edit through the panels (N8): stabilization and framing, Sky, a title, a keyframe, a Fade, Mark Beats, the
+  // export with the Instagram Reel preset; on the e2e clip itself, linked (not copied)
+  const droneFrom = results.length
+  await runDroneFlow({ page: third.page, check, observations, work, nextDownload: thirdDownload, clip: CLIP })
+  if (results.slice(droneFrom).some((result) => !result.ok)) await dumpState(third.page, 'drone-failed')
 
   {
     observations.thirdLaunchErrors = {

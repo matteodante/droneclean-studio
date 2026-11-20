@@ -631,6 +631,65 @@ describe('keyframes namespace', () => {
     })
   })
 
+  describe('the stabilized window framing (task 11.23)', () => {
+    const stabilization = {
+      enabled: true,
+      method: 'Default',
+      params: {},
+      fov: 1,
+      horizonLockPercent: 0,
+      horizonLockRoll: 0,
+      adaptiveZoomSeconds: 4,
+      framingX: 0.25,
+    }
+
+    function stabilize(): void {
+      const items = useItemsStore.getState().items
+      useItemsStore
+        .getState()
+        .setItems(items.map((item) => (item.id === 'c1' ? { ...item, stabilization } : item)))
+    }
+
+    it('offers framingX and framingY only on a clip whose stabilization is on', () => {
+      expect(studio.keyframes.properties('c1')).not.toContain('framingX')
+      stabilize()
+      const properties = studio.keyframes.properties('c1')
+      expect(properties).toContain('framingX')
+      expect(properties).toContain('framingY')
+    })
+
+    it('adds a keyframe from -1 to 1 on each, one undo step, and reads it back', () => {
+      stabilize()
+      const before = undoDepth()
+      const x = studio.keyframes.add('c1', 'framingX', 0, -1)
+      const y = studio.keyframes.add('c1', 'framingY', 60, 1, 'ease-in-out')
+      expect(undoDepth()).toBe(before + 2)
+      expect(studio.keyframes.list('c1', 'framingX')).toMatchObject([{ id: x, frame: 0, value: -1 }])
+      expect(studio.keyframes.list('c1', 'framingY')).toMatchObject([
+        { id: y, frame: 60, value: 1, easing: 'ease-in-out' },
+      ])
+    })
+
+    it('refuses a value outside -1..1, on add and on update', () => {
+      stabilize()
+      const error = catchError(() => studio.keyframes.add('c1', 'framingX', 0, 1.5))
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('value')
+      expect(error.message).toBe(
+        'keyframes.add: "value" must be a number from -1 to 1 for property "framingX" (got 1.5)',
+      )
+      const id = studio.keyframes.add('c1', 'framingY', 0, 0)
+      expect(catchError(() => studio.keyframes.update('c1', id, { value: -1.01 })).argument).toBe('value')
+    })
+
+    it('refuses the property on a clip that is not stabilized', () => {
+      const error = catchError(() => studio.keyframes.add('c1', 'framingX', 0, 0))
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('property')
+      expect(error.message).toContain('keyframes.add: "property" must be an animatable property of clip "c1"')
+    })
+  })
+
   describe('the @example calls of the interface', () => {
     it("runs studio.keyframes.properties('c1')", () => {
       expect(studio.keyframes.properties('c1')).toEqual(VIDEO_PROPERTIES)

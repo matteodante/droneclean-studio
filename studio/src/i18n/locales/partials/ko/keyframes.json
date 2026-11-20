@@ -142,7 +142,9 @@
       "textShadowOffsetX": "그림자 X",
       "textShadowOffsetY": "그림자 Y",
       "textShadowBlur": "그림자 흐림",
-      "strokeWidth": "획 너비"
+      "strokeWidth": "획 너비",
+      "framingX": "스태빌라이제이션 프레이밍 X",
+      "framingY": "스태빌라이제이션 프레이밍 Y"
     }
   }
 }

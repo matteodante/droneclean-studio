@@ -45,6 +45,9 @@ export function chromeLaunchArgs() {
     '--enable-features=Vulkan',
     '--ignore-gpu-blocklist',
     angle,
+    // A Windows PC with an integrated and a discrete GPU (DroneClean's test PC: Ryzen graphics and an RTX 5070 Ti)
+    // gives headless Chrome the integrated one unless asked; the desktop app asks the same way
+    ...(process.platform === 'win32' ? ['--force-high-performance-gpu'] : []),
   ]
   const extra = (process.env.FREECUT_CHROME_ARGS ?? '').split(/\s+/).filter(Boolean)
   return [...base, ...extra]

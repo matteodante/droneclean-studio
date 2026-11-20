@@ -6,7 +6,8 @@
  * The page is a fake window that never answers: it hangs on the call's script
  * (the way a blocked main thread would), answers the abort request only when the
  * test says it can, answers the save only when the test says it can, and comes
- * back ready after `reload()`.
+ * back ready after `reload()`, with no project open until the bridge reopens the
+ * one that was open before (the SDK opens projects without moving the route).
  */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -28,14 +29,32 @@ const FAST = { pollMs: 5, readyTimeoutMs: 400, abortGraceMs: 30, saveGraceMs: 30
 /**
  * A window whose page hangs on the call's script. `abortAnswers` and
  * `saveAnswers` say whether it can still answer those two requests; a reload
- * unblocks it. `crashable` adds `forcefullyCrashRenderer`.
+ * unblocks it and closes the open project (`project`), which `reopens` says the
+ * page can open again. `crashable` adds `forcefullyCrashRenderer`.
  */
-function createHangingWindow({ abortAnswers = false, saveAnswers = false, saveKept = true, crashable = false } = {}) {
-  const state = { hung: false, reloads: 0, crashes: 0, asked: [] }
+function createHangingWindow({
+  abortAnswers = false,
+  saveAnswers = false,
+  saveKept = true,
+  crashable = false,
+  project = 'p1',
+  reopens = true,
+} = {}) {
+  const state = { hung: false, reloads: 0, crashes: 0, asked: [], project, crashed: false }
   const window = {
     isDestroyed: () => false,
     webContents: {
+      isCrashed: () => state.crashed,
       executeJavaScript(code) {
+        if (code.includes('project?.current()?.id ?? null')) {
+          return state.hung ? new Promise(() => {}) : Promise.resolve(state.project)
+        }
+        const reopen = /await s\.project\.open\("([^"]+)"\)/.exec(code)
+        if (reopen) {
+          state.asked.push(`reopen ${reopen[1]}`)
+          if (reopens) state.project = reopen[1]
+          return Promise.resolve(reopens)
+        }
         if (code.includes("return 'aborted'")) {
           state.asked.push('abort')
           if (abortAnswers) {
@@ -62,6 +81,8 @@ function createHangingWindow({ abortAnswers = false, saveAnswers = false, saveKe
       reload() {
         state.reloads += 1
         state.hung = false
+        state.crashed = false
+        state.project = null
       },
       ...(crashable && {
         forcefullyCrashRenderer() {
@@ -106,9 +127,50 @@ test('a page that answers nothing is asked to save, then reloaded; the call says
 
   const error = await timedOut(bridge)
   assert.deepEqual(error.recovery, { action: 'reloaded', unsavedEditsKept: false, back: true })
-  assert.deepEqual(state.asked, ['script', 'abort', 'save'])
+  assert.deepEqual(state.asked, ['script', 'abort', 'save', 'reopen p1'])
   assert.equal(state.reloads, 1)
   assert.equal(state.crashes, 1, 'a renderer that does not answer is killed before the reload')
+})
+
+test('the project open before the stuck call is open again after the reload', async () => {
+  const { window, state } = createHangingWindow({ project: 'proj-42' })
+  const bridge = createPageBridge(() => window, FAST)
+  await bridge.execute('1', 500, { recover: true })
+  const error = await timedOut(bridge)
+  assert.equal(error.recovery.back, true)
+  assert.equal(state.project, 'proj-42')
+  assert.ok(state.asked.includes('reopen proj-42'))
+})
+
+test('a project that does not open again is not said to be back', async () => {
+  const { window, state } = createHangingWindow({ reopens: false })
+  const bridge = createPageBridge(() => window, FAST)
+  await bridge.execute('1', 500, { recover: true })
+  const error = await timedOut(bridge)
+  assert.deepEqual(error.recovery, { action: 'reloaded', unsavedEditsKept: false, back: false })
+  assert.equal(state.project, null)
+})
+
+test('with no project open there is nothing to reopen, and the page is back', async () => {
+  const { window, state } = createHangingWindow({ project: null })
+  const bridge = createPageBridge(() => window, FAST)
+  await bridge.execute('1', 500, { recover: true })
+  const error = await timedOut(bridge)
+  assert.equal(error.recovery.back, true)
+  assert.equal(state.asked.some((asked) => asked.startsWith('reopen')), false)
+})
+
+test('a crashed page is reloaded and the next call reopens its project before running', async () => {
+  const { window, state } = createHangingWindow({ project: 'p9' })
+  const bridge = createPageBridge(() => window, FAST)
+  await bridge.execute('1', 500, { recover: true })
+  state.crashed = true
+  await assert.rejects(bridge.execute('2', 500, { recover: true }), /crashed; the app reloaded it, and the next call reopens the project/)
+  assert.equal(state.project, null)
+  state.asked.length = 0
+  assert.equal(await bridge.execute('3', 500, { recover: true }), 'ok')
+  assert.deepEqual(state.asked, ['reopen p9', 'call'])
+  assert.equal(state.project, 'p9')
 })
 
 test('a page that cannot abort but can save keeps the unsaved edits', async () => {
@@ -216,8 +278,8 @@ test('the timeout answers say what was done and name only things an agent can do
   assert.match(aborted.hint, /unsaved until studio\.project\.save\(\)/)
 
   const lost = answer({ action: 'reloaded', unsavedEditsKept: false, back: false })
-  assert.match(lost.message, /still reopening the project/)
-  assert.match(lost.hint, /could not save .* lost: redo them/)
+  assert.match(lost.message, /still reopening the project .*studio\.project\.open\(id\)/)
+  assert.match(lost.hint, /could not save before the reload: what earlier calls changed was saved .* what this call changed before it stuck is lost/)
 
   const none = answer(undefined)
   assert.match(none.message, /did not answer within 1000 ms/)

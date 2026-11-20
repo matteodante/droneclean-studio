@@ -664,3 +664,23 @@ read hooks and workflows at the repository's root only.
 | `.fallowrc.json` | `bench/flow-probe/run.mjs`, `survey.mjs`, `sheet.mjs` and `probe-page.mjs` added to `entry`. | Task 11.12: the optical-flow probe is started from the command line and its page, which the dead-code gate cannot see. |
 | `src/features/preview/hooks/use-preview-render-pump-controller.ts` | `queueLookahead` re-queues itself for the next idle moment while a render is in flight and a request is waiting, instead of replacing that request with the lookahead frame. | The paused lookahead overwrote a pending redraw of the visible frame (a staged clip whose look became ready, or an edit), so a look chosen on a paused clip could stay undrawn: the packaged e2e's looks check failed (20 Nov 2026). |
 | `src/features/preview/components/video-preview.sync.test.tsx` | A case where a look's stages become ready while the paused frame is in flight and the paused lookahead comes first: the frame is drawn again. | Covers the lookahead fix in `use-preview-render-pump-controller.ts`. |
+| `src/features/timeline/services/waveform-worker.ts` | The sink comes from `createPrimedAudioSampleSink` (`src/studio/media/aac-priming.ts`). | Task 11.22: AAC priming declared only in an `iTunSMPB` tag is trimmed, so the waveform starts on the first real sample. |
+| `src/runtime/composition-runtime/utils/audio-decode-cache.ts` | Both sinks come from `createPrimedAudioSampleSink`. | Task 11.22. |
+| `src/runtime/composition-runtime/utils/audio-decode-worker.ts` | Both sinks come from `createPrimedAudioSampleSink`. | Task 11.22. |
+| `src/runtime/renderer/audio/decode.ts` | The sink comes from `createPrimedAudioSampleSink`. | Task 11.22. |
+| `src/runtime/renderer/audio/windowed.ts` | The sink comes from `createPrimedAudioSampleSink`. | Task 11.22. |
+| `src/types/keyframe.ts` | Two members of `BuiltInAnimatableProperty` (`framingX`, `framingY`) and their labels in `BUILT_IN_PROPERTY_LABELS`. | Task 11.23: the stabilized window's framing is animatable. |
+| `src/features/keyframes/property-value-ranges.ts` | `framingX` and `framingY`, range -1..1, 2 decimals. | Task 11.23. |
+| `src/features/keyframes/utils/animatable-properties.ts` | `STABILIZATION_ANIMATABLE_PROPERTIES`, offered on a video clip when `offersFramingKeyframes(item)`; one import. | Task 11.23. |
+| `src/features/keyframes/utils/animatable-property-base-value.ts` | The base value of `framingX` and `framingY` from `framingBaseValue(item, property)`; one import. | Task 11.23. |
+| `src/features/keyframes/utils/animatable-property-base-value.test.ts` | A case for the framing lanes' base value (the stored setting, 0 when unset or on a clip that is not video) and the volume. | Task 11.23. |
+| `src/i18n/locales/partials/en/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/de/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/es/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/fr/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/ja/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/ko/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/pt-BR/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/tr/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `src/i18n/locales/partials/zh/keyframes.json` | `keyframes.properties.framingX` and `framingY` in this language. | Task 11.23: the framing lanes' names in the keyframe editor. |
+| `headless/lib/cli.mjs` | On Windows, Chrome's launch arguments add `--force-high-performance-gpu`. | Task 8.1: on the test PC headless Chrome took the Ryzen's integrated GPU instead of the RTX 5070 Ti, so the PC's golden frames would have been the wrong GPU's. |

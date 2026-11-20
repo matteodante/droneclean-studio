@@ -126,10 +126,20 @@ const INSTRUCTIONS =
   'DroneClean Studio is a video editor; window.studio is its SDK. Use search to find a method, run to evaluate a ' +
   'JavaScript function against the SDK (one undo step when it is synchronous; Ctrl+Z takes it back), and the ' +
   'editor updates live. studio.project.create makes a project and opens it, so media can be imported next; ' +
-  'studio.project.open(id) switches to another one. Edits live in the editor until ' +
-  'studio.project.save() writes them, so save before you stop: an app that closes or crashes loses unsaved ' +
-  'edits. frame renders a frame or a contact sheet; export saves the project, queues a render and reports its ' +
-  'progress. In the desktop app studio.media.import names media by absolute path; a browser has only file handles.'
+  'studio.project.open(id) switches to another one. run saves the project after every call that changed it ' +
+  '(its result says saved: true; saved: false means the save failed and studio.project.save() should be called ' +
+  'again). frame renders a frame or a contact sheet; export saves the project, queues a render and reports its ' +
+  'progress. In the desktop app studio.media.import names media by absolute path; a browser has only file handles. ' +
+  'A drone edit usually goes: studio.project.current() and studio.media.list() for what is already open and ' +
+  'imported; studio.tracks.list() for the track ids; studio.clips.addMany to lay clips end to end (sourceStart and ' +
+  'sourceEnd pick the part of each file, in frames of the file); await studio.clips.setStabilization(clipId, {}) ' +
+  'for each clip whose file carries gyro data (DJI, GoPro; UNSUPPORTED otherwise), one after another, since the ' +
+  'engine opens each clip in seconds (raise timeoutMs for many); studio.titles.add for a short text; ' +
+  'studio.transitions.add at a cut; for a before and after, the same range twice with stabilization on only one, ' +
+  'side by side (clips.update transform x and width) or one after the other with a title on each; frame with a ' +
+  'contactSheet to look at the whole edit; studio.export.presets() for the export settings (same-as-source, ' +
+  'youtube-4k, instagram-reel, small-file). Pass show: true on a run to bring the editor window up when the user ' +
+  'wants to watch.'
 
 /** The tool schemas; the wire shapes are in `studio/mcp/protocol.d.ts`. */
 const searchInput = {

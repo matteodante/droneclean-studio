@@ -1,4 +1,5 @@
 import type { AnimatableProperty } from '@/types/keyframe'
+import { offersFramingKeyframes } from '@/studio/stabilization/framing-property'
 import type { TimelineItem } from '@/types/timeline'
 import { getAnimatableEffectPropertiesForItem } from './effect-animatable-properties'
 import { TEXT_ANIMATABLE_PROPERTIES } from './animated-text-item'
@@ -24,6 +25,9 @@ const VIDEO_ANIMATABLE_PROPERTIES: AnimatableProperty[] = [
   'cropSoftness',
 ]
 
+/** The stabilized window's framing (task 11.23): offered only while the clip's stabilization is on */
+const STABILIZATION_ANIMATABLE_PROPERTIES: AnimatableProperty[] = ['framingX', 'framingY']
+
 const AUDIO_ANIMATABLE_PROPERTIES: AnimatableProperty[] = ['volume']
 const CONTROLLER_ANIMATABLE_PROPERTIES: AnimatableProperty[] = [
   'x',
@@ -43,6 +47,7 @@ export function getAnimatablePropertiesForItem(item: TimelineItem): AnimatablePr
       return [
         ...VISUAL_ANIMATABLE_PROPERTIES,
         ...VIDEO_ANIMATABLE_PROPERTIES,
+        ...(offersFramingKeyframes(item) ? STABILIZATION_ANIMATABLE_PROPERTIES : []),
         ...AUDIO_ANIMATABLE_PROPERTIES,
         ...effectProperties,
       ]

@@ -31,7 +31,8 @@ Each feature stands on one project, "Feature pass", that the first feature creat
 `e2e.mjs` once ran against `~/Library/Application Support/DroneClean Studio` and left it pointing at a temporary
 workspace. This harness cannot do that:
 
-1. Every launch gets a fresh folder under `$TMPDIR` (the profile and the workspace are inside it; fixtures too).
+1. Every launch gets a fresh folder under `$TMPDIR` for the profile and the fixtures, and a workspace under `dist/`
+   (git-ignored): the app refuses a workspace in a temporary folder.
 2. A packaged app ignores `DRONECLEAN_USER_DATA` (review finding D5), so the harness moves the app's `appData`
    instead: it starts with `HOME` and `CFFIXED_USER_HOME` set to the throwaway folder. Before the `.app` is
    started at all, `test/support/print-appdata.cjs` runs under Electron's own binary with the same environment and

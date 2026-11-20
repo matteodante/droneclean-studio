@@ -132,18 +132,31 @@ export async function dragCardToTimeline(page, fileName, observations = {}, { ca
       })
     }
   })
-  const cardBox = await cardOf().boundingBox()
-  if (!cardBox) throw new Error('the media card has no box')
-  const cx = cardBox.x + cardBox.width / 2
-  const cy = cardBox.y + cardBox.height / 2
-  await page.mouse.move(cx, cy)
-  await page.mouse.down()
-  await page.waitForTimeout(100)
-  await page.mouse.move(cx + 8, cy + 8, { steps: 4 })
-  await page.waitForTimeout(100)
-  await page.mouse.move(cx + 28, cy + 28, { steps: 6 })
-  await page.waitForTimeout(100)
-  const payload = await page.evaluate(() => window.__e2ePayload)
+  // The pointer moves that start an HTML5 drag: on Windows the system's drag loop sometimes does not start from
+  // synthetic moves (no dragstart at all, measured on the PC on 20 Nov 2026), so a drag that did not start is begun
+  // again, up to three times. A drag that started with the wrong payload is never retried.
+  let payload = null
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const cardBox = await cardOf().boundingBox()
+    if (!cardBox) throw new Error('the media card has no box')
+    const cx = cardBox.x + cardBox.width / 2
+    const cy = cardBox.y + cardBox.height / 2
+    await page.evaluate(() => {
+      window.__e2ePayload = null
+    })
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    await page.waitForTimeout(100)
+    await page.mouse.move(cx + 8, cy + 8, { steps: 4 })
+    await page.waitForTimeout(100)
+    await page.mouse.move(cx + 28, cy + 28, { steps: 6 })
+    await page.waitForTimeout(100)
+    payload = await page.evaluate(() => window.__e2ePayload)
+    observations.dragAttempts = attempt
+    if (payload !== null) break
+    await page.mouse.up()
+    await page.waitForTimeout(500)
+  }
   if (payload?.type !== 'media-item' || payload.fileName !== fileName) {
     await page.mouse.up()
     throw new Error(`the drag does not carry the media item of ${fileName}: ${JSON.stringify(payload)}`)

@@ -1,0 +1,16 @@
+{
+  "gpu": {
+    "vendor": "nvidia",
+    "architecture": "blackwell",
+    "device": "",
+    "description": ""
+  },
+  "chrome": "158.0.8127.37",
+  "os": "Windows_NT 10.0.26300",
+  "arch": "x64",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor           ",
+  "model": "unknown",
+  "angleBackend": "--use-angle=d3d11",
+  "frames": 71,
+  "note": "Machine that produced the stored frames. See golden/README.md."
+}

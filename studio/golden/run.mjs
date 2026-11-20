@@ -18,7 +18,7 @@ import { describeFailure, runToLog, tailOf } from '../headless/lib/build-log.mjs
 import { CASES } from './cases.mjs'
 import { blurBoxesFile } from './lib/blur.mjs'
 import { flowPatternFile } from './lib/flow.mjs'
-import { describeStats, diffImage, diffStats, isIdentical, triptychPng } from './lib/compare.mjs'
+import { describeStats, diffImage, diffStats, flatColour, isIdentical, triptychPng } from './lib/compare.mjs'
 import {
   countLevels,
   describeStats16,
@@ -58,7 +58,9 @@ function parseArgs(argv) {
     list: false,
     repeat: 1,
     cases: null,
-    expected: path.join(GOLDEN, 'expected'),
+    // Each test machine keeps its own stored frames (exact for its GPU): the Mac's in expected/, the Windows PC's
+    // (RTX 5070 Ti, task 8.1) in expected-pc/
+    expected: path.join(GOLDEN, process.platform === 'win32' ? 'expected-pc' : 'expected'),
   }
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]
@@ -344,6 +346,13 @@ function update(selected, rendered, machine, args) {
       }
     }
   }
+  const flat = [...rendered].filter(([, image]) => flatColour(image) !== null).map(([key]) => key)
+  if (flat.length) {
+    throw new SetupError(
+      `Refusing to store ${flat.length} frame(s) of one flat colour (${flat.slice(0, 5).join(', ')}${flat.length > 5 ? ', …' : ''}): ` +
+        'the GPU drew nothing but the empty canvas. On Windows a session without a desktop (SSH) does this; run from the desktop.',
+    )
+  }
   const changedKeys = []
   let changed = 0
   let created = 0
@@ -396,6 +405,12 @@ function compare(selected, rendered, machine, images, args) {
       const key = `${c.id}/${frame}`
       const actual = rendered.get(key)
       const problems = []
+      const flat = flatColour(actual)
+      if (flat) {
+        problems.push({
+          text: `is one flat colour (${flat.join(',')}): the GPU drew nothing but the empty canvas (on Windows, a session without a desktop such as SSH does this)`,
+        })
+      }
 
       if (c.sameAsSource) {
         const source = images.get(c.sameAsSource)

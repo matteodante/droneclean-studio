@@ -12,6 +12,7 @@ import {
 } from '@/shared/utils/audio-fade-curve'
 import { ensureAc3DecoderRegistered, isAc3AudioCodec } from '@/shared/utils/ac3-decoder'
 import { createMediabunnyInputSource } from '@/infrastructure/browser/mediabunny-input-source'
+import { createPrimedAudioSampleSink } from '@/studio/media/aac-priming'
 import { bufferSamples, frameToSeconds, sampleAt, toRate, type Rate } from '@/studio/time'
 import type { AudioSegment, DecodedAudio } from './types'
 import { decodeAudioFromSource, decodeAudioRangeFromSink } from './decode'
@@ -181,7 +182,7 @@ async function createWindowedAudioDecoderPool(): Promise<WindowedAudioDecoderPoo
         if (!track) throw new NoAudioTrackError()
         return {
           input,
-          sink: new mb.AudioSampleSink(track),
+          sink: await createPrimedAudioSampleSink(mb, input, track),
           duration: await input.computeDuration(),
         }
       } catch (error) {

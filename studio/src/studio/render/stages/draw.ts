@@ -32,6 +32,7 @@ import {
 import { createLogger } from '@/shared/logging/logger'
 import { perDevice } from '@/studio/render/device-cache'
 import { preciseOutputActive } from '@/studio/render/precise/contract'
+import { withAnimatedFraming } from '@/studio/stabilization/framing-keyframes'
 import { timedStageAsync } from '@/studio/render/timings'
 import { secondsToFrame, toRate } from '@/studio/time'
 import type { VideoItem } from '@/types/timeline'
@@ -108,6 +109,12 @@ function stagedSourcePlan(
   })
 }
 
+/** The clip with the framing its keyframes give at timeline frame `frame` (the same clip when it has none; `framing-keyframes.ts`) */
+function framedAt(item: VideoItem, frame: number, rctx: ItemRenderContext): VideoItem {
+  const keyframes = rctx.getCurrentKeyframes?.(item.id) ?? rctx.keyframesMap.get(item.id)
+  return withAnimatedFraming(item, keyframes, frame - item.from)
+}
+
 /** The clip's staged picture, or `null` when a preview cannot draw it at all */
 async function stagedPicture(
   item: VideoItem,
@@ -118,6 +125,7 @@ async function stagedPicture(
 ): Promise<StagedFrame | null> {
   const stages = rctx.stages
   const plan = stagedSourcePlan(item, frame, rctx, renderSpan, sourceFrameOffset)
+  const framed = framedAt(item, frame, rctx)
   // One sample is the frame itself, as the pipeline takes a bare index
   const source = plan.samples.length === 1 ? plan.samples[0]!.index : plan
   if (rctx.renderMode === 'export') {
@@ -125,11 +133,11 @@ async function stagedPicture(
       throw new Error(
         `Clip '${item.label || item.id}' needs the stage pipeline, and this renderer has none`,
       )
-    return stages.render(item, source)
+    return stages.render(framed, source)
   }
   if (!stages) return null
   try {
-    return await stages.render(item, source)
+    return await stages.render(framed, source)
   } catch (error) {
     log.warn('a staged clip could not be drawn in the preview', {
       clip: item.id,
@@ -172,7 +180,7 @@ async function stagedFreeCutPicture(
 ): Promise<StagedFrame | null> {
   const stages = rctx.stages
   if (!stages) return null
-  const item = participant.item
+  const item = framedAt(participant.item, frame, rctx)
   const media = await timedStageAsync('decode', freeCutSource, frame)
   if (!media) return null
   try {
