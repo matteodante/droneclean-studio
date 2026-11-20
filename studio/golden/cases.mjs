@@ -27,6 +27,7 @@ import {
   VECTOR_SOURCE_FRAMES,
 } from './lib/flow.mjs'
 import { LOOK_ID, lookOf, linearLookText } from './lib/look.mjs'
+import { checkCrossfade } from './lib/crossfade.mjs'
 import { STAGE_WARP_CASE, STAGE_WARP_FLOAT_CASE } from './lib/stage-warp.mjs'
 
 const GRADE_NOTE = 'single effect on the "card" test image'
@@ -386,7 +387,7 @@ graded(
 
 // --- Transitions (midpoint) ------------------------------------------------------------------------------------
 for (const [presentation, direction, what] of [
-  ['fade', undefined, 'a cross-fade: (a + b) / 2'],
+  ['fade', undefined, 'the equal-power cross-fade, the outgoing image growing from 100 % to 104 % and the incoming one settling from 104 % to 100 %, both covering the frame'],
   ['wipe', 'from-left', 'a hard wipe edge half-way across'],
   ['clockWipe', undefined, 'a clock wipe at half a turn'],
 ]) {
@@ -402,6 +403,10 @@ for (const [presentation, direction, what] of [
     frames: [15],
   })
 }
+// The fade is that cross-fade to the frame's very edge: frame 15 is the transition's sixth of ten frames, progress 5/9
+Object.assign(cases.find((c) => c.id === 'transition-fade'), {
+  check: checkCrossfade('card', 'scene', (frame) => (frame - 10) / 9),
+})
 
 // --- Blend modes -----------------------------------------------------------------------------------------------
 for (const mode of ['multiply', 'overlay', 'difference']) {

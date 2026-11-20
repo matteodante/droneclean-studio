@@ -129,13 +129,18 @@ describe('fade renderCanvas (equal-power crossfade)', () => {
     expect(drawsFor(left)[0]!.composite).toBe('lighter')
   })
 
-  it('applies the legacy 4% scale drift from the export path', () => {
-    const start = renderFadeAt(0)
-    expect(start.drawsFor(start.left)[0]!.scale).toBeCloseTo(1, 5)
-    expect(start.drawsFor(start.right)[0]!.scale).toBeCloseTo(1.04, 5)
-
-    const end = renderFadeAt(1)
-    expect(end.drawsFor(end.right)[0]!.scale).toBeCloseTo(1, 5)
+  it('keeps both clips covering the frame at every progress: outgoing 1 to 1.04, incoming 1.04 to 1', () => {
+    // A clip drawn smaller than the frame leaves a band at the edges where only the other clip's weight shows: FreeCut's
+    // drift shrank the outgoing clip to 0.96, a dark border of 1% per side at the midpoint (DroneClean, 20 Nov 2026:
+    // 40 px at 4K on full-bleed stabilized clips). The outgoing clip now grows instead.
+    for (const p of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      const { drawsFor, left, right } = renderFadeAt(p)
+      expect(drawsFor(left)[0]!.scale).toBeCloseTo(1 + 0.04 * p, 10)
+      expect(drawsFor(right)[0]!.scale).toBeCloseTo(1.04 - 0.04 * p, 10)
+      for (const draw of [...drawsFor(left), ...drawsFor(right)]) {
+        expect(draw.scale).toBeGreaterThanOrEqual(1)
+      }
+    }
   })
 })
 

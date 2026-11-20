@@ -109,7 +109,8 @@ export function createDefaultTextItem(
     durationInFrames,
     label: label ?? 'Text',
     text: text ?? 'Your Text Here',
-    fontSize: 60,
+    // DroneClean: 60 px on a 1080p canvas, in proportion on others (on 4K it was half its 1080p size)
+    fontSize: Math.round((60 * Math.min(canvasWidth, canvasHeight)) / 1080),
     fontFamily: 'Inter',
     fontWeight: 'normal',
     fontStyle: 'normal',

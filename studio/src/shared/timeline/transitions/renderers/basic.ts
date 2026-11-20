@@ -24,9 +24,11 @@ function fadeWeight(progress: number, isOutgoing: boolean): number {
   return isOutgoing ? c * c : 1 - c * c
 }
 
+// The outgoing clip grows from 1 to 1.04 (DroneClean, 20 Nov 2026: FreeCut shrank it to 0.96, leaving a dark border
+// where only the incoming clip's weight showed), so both clips always cover the frame.
 function fadeScale(progress: number, isOutgoing: boolean): number {
   if (isOutgoing) {
-    return 1 - 0.04 * progress
+    return 1 + 0.04 * progress
   }
   return 1.04 - 0.04 * progress
 }

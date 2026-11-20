@@ -70,31 +70,32 @@ export const INITIALIZE_RESULT = {
     capabilities: { tools: { listChanged: true } },
     serverInfo: { name: 'droneclean', version: '1' },
     instructions:
-      'DroneClean Studio is a video editor; window.studio is its SDK. Use search to find a method (an SDK hit carries its ' +
-      'whole signature or declaration; studio.reference() returns the full reference), run to evaluate a JavaScript ' +
-      'function against the SDK, and the editor updates live. A synchronous run is one undo step, rolled back whole if it ' +
-      'throws; an awaited script keeps the steps it made before an error, which the error says (Ctrl+Z or ' +
-      'studio.history.undo() takes them back). studio.project.create({ name, width, height, fps: { num: 60000, den: 1001 } }) ' +
-      'makes a project and opens it, so media can be imported next; studio.project.open(id) switches to another one. run ' +
-      'saves the project after every call that changed it (its result says saved: true; saved: false means the save ' +
-      'failed and studio.project.save() should be called again). frame renders a timeline frame or a contact sheet; export ' +
-      'saves the project, queues a render and reports its progress, and a finished job\'s absolutePath is the file to name ' +
-      'to the person. In the desktop app studio.media.import names media by absolute path; a browser has only file ' +
-      'handles. A drone edit usually goes: studio.project.current() and studio.media.list() (newest first; sort by ' +
-      'fileName for the order the files were shot) for what is open and imported; studio.tracks.list() for the track ids, ' +
-      'top first; studio.clips.addMany to lay clips end to end (sourceStart and sourceEnd pick the part of each file, in ' +
-      'frames of the file; a clip that would overlap another is a CONFLICT naming the first free frame); await ' +
+      'DroneClean Studio is a video editor; window.studio is its SDK. Use search to find a method (an SDK hit ' +
+      'carries its whole signature or declaration; search rather than studio.reference(), too long for one answer), ' +
+      'run to evaluate a JavaScript function against the SDK, and the editor updates live. A synchronous run is one ' +
+      'undo step, rolled back whole if it throws; an awaited script keeps the steps it made before an error, which ' +
+      'the error says (Ctrl+Z or studio.history.undo() takes them back). studio.project.create({ name, width, ' +
+      'height, fps: { num: 60000, den: 1001 } }) makes a project and opens it, so media can be imported next; ' +
+      'studio.project.open(id) switches to another one. run saves the project after every call that changed it (its ' +
+      'result says saved: true; saved: false means the save failed and studio.project.save() should be called ' +
+      'again). frame renders a timeline frame or a contact sheet; export saves the project, queues a render and ' +
+      'reports its progress, and a finished job\'s absolutePath is the file to name to the person. In the desktop ' +
+      'app studio.media.import names media by absolute path; a browser has only file handles. A drone edit usually ' +
+      'goes: studio.project.current() and studio.media.list() (newest first; sort by fileName for the order the ' +
+      'files were shot) for what is open and imported; studio.tracks.list() for the track ids, top first; ' +
+      'studio.clips.addMany to lay clips end to end (sourceStart and sourceEnd pick the part of each file, in frames ' +
+      'of the file; a clip that would overlap another is a CONFLICT naming the first free frame); await ' +
       'studio.clips.setStabilization(clipId, {}) for each clip whose file carries gyro data (DJI, GoPro; UNSUPPORTED ' +
       'otherwise), one after another, since the engine opens each clip in seconds (raise timeoutMs for many; ' +
       'studio.clips.getStabilization(id) reads it back); a title goes on a video track of its own above the footage, ' +
-      'studio.tracks.add({ kind: \'video\', name: \'Titles\', position: 0 }) (without position a track goes to the bottom, ' +
-      'hidden under the footage), then studio.titles.add on it; studio.transitions.add at a cut; for a before and after, ' +
-      'the same range twice, one after the other, the first without stabilization, with a title on each: a stabilized clip ' +
-      'fills the canvas, so give the unstabilized one a transform that covers it too (the file\'s width and height times ' +
-      'the larger of canvas width / file width and canvas height / file height, x and y 0: a 4:3 file in a 1920x1080 ' +
-      'project is 1920x1440); frame with a contactSheet to look at the whole edit; studio.export.presets() for the export ' +
-      'settings (same-as-source, youtube-4k, instagram-reel, small-file). Pass show: true on a run to bring the editor ' +
-      'window up when the user wants to watch.',
+      'studio.tracks.add({ kind: \'video\', name: \'Titles\', position: 0 }) (without position a track goes to the ' +
+      'bottom, hidden under the footage), then studio.titles.add on it; studio.transitions.add at a cut; for a ' +
+      'before and after, the same range twice, one after the other, the first without stabilization, with a title on ' +
+      'each: a stabilized clip fills the canvas, so give the unstabilized one a transform that covers it too (the ' +
+      'file\'s width and height times the larger of canvas width / file width and canvas height / file height, x and ' +
+      'y 0: a 4:3 file in a 1920x1080 project is 1920x1440); frame with a contactSheet to look at the whole edit; ' +
+      'studio.export.presets() for the export settings (same-as-source, youtube-4k, instagram-reel, small-file). ' +
+      'Pass show: true on a run to bring the editor window up when the user wants to watch.',
   },
 }
 

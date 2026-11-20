@@ -91,14 +91,15 @@ function planWidth(request: FrameRequest): number | { error: StudioErrorJson } {
   return width
 }
 
-/** The frames a sheet samples: every `step`-th frame of `from … to`, ends included. */
-function sampledFrames(from: number, to: number, step: number | undefined): {
+/**
+ * The frames a sheet samples: every `step`-th frame of `from … to`, ends included. An absent step is chosen to fit
+ * `cells`: the grid the caller gave (columns × rows), else the cap, so a range alone or a range with a grid always fits.
+ */
+function sampledFrames(from: number, to: number, step: number | undefined, cells: number): {
   frames: number[]
   step: number
 } {
-  // An absent step is chosen to fit the cap: a caller asking for a whole
-  // timeline by range alone gets at most MAX_FRAME_COUNT cells.
-  const chosen = step ?? Math.max(1, Math.ceil((to - from) / (MAX_FRAME_COUNT - 1)))
+  const chosen = step ?? Math.max(1, Math.ceil((to - from) / Math.max(1, cells - 1)))
   const frames: number[] = []
   for (let frame = from; frame <= to; frame += chosen) {
     frames.push(frame)
@@ -173,7 +174,11 @@ function sheetPlan(
       'contactSheet.step',
     )
   }
-  const sampled = sampledFrames(sheet.from, sheet.to, sheet.step)
+  const gridCells =
+    isWholeAtLeast(sheet.columns, 1) && isWholeAtLeast(sheet.rows, 1)
+      ? Math.min(MAX_FRAME_COUNT, sheet.columns * sheet.rows)
+      : MAX_FRAME_COUNT
+  const sampled = sampledFrames(sheet.from, sheet.to, sheet.step, gridCells)
   if (sampled.frames.length > MAX_FRAME_COUNT) {
     const fewestStep = Math.ceil((sheet.to - sheet.from) / (MAX_FRAME_COUNT - 1))
     return invalidArgument(

@@ -235,12 +235,13 @@ describe('titles', () => {
       })
     })
 
-    it('sizes the text box to the open project canvas', () => {
+    it('sizes the text box and the font to the open project canvas', () => {
       useProjectStore.setState({ currentProject: makeProject() })
 
       const id = titles.add({ trackId: 'v1', from: 0, durationInFrames: 90, text: 'Manarola' })
 
       expect(storedItem(id).transform).toMatchObject({ width: 3072, height: 648 })
+      expect(storedItem(id)).toMatchObject({ fontSize: 120 })
     })
 
     it('commits one undo entry that restores the timeline', () => {

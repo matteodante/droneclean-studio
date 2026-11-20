@@ -25,22 +25,20 @@ fn fadeFragment(input: VertexOutput) -> @location(0) vec4f {
   let p = clamp(params.progress, 0.0, 1.0);
 
   // cos²/sin² weights summing to 1, plus a 4% scale drift — mirrors the
-  // Canvas2D fade renderer so GPU preview matches CPU export exactly.
+  // Canvas2D fade renderer so GPU preview matches CPU export exactly. The
+  // outgoing clip grows from 1 to 1.04 (DroneClean, 20 Nov 2026: FreeCut shrank
+  // it to 0.96, leaving a dark border where only the incoming clip's weight
+  // showed), so both clips always cover the frame and need no mask.
   let c = cos(p * PI / 2.0);
-  let outgoingWeight = c * c;
-  let incomingWeight = 1.0 - c * c;
-  let outgoingScale = 1.0 - 0.04 * p;
+  let wOut = c * c;
+  let wIn = 1.0 - c * c;
+  let outgoingScale = 1.0 + 0.04 * p;
   let incomingScale = 1.04 - 0.04 * p;
 
   let outgoingUv = (input.uv - vec2f(0.5)) / outgoingScale + vec2f(0.5);
   let incomingUv = (input.uv - vec2f(0.5)) / incomingScale + vec2f(0.5);
-  let left = textureSample(leftTex, texSampler, clamp(outgoingUv, vec2f(0.0), vec2f(1.0)));
-  let right = textureSample(rightTex, texSampler, clamp(incomingUv, vec2f(0.0), vec2f(1.0)));
-  let outgoingMask = f32(all(outgoingUv >= vec2f(0.0)) && all(outgoingUv <= vec2f(1.0)));
-  let incomingMask = f32(all(incomingUv >= vec2f(0.0)) && all(incomingUv <= vec2f(1.0)));
-
-  let wOut = outgoingWeight * outgoingMask;
-  let wIn = incomingWeight * incomingMask;
+  let left = textureSample(leftTex, texSampler, outgoingUv);
+  let right = textureSample(rightTex, texSampler, incomingUv);
   let color = left.rgb * wOut + right.rgb * wIn;
   let alpha = clamp(left.a * wOut + right.a * wIn, 0.0, 1.0);
 

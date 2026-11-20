@@ -119,6 +119,20 @@ test('a range with no step samples at most twelve frames, ends included', async 
   assert.equal(plan.width, 1280)
 })
 
+test('a range with a grid and no step samples as many frames as the grid has tiles', async () => {
+  // The demo's rehearsal (20 Nov 2026): a 4 × 2 sheet of a 1000-frame range was refused for "11 frames".
+  const page = fakePage(pngResult({ width: 1278, height: 480 }))
+  const outcome = await frameTool(
+    { contactSheet: { from: 6400, to: 7400, columns: 4, rows: 2 } },
+    page,
+  )
+  assert.ok('result' in outcome)
+  const plan = planOf(page.calls[0])
+  assert.deepEqual(plan.frames, [6400, 6543, 6686, 6829, 6972, 7115, 7258])
+  assert.equal(plan.columns, 4)
+  assert.equal(plan.rows, 2)
+})
+
 test('a six-frame sheet from a step is a 3 × 2 grid in reading order', async () => {
   const page = fakePage(pngResult({ width: 1278, height: 480 }))
   const outcome = await frameTool({ contactSheet: { from: 0, to: 10, step: 2 } }, page)
