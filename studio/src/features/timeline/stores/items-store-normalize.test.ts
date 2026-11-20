@@ -635,19 +635,19 @@ describe('trimSubtitleCuesAtEnd', () => {
   })
 })
 
-describe('normalizeFrameFields: motion blur (design 7.2, section 4.7)', () => {
-  it('keeps one of the four angles', () => {
-    for (const shutterDegrees of [90, 180, 270, 360] as const) {
+describe('normalizeFrameFields: motion blur (design 7.2, section 4.7; design 9.2)', () => {
+  it('keeps any shutter in [0, 360] (0 is no blur, smooth slow motion alone)', () => {
+    for (const shutterDegrees of [0, 18, 90, 126, 180, 270, 360]) {
       const result = normalizeFrameFields(makeVideo({ motionBlur: { shutterDegrees } }))
       expect(result.motionBlur).toEqual({ shutterDegrees })
     }
   })
 
-  it('falls an unknown angle to 360', () => {
-    const result = normalizeFrameFields(
-      makeVideo({ motionBlur: { shutterDegrees: 200 as 180 } }),
-    )
-    expect(result.motionBlur).toEqual({ shutterDegrees: 360 })
+  it('falls a shutter out of range to 180', () => {
+    for (const shutterDegrees of [400, -90]) {
+      const result = normalizeFrameFields(makeVideo({ motionBlur: { shutterDegrees } }))
+      expect(result.motionBlur).toEqual({ shutterDegrees: 180 })
+    }
   })
 
   it('removes an undefined field a switch-off leaves, and never adds one', () => {

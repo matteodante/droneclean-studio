@@ -1,6 +1,7 @@
 /**
- * Motion blur (design 7.2): the causal shutter window that blends the source frames each
- * output frame covers, as pure maths — no GPU, no panel, no field on a clip.
+ * Motion blur (design 7.2, design 9.2): which source frames an output frame is made of, their weights and the shutter
+ * time each stands for, as pure maths — no GPU, no panel, no field on a clip. The vector blur that draws them is
+ * `motion-blur/vector-stage.ts`, which the stage pipeline drives.
  *
  * Other modules import from `@/studio/motion-blur` and never from the files beside this one.
  * The export stage (slice B) and the preview (slice D) plan every output frame with
@@ -9,7 +10,7 @@
  * of design 7.2 section 4.4.
  */
 
-/** A clip's motion blur: the shutter angle of its causal blend window (design 7.2, 4.7), and its smooth slow motion. */
+/** A clip's motion blur: its shutter in degrees (design 9.2), and its smooth slow motion. */
 export type { MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from './types'
 
 /** One source frame of a blend: its index and its share of the window. */
@@ -27,10 +28,15 @@ export { motionBlurFrameCount } from './weights'
 /** The weighted source frames output frame `n` is blended from (design 7.2, section 4.1). */
 export { planMotionBlur } from './weights'
 
-/** The four shutter angles, the checks of an angle and of a smooth slow motion mode, the clip rule and the store's clamp (design 7.2, 4.7 and 4.8). */
+/**
+ * The checks of a shutter, of a smooth slow motion mode and of the optical flow's two settings, the clip rule and the
+ * store's clamp (design 7.2, 4.7 and 4.8; design 9.2, 7; design 11.24).
+ */
 export {
-  SHUTTER_DEGREES,
   canHoldMotionBlur,
+  flowSettingsOf,
+  isFlowDetail,
+  isFlowEdges,
   isShutterDegrees,
   isSmoothSlowMotion,
   normalizeMotionBlurField,

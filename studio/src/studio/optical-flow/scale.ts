@@ -20,19 +20,30 @@ const QUARTER_ABOVE_PIXELS = 2 * 1920 * 1080
 const COARSEST_SIDE = 32
 
 /**
- * How many frame pixels one flow pixel spans, along each side: 2 for frames up to twice a 1080p frame, 4 above. The
- * flow runs on the source frames, so this is the source's size, whatever the project's output size.
+ * How finely the flow follows the motion, a clip's "Motion detail" (design 11.24): `'normal'` measures it at half the
+ * frame's size up to twice a 1080p frame and at a quarter above; `'high'` at twice that (the frame's own size up to twice
+ * a 1080p frame, half above), which follows small and thin moving things more closely and costs about three times the
+ * flow per source gap.
+ */
+export type FlowDetail = 'normal' | 'high'
+
+/**
+ * How many frame pixels one flow pixel spans, along each side: at `'normal'` detail 2 for frames up to twice a 1080p
+ * frame and 4 above, at `'high'` half that. The flow runs on the source frames, so this is the source's size, whatever
+ * the project's output size.
  *
  * @throws RangeError when the size is not a positive whole number of pixels.
  */
-export function flowScaleFor(frame: FlowFrameSize): 2 | 4 {
+export function flowScaleFor(frame: FlowFrameSize, detail: FlowDetail = 'normal'): 1 | 2 | 4 {
   assertSize(frame)
-  return frame.width * frame.height > QUARTER_ABOVE_PIXELS ? 4 : 2
+  const large = frame.width * frame.height > QUARTER_ABOVE_PIXELS
+  if (detail === 'high') return large ? 2 : 1
+  return large ? 4 : 2
 }
 
 /** The flow's size for a frame: the frame divided by `flowScaleFor`, at least one pixel each way. */
-export function flowSizeFor(frame: FlowFrameSize): FlowFrameSize {
-  const scale = flowScaleFor(frame)
+export function flowSizeFor(frame: FlowFrameSize, detail: FlowDetail = 'normal'): FlowFrameSize {
+  const scale = flowScaleFor(frame, detail)
   return {
     width: Math.max(1, Math.floor(frame.width / scale)),
     height: Math.max(1, Math.floor(frame.height / scale)),
@@ -64,8 +75,25 @@ export function levelWork(level: number, count: number): { readonly rounds: numb
 /** The largest change of the flow one Lucas-Kanade round may make, in pixels of its level. */
 export const LK_MAX_STEP = 1.5
 
-/** The round trip's tolerance in the frame's pixels: a point whose flow there and back misses by this much weighs e^-1. */
+/**
+ * Where neither frame is trusted (a thin thing against the sky, a branch near the lens, something entering at the
+ * border), a clip's "Hard edges" (design 11.24): `'mix'` mixes the two moved samples by the phase (a soft local halo at
+ * worst), `'nearest'` takes the one of the frame more likely to see that content (no halo, a small local jump).
+ */
+export type FlowEdges = 'mix' | 'nearest'
+
+/**
+ * The interpolation's tolerance in the frame's pixels: a frame whose own flow at its sample point differs from the
+ * motion at the phase by this much weighs e^-1 (the frame does not see that content).
+ */
 export const CONSISTENCY_SIGMA = 2
+
+/**
+ * How many times the forward warp's holes (flow pixels nothing landed on) take their found neighbours' mean: each pass
+ * reaches one flow pixel further, so 8 fill holes 16 frame pixels wide at half-size flow and 32 at quarter-size
+ * (design 11.24, the probe's setting).
+ */
+export const FILL_PASSES = 8
 
 function assertSize(size: FlowFrameSize): void {
   const { width, height } = size

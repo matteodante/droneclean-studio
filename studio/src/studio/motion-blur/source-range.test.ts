@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vite-plus/test'
 import { restrictToSourceRange } from './source-range'
 import { planMotionBlur } from './weights'
 
-const quarter = (frames: number[]) => frames.map((sourceFrame) => ({ sourceFrame, weight: 1 / frames.length }))
+const quarter = (frames: number[]) =>
+  frames.map((sourceFrame) => ({ sourceFrame, weight: 1 / frames.length, extent: 1 / frames.length }))
 const sum = (list: readonly { weight: number }[]) => list.reduce((t, s) => t + s.weight, 0)
 
 describe('restrictToSourceRange', () => {
@@ -33,20 +34,22 @@ describe('restrictToSourceRange', () => {
 
   it('a ramp ending at the file end keeps unequal weights in proportion', () => {
     const samples = [
-      { sourceFrame: 98, weight: 0.5 },
-      { sourceFrame: 99, weight: 0.3 },
-      { sourceFrame: 100, weight: 0.2 },
+      { sourceFrame: 98, weight: 0.5, extent: 0.5 },
+      { sourceFrame: 99, weight: 0.3, extent: 0.3 },
+      { sourceFrame: 100, weight: 0.2, extent: 0.2 },
     ]
     const kept = restrictToSourceRange(samples, 100)
     expect(kept.map((s) => s.sourceFrame)).toEqual([98, 99])
     expect(kept[0]!.weight).toBeCloseTo(0.625, 12)
     expect(kept[1]!.weight).toBeCloseTo(0.375, 12)
     expect(sum(kept)).toBeCloseTo(1, 12)
+    // each kept frame still stands for its own share of the shutter
+    expect(kept.map((s) => s.extent)).toEqual([0.5, 0.3])
   })
 
-  it('with nothing left, the nearest frame that exists at weight 1', () => {
-    expect(restrictToSourceRange(quarter([100, 101]), 100)).toEqual([{ sourceFrame: 99, weight: 1 }])
-    expect(restrictToSourceRange(quarter([-3, -2]), 100)).toEqual([{ sourceFrame: 0, weight: 1 }])
+  it('with nothing left, the nearest frame that exists at weight 1, standing for the whole shutter', () => {
+    expect(restrictToSourceRange(quarter([100, 101]), 100)).toEqual([{ sourceFrame: 99, weight: 1, extent: 1 }])
+    expect(restrictToSourceRange(quarter([-3, -2]), 100)).toEqual([{ sourceFrame: 0, weight: 1, extent: 1 }])
   })
 
   it('refuses a bad count and an empty plan', () => {

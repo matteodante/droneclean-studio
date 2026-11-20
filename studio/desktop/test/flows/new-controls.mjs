@@ -5,8 +5,12 @@
  * 1. a clip whose file name is DJI's makes the app ask once whether it was shot in D-Log M (5.2), and "No, normal"
  *    closes the question;
  * 2. the clip panel's Curve… opens the speed panel, which shows the frames a second the clip delivers (11.18);
- * 3. Smooth ramp + zoom gives the clip a fast-slow-fast curve with smooth segments and frame blending (11.10, 11.11);
- * 4. the Smooth slow motion select offers Optical flow, and choosing it sets the clip's mode (11.12).
+ * 3. Smooth ramp + zoom gives the clip a fast-slow-fast curve with smooth segments and optical flow (11.10, 11.11,
+ *    11.24);
+ * 4. the Smooth slow motion select offers Frame blending and Optical flow, and choosing one sets the clip's mode
+ *    (11.12);
+ * 5. with Optical flow, the Motion detail and Hard edges rows appear, and choosing High and Nearest frame stores them
+ *    (11.24, option 2b).
  *
  * What each click did is read back through `window.studio`, the SDK the page installs.
  */
@@ -88,26 +92,51 @@ export async function runNewControlsFlow({ page, check, observations, work, drop
     .catch(() => null)
   notes.smoothEdit = { lengthBefore, ...smoothed }
   check(
-    'controls: Smooth ramp + zoom gives the clip a fast-slow-fast curve with smooth segments and frame blending',
+    'controls: Smooth ramp + zoom gives the clip a fast-slow-fast curve with smooth segments and optical flow',
     smoothed !== null &&
       smoothed.keys.some((key) => key.ease === 'smooth') &&
       Math.max(...smoothed.keys.map((key) => key.speed)) > 1 &&
       Math.min(...smoothed.keys.map((key) => key.speed)) < 1 &&
-      smoothed.blur?.smoothSlowMotion === 'blend',
+      smoothed.blur?.smoothSlowMotion === 'optical-flow',
     notes.smoothEdit,
   )
 
-  // 4. Optical flow in Smooth slow motion
-  await page.getByTestId('motion-blur-smooth-slow').click()
-  await page.getByRole('option', { name: 'Optical flow' }).click()
-  const mode = await page
-    .waitForFunction((id) => window.studio.clips.getMotionBlur(id)?.smoothSlowMotion === 'optical-flow', clipId, {
-      timeout: 10000,
-    })
-    .then(
-      () => 'optical-flow',
-      () => page.evaluate((id) => window.studio.clips.getMotionBlur(id)?.smoothSlowMotion ?? null, clipId),
-    )
-  notes.smoothSlowMotion = mode
+  // 4. Smooth slow motion's select: the recipe left the clip on Optical flow, so Frame blending is chosen, then Optical
+  // flow again, each read back through the SDK
+  const choose = async (label, wanted) => {
+    await page.getByTestId('motion-blur-smooth-slow').click()
+    await page.getByRole('option', { name: label }).click()
+    return page
+      .waitForFunction((args) => window.studio.clips.getMotionBlur(args.id)?.smoothSlowMotion === args.wanted, { id: clipId, wanted }, {
+        timeout: 10000,
+      })
+      .then(
+        () => wanted,
+        () => page.evaluate((id) => window.studio.clips.getMotionBlur(id)?.smoothSlowMotion ?? null, clipId),
+      )
+  }
+  const blended = await choose('Frame blending', 'blend')
+  const mode = await choose('Optical flow', 'optical-flow')
+  notes.smoothSlowMotion = { blended, mode }
+  check('controls: Frame blending can be chosen for smooth slow motion', blended === 'blend', { blended })
   check('controls: Optical flow can be chosen for smooth slow motion', mode === 'optical-flow', { mode })
+
+  // 5. Optical flow's two rows: High detail, then Nearest frame, each read back through the SDK
+  const tune = async (testId, label, field, wanted) => {
+    await page.getByTestId(testId).click()
+    await page.getByRole('option', { name: label }).click()
+    return page
+      .waitForFunction((args) => window.studio.clips.getMotionBlur(args.id)?.[args.field] === args.wanted, { id: clipId, field, wanted }, {
+        timeout: 10000,
+      })
+      .then(
+        () => wanted,
+        () => page.evaluate((args) => window.studio.clips.getMotionBlur(args.id)?.[args.field] ?? null, { id: clipId, field }),
+      )
+  }
+  const detail = await tune('motion-blur-flow-detail', 'High', 'flowDetail', 'high')
+  const edges = await tune('motion-blur-flow-edges', 'Nearest frame', 'flowEdges', 'nearest')
+  notes.opticalFlowSettings = { detail, edges }
+  check('controls: Motion detail can be set to High under Optical flow', detail === 'high', { detail })
+  check('controls: Hard edges can be set to Nearest frame under Optical flow', edges === 'nearest', { edges })
 }

@@ -135,6 +135,7 @@ export async function openRenderer({ distDir, mediaFiles }) {
     })
     page.on('pageerror', (error) => pageErrors.push(error.message))
     page.on('console', (message) => {
+      if (process.env.GOLDEN_CONSOLE) console.error(`[page ${message.type()}]`, message.text().slice(0, 600))
       if (message.type() === 'error') pageErrors.push(message.text())
     })
     await page.goto(server.harnessUrl, { waitUntil: 'load', timeout: 60_000 })

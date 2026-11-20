@@ -263,23 +263,24 @@ off by default: `speed` (a constant speed for the clip), `motionBlur` (`{ shutte
 over the engine's defaults, `enabled` true; for a later slice's proof of a stabilized export). In an export spec
 (`lib/exports.mjs`) they are `speed`, `motionBlur`, `stabilization`, plus `countDecodes`.
 
-`motion-blur` (clip at 4x, 360 degrees, the `--fidelity-seconds` segment, 20 s by default, H.265 120 Mbps):
+`motion-blur` (design 9.2: clip at 4x, 360 degrees, and at 1x, 180 degrees, the `--fidelity-seconds` segment, 20 s by
+default, H.265 120 Mbps):
 - `decodes`: the chunks given to every `VideoDecoder` during the export (`calls`, `distinctTimestamps`); each source
-  frame of the span decoded once means both equal the span.
-- `arithmetic`: five output frames rendered through the export renderer; the float accumulator is read through the test
-  sink (`src/studio/render/test-sink.ts`) and compared with the same renderer's frames of the source frames the plan
-  names (a 90 degree shutter: one bare sample per output frame), averaged in linear light on the CPU with the plan's weights. Both sides share the decoder and the
-  source path, so this isolates the gather; it does not compare the source path's colour with FFmpeg's. Differences are
-  in levels of 1023 over the three colour channels (`maxDiffLevels`, where it is, a histogram in 1/8 levels).
-  The exported file is not compared: 8-bit lossy HEVC cannot be held to one level.
-- `rate`: frames per second of the 4x/360 export, the same at 4x with no blur, a plain 1x export, and the baseline
-  record's 120 Mbps export.
+  frame of the span decoded once means both equal the span (the vector blur also reads the frame before the span and the
+  one after it: `framesDecodedBeyondSpan` up to 2).
+- `exactness`: five output frames of the 4x clip rendered through the export renderer twice, by two renderers; the float
+  accumulators are read through the test sink (`src/studio/render/test-sink.ts`) and must be identical (`repeatsExactly`).
+  Each is also compared with the frame blend design 7.2 drew, the plan's bare source frames (the clip shifted, at a 1
+  degree shutter, which passes them through) averaged in linear light on the CPU: `differenceFromFrameBlend`, in levels of 1023, reported and not judged
+  (the copies the blend showed are where they differ). The exported file is not compared: 8-bit lossy HEVC.
+- `rate`: frames per second of the 4x/360 export, the 1x/180 export, the same 4x with no blur, a plain 1x export, and the
+  baseline record's 120 Mbps export.
 
 `motion-blur-preview`: the preview-mode renderer (`runPreviewProbe`) at the usual preview size (1664x1248) and at the
 full 3840x2880: 180 frames back to back (what playing asks for; mean, p50/p95/p99, frames over 16.68 ms, `keeps5994`),
-and a paused frame (first draw after a jump, and redraws), for the 4x clip with blur on and off and a 1x clip with blur
-on; `oneXBlurOnVersusOff` compares the canvases byte for byte (same frame expected) and `fourXBlurOnVersusOff` checks the
-blur is drawn at all. Not included: presenting, the pump's scheduling, the interface.
+and a paused frame (first draw after a jump, and redraws), for the 4x clip with blur on and off and a 1x clip with the
+blur at 180 degrees; `oneXBlurOnVersusOff` and `fourXBlurOnVersusOff` compare the canvases byte for byte and check that
+the blur is drawn at both speeds. Not included: presenting, the pump's scheduling, the interface.
 
 Run each with `zsh ../scripts/heavy.sh --max-gb 7 -- node bench/run.mjs motion-blur` once `run.mjs` registers them.
 

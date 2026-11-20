@@ -27,7 +27,6 @@ import { createStagePipeline, type StagedFrame, type StagePipeline } from './pip
 import type { Preparer } from './preparer'
 import type { StageRegistry } from './registry'
 import { MAX_SAMPLES_PER_PASS } from '@/studio/motion-blur/stage'
-import { setProjectRate } from './predicates'
 import { pagePreparer, setPreparerDevice, SOURCE_STAGES } from './session'
 
 /** `GPUTextureUsage.COPY_DST`, as the spec numbers it (the module loads where there is no GPU) */
@@ -105,8 +104,6 @@ function withRate(item: TimelineItem, projectFps: number): TimelineItem {
 /** Creates the stages of one renderer instance. Nothing is built until the first staged clip needs it. */
 export function createRendererStages(options: RendererStagesOptions): RendererStages {
   const { mode, projectFps } = options
-  // The predicates ask about a clip alone: its source rate against this project's decides its blur's span
-  setProjectRate(projectFps)
   const registry = options.registry ?? SOURCE_STAGES
   const preparer = options.preparer ?? pagePreparer()
   const deviceOf = async (): Promise<GPUDevice | null> => (await options.getDevice()) ?? null

@@ -2,9 +2,14 @@
 // footage and scores them against the frames a 60 fps clip really has. Nothing here is product code.
 //
 //   ../scripts/heavy.sh -- node bench/flow-probe/run.mjs [--cache DIR] [--pairs 32] [--smoke]
+//                                                          [--retime [--rife-model FILE.onnx]]
 //
+// `--retime` (design 11.24) scores today's half-size flow against the variants in VARIANTS below (`kernels-v2.mjs`: the
+// forward warp, the moved-sample fallback, bicubic sampling, ...); `--rife-model` adds RIFE on onnxruntime-web from a
+// model file outside the repository (the editor's `walterlow/RIFE_fp32_timestep`, downloaded by hand) and its time.
 // Needs the benchmark clip (BENCH_CLIP, see scripts/local-paths.env), FFmpeg, Google Chrome with a real GPU.
-// Frames are decoded once to raw RGBA in the cache (about 2.3 GB at the full size); nothing enters git.
+// Frames are decoded once to raw RGBA in the cache (about 2.3 GB at the full size); the scored frames of a run take
+// about 2 GB per method: put the cache on a disk with room. Nothing enters git.
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -20,6 +25,28 @@ const opt = (name, def) => {
   return i >= 0 ? args[i + 1] : def
 }
 const smoke = args.includes('--smoke')
+// Design 11.24: `--retime` scores today's half-size flow (flow2) against the classic steps of kernels-v2.mjs
+const retime = args.includes('--retime') || args.includes('--retime4k')
+// `--retime4k` (design 11.24, run 6): "motion detail" scored at 4K, the frames of the 3840x2160 set at gap 2, the
+// forward warp on the normal-detail flow (a quarter of the frame) against the high-detail one (half)
+const retime4k = args.includes('--retime4k')
+const VARIANTS_4K = [
+  { name: 'fwd4', scale: 4, kind: 'fwd', flows: 'low', mode: 6 },
+  { name: 'fwd4h', scale: 2, kind: 'fwd', flows: 'low', mode: 6 },
+]
+const rifeModel = opt('rife-model')
+const VARIANTS = [
+  // run 1 (20 Nov 2026): borders2 = borders + warp fallback on the flow as it is; refined2 = the joint bilateral flow;
+  // both2 = both. Run 2: bord2 (borders alone) loses 0.04-0.21 dB, fall2 (warp fallback alone) gains 0.2-2.0 dB, the
+  // candidate pick adds nothing for 7 ms (1080p) to 28 ms (4K). Run 3: bicubic level in PSNR, the in-frame rule loses.
+  // Run 4: the forward warp (fwd2) +0.4 to +1.4 dB over the fallback, built; RIFE (`--rife-model`) measured.
+  // Run 5 (below): the two controls' other ends, "motion detail: high" (the flow at the frame's size, fwd1) and "hard
+  // edges: nearest frame" (fwd2n), against the product (fwd2).
+  { name: 'fwd2', scale: 2, kind: 'fwd', flows: 'low', mode: 6 },
+  { name: 'fwd1', scale: 1, kind: 'fwd', flows: 'low', mode: 6 },
+  { name: 'fwd2n', scale: 2, kind: 'fwd', flows: 'low', mode: 6 | 64 },
+  ...(rifeModel ? [{ name: 'rife', scale: 2, kind: 'rife' }] : []),
+]
 const cache = path.resolve(opt('cache', path.join(os.tmpdir(), 'droneclean-flow-probe')))
 const pairs = Number(opt('pairs', smoke ? 3 : 32))
 const clip = process.env.BENCH_CLIP
@@ -89,6 +116,14 @@ const server = http.createServer((req, res) => {
     fs.readSync(fd, b, 0, size, i * size)
     fs.closeSync(fd)
     res.writeHead(200, { 'content-type': 'application/octet-stream' }).end(b)
+  } else if (url.pathname === '/model' && rifeModel) {
+    res.writeHead(200, { 'content-type': 'application/octet-stream' }).end(fs.readFileSync(rifeModel))
+  } else if (url.pathname.startsWith('/ort/')) {
+    const dist = path.resolve(HERE, '../../node_modules/onnxruntime-web/dist')
+    const f = path.join(dist, path.basename(url.pathname))
+    if (!fs.existsSync(f)) return res.writeHead(404).end()
+    const type = f.endsWith('.wasm') ? 'application/wasm' : 'text/javascript'
+    res.writeHead(200, { 'content-type': type }).end(fs.readFileSync(f))
   } else if (url.pathname === '/out' && req.method === 'POST') {
     const out = fs.createWriteStream(path.join(outDir, `${url.searchParams.get('name')}.rgba`), {
       flags: 'a',
@@ -147,46 +182,62 @@ const timingConfigs = [
   { set: 'k2160', W: 3840, H: 2160, scale: 2 },
   { set: 'k2160', W: 3840, H: 2160, scale: 4 },
 ]
-for (const cfg of smoke ? timingConfigs.slice(1, 2) : timingConfigs) {
+const retimeTiming = [timingConfigs[0], timingConfigs[1], timingConfigs[3], timingConfigs[4]]
+for (const cfg of retime4k ? [] : smoke ? timingConfigs.slice(1, 2) : retime ? retimeTiming : timingConfigs) {
   const r = await page.evaluate((c) => window.probe.timing(c), { ...cfg, pairs })
   result.timing.push(r)
   const m = (k) => r.stagesMs[k].median.toFixed(1)
   console.log(
-    `timing ${cfg.W}x${cfg.H} flow ${r.flowSize.join('x')}: pyramid ${m('pyramid')} fwd ${m('flowFwd')} bwd ${m('flowBwd')} interp ${m('interp')} whole ${m('whole')} ms (${r.levels} levels, ${r.stagesMs.whole.n} pairs)`,
+    `timing ${cfg.W}x${cfg.H} flow ${r.flowSize.join('x')}: pyramid ${m('pyramid')} fwd ${m('flowFwd')} bwd ${m('flowBwd')} interp ${m('interp')} whole ${m('whole')} | refine ${m('refine')} pick ${m('pick')} interpNew ${m('interpNew')} pickLow ${m('pickLow')} forward ${m('forward')} wholePickForward ${m('wholePickForward')} interpBest ${m('interpBest')} wholeBest ${m('wholeBest')} ms (${r.levels} levels, ${r.stagesMs.whole.n} pairs)`,
   )
 }
 
 // 3: quality against the real frames
-const qualityJobs = [
-  ...Object.keys(SETS)
-    .filter((n) => n.startsWith('m'))
-    .flatMap((set) => [
-      { set, gap: 2, ts: [0.5] },
-      { set, gap: 4, ts: [0.25, 0.5, 0.75] },
-    ]),
-]
+const jobScales = (variants, base) => [...new Set([base, ...variants.map((v) => v.scale)])]
+const qualityJobs = retime4k
+  ? [{ set: 'k2160', gap: 2, ts: [0.5], W: 3840, H: 2160, scales: jobScales(VARIANTS_4K, 4), variants: VARIANTS_4K }]
+  : Object.keys(SETS)
+      .filter((n) => n.startsWith('m'))
+      .flatMap((set) => [
+        { set, gap: 2, ts: [0.5] },
+        { set, gap: 4, ts: [0.25, 0.5, 0.75] },
+      ])
+      .map((j) => ({
+        ...j,
+        W: 1920,
+        H: 1080,
+        scales: retime ? jobScales(VARIANTS, 2) : [1, 2],
+        variants: retime ? VARIANTS : [],
+      }))
 for (const j of qualityJobs) {
   const tag = `${j.set}_g${j.gap}`
   const r = await page.evaluate((c) => window.probe.quality(c), {
     ...j,
-    W: 1920,
-    H: 1080,
     nFrames: SETS[j.set].n,
-    scales: [1, 2],
     tag,
   })
   r.job = j
   result.quality.push(r)
   console.log('quality pass done', tag, r.motion.length, 'pairs')
 }
+if (retime && rifeModel) {
+  // RIFE's time per frame at 1080p (padded to 1920x1088), after its quality runs warmed it up
+  const r = await page.evaluate((c) => window.probe.rifeTiming(c), { set: 'm060', W: 1920, H: 1080 })
+  result.rife = { ...r, allQualityRuns: await page.evaluate(() => window.probe.rifeTimes()) }
+  console.log(
+    `RIFE ${r.W}x${r.H}: ${r.msPerFrame.median.toFixed(0)} ms a frame (median of ${r.msPerFrame.n}, min ${r.msPerFrame.min.toFixed(0)}, max ${r.msPerFrame.max.toFixed(0)})`,
+  )
+}
 await context.close()
 server.close()
 fs.rmSync(profile, { recursive: true, force: true })
 
 // Scoring with FFmpeg: PSNR and SSIM (RGB planes, 8 bit) of every predicted frame against the real one.
-const FRAME = 1920 * 1080 * 4
-const methods = ['nearest', 'blend', 'flow1', 'flow2']
+const frameBytes = (job) => job.W * job.H * 4
+/** The methods a job's frames were written for: the plain ones, today's interpolation at each scale, its variants */
+const methodsOf = (job) => ['nearest', 'blend', ...job.scales.map((scale) => `flow${scale}`), ...job.variants.map((v) => v.name)]
 function truthFile(job, tag) {
+  const FRAME = frameBytes(job)
   const out = path.join(outDir, `${tag}_truth.rgba`)
   const set = SETS[job.set]
   const src = fs.openSync(files[job.set], 'r')
@@ -203,7 +254,7 @@ function truthFile(job, tag) {
   fs.closeSync(dst)
   return { out, count }
 }
-function score(pred, truth, stem) {
+function score(pred, truth, stem, size = '1920x1080') {
   const run = (filter, stats) =>
     spawnSync(
       'ffmpeg',
@@ -215,7 +266,7 @@ function score(pred, truth, stem) {
         '-pix_fmt',
         'rgba',
         '-s',
-        '1920x1080',
+        size,
         '-i',
         pred,
         '-f',
@@ -223,7 +274,7 @@ function score(pred, truth, stem) {
         '-pix_fmt',
         'rgba',
         '-s',
-        '1920x1080',
+        size,
         '-i',
         truth,
         '-lavfi',
@@ -257,11 +308,12 @@ for (const r of result.quality) {
   const { job, tag } = r
   const truth = truthFile(job, tag)
   result.scores[tag] = { frames: truth.count, methods: {} }
-  for (const m of methods) {
+  for (const m of methodsOf(job)) {
     const s = score(
       path.join(outDir, `${tag}_${m}.rgba`),
       truth.out,
       path.join(outDir, `${tag}_${m}`),
+      `${job.W}x${job.H}`,
     )
     const worst = s.psnr.indexOf(Math.min(...s.psnr))
     result.scores[tag].methods[m] = {

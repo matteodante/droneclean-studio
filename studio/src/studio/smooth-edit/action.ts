@@ -48,7 +48,7 @@ export interface SmoothEditOutcome {
   averageSpeed: number
   /** The clip's length after the curve, in frames. */
   durationInFrames: number
-  /** The motion blur the clip now has: its own angle (360 when it had none) and smooth slow motion on. */
+  /** The motion blur the clip now has: its own angle (360 when it had none) and smooth slow motion by optical flow. */
   motionBlur: MotionBlurSettings
   /**
    * The zoom keyframes: the clip-relative frames they sit on and the scale they reach, or null when
@@ -96,16 +96,18 @@ function zoomPayloads(item: TimelineItem, lastFrame: number, scale: number): Key
   ])
 }
 
-/** Switch the clip's blur on with smooth slow motion, keeping the shutter angle it had (360 when it had none). */
+/**
+ * Switch the clip's blur on with smooth slow motion by optical flow, keeping the shutter angle it had (the default 180
+ * when it had none). The recipe is the reference look: its slow part is made by optical flow whatever mode the clip had (design
+ * 11.24: frame blending's double image is what Matteo did not want), and the select changes it afterwards.
+ */
 function turnOnBlur(before: TimelineItem): MotionBlurSettings {
   const motionBlur: MotionBlurSettings = {
     shutterDegrees:
       before.type === 'video'
         ? (before.motionBlur?.shutterDegrees ?? DEFAULT_SHUTTER_DEGREES)
         : DEFAULT_SHUTTER_DEGREES,
-    // A clip already on optical flow keeps it; otherwise the recipe's frame blending
-    smoothSlowMotion:
-      before.type === 'video' && before.motionBlur?.smoothSlowMotion === 'optical-flow' ? 'optical-flow' : 'blend',
+    smoothSlowMotion: 'optical-flow',
   }
   useItemsStore.getState()._updateItem(before.id, { motionBlur: { ...motionBlur } })
   return motionBlur

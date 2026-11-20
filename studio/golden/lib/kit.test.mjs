@@ -23,7 +23,21 @@ import {
   shadowPieceFile,
   shadowSourceFile,
 } from './float.mjs'
-import { checkFlowHalfway, FLOW_HEIGHT, FLOW_SOURCE_FRAMES, FLOW_WIDTH, flowPatternFile } from './flow.mjs'
+import {
+  checkFlowHalfway,
+  checkFlowOcclusion,
+  checkFlowOcclusionTuned,
+  checkVectorBlur,
+  FLOW_HEIGHT,
+  FLOW_SOURCE_FRAMES,
+  FLOW_WIDTH,
+  flowOcclusionFile,
+  flowPatternFile,
+  OCCLUSION_SOURCE_FRAMES,
+  stillPatternFile,
+  VECTOR_SOURCE_FRAMES,
+  vectorPatternFile,
+} from './flow.mjs'
 import { decodePng, encodePng } from './png.mjs'
 import { decodePng16, encodePng16 } from './png16.mjs'
 import { assertHardwareGpu } from './render.mjs'
@@ -285,6 +299,73 @@ test('the optical-flow case’s clip is what its stored frames were made from, a
   // The blend of frames 0 and 1 shown for output frame 1 fails: that is the picture the flow must beat
   const blend = checkFlowHalfway(picture((x, y) => (green(0, x, y) + green(1, x, y)) / 2), 1)
   assert.ok(blend.some((problem) => problem.includes('under 0.1 of the blend')), blend.join('; '))
+})
+
+test('the occlusion case’s clip is what its stored frames were made from, and its check refuses the blend', () => {
+  const file = flowOcclusionFile()
+  const frameBytes = FLOW_WIDTH * FLOW_HEIGHT * 2 * 3
+  assert.equal(file.length, frameBytes * OCCLUSION_SOURCE_FRAMES)
+  assert.equal(crypto.createHash('sha256').update(file).digest('hex'), '7f6522fe4dd3e8d9c9cd39ebc65bcab45803c7587cd66f7d6cd6572711b5d844')
+
+  const green = (frame, x, y) => file.readUInt16LE(frame * frameBytes + (y * FLOW_WIDTH + x) * 2)
+  const picture = (codeAt) => {
+    const data = new Uint16Array(FLOW_WIDTH * FLOW_HEIGHT * 4)
+    for (let y = 0; y < FLOW_HEIGHT; y++) {
+      for (let x = 0; x < FLOW_WIDTH; x++) {
+        const value = Math.round((codeAt(x, y) / 1023) * 65535)
+        data.set([value, value, value, 65535], (y * FLOW_WIDTH + x) * 4)
+      }
+    }
+    return { width: FLOW_WIDTH, height: FLOW_HEIGHT, data }
+  }
+  assert.deepEqual(checkFlowOcclusion(picture((x, y) => green(1, x, y)), 2), [])
+  assert.notDeepEqual(checkFlowOcclusion(picture((x, y) => green(2, x, y)), 2), [])
+  // The blend of frames 0 and 1 shown for output frame 1 fails, and so does either source frame held
+  const blend = checkFlowOcclusion(picture((x, y) => (green(0, x, y) + green(1, x, y)) / 2), 1)
+  assert.ok(blend.some((problem) => problem.includes("of the blend's error")), blend.join('; '))
+  assert.notDeepEqual(checkFlowOcclusion(picture((x, y) => green(0, x, y)), 1), [])
+  // the tuned case's check is the same, with a tighter share of the blend's error
+  assert.deepEqual(checkFlowOcclusionTuned(picture((x, y) => green(1, x, y)), 2), [])
+  assert.ok(
+    checkFlowOcclusionTuned(picture((x, y) => (green(0, x, y) + green(1, x, y)) / 2), 1).some((problem) => problem.includes('at most 0.46')),
+  )
+})
+
+test('the vector blur cases’ clips are what their stored frames were made from, and the check tells a blur from a frame', () => {
+  const frameBytes = FLOW_WIDTH * FLOW_HEIGHT * 2 * 3
+  const moving = vectorPatternFile()
+  const still = stillPatternFile()
+  assert.equal(moving.length, frameBytes * VECTOR_SOURCE_FRAMES)
+  assert.equal(still.length, frameBytes * FLOW_SOURCE_FRAMES)
+  assert.equal(sha256(moving), '66b3dd01a1a2e5235497363cddb166d416b20256a61f6eb2f948ecba46730aa0')
+  assert.equal(sha256(still), 'b0df4ae90de7c52a3b7b12efecf531d6ad258c545a251232638be13e5da4ce16')
+  // its first frames are the optical-flow case's
+  assert.ok(moving.subarray(0, frameBytes * FLOW_SOURCE_FRAMES).equals(flowPatternFile()))
+
+  const green = (file, frame, x, y) => file.readUInt16LE(frame * frameBytes + (y * FLOW_WIDTH + x) * 2)
+  const picture = (codeAt) => {
+    const data = new Uint16Array(FLOW_WIDTH * FLOW_HEIGHT * 4)
+    for (let y = 0; y < FLOW_HEIGHT; y++) {
+      for (let x = 0; x < FLOW_WIDTH; x++) {
+        const value = Math.round((codeAt(x, y) / 1023) * 65535)
+        data.set([value, value, value, 65535], (y * FLOW_WIDTH + x) * 4)
+      }
+    }
+    return { width: FLOW_WIDTH, height: FLOW_HEIGHT, data }
+  }
+  const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const linearToSrgb = (l) => (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055)
+  // the mean of many whole frames of a long clip is close to a blur of the texture over their span
+  const mean = (frames) => (x, y) =>
+    linearToSrgb(frames.reduce((sum, k) => sum + srgbToLinear(green(moving, k, x, y) / 1023), 0) / frames.length) * 1023
+  const check = checkVectorBlur((n) => [n - 0.5, n + 0.5], (n) => [n])
+  // the sharp frame is not a blur
+  const sharp = check(picture((x, y) => green(moving, 4, x, y)), 4)
+  assert.ok(sharp.some((problem) => problem.includes('on average')), sharp.join('; '))
+  // four frames at 4x are four copies, not one smear
+  const fourTimes = checkVectorBlur((n) => [4 * n - 0.5, 4 * n + 3.5], (n) => [4 * n, 4 * n + 1, 4 * n + 2, 4 * n + 3])
+  const copies = fourTimes(picture(mean([4, 5, 6, 7])), 1)
+  assert.ok(copies.some((problem) => problem.includes('on average')), copies.join('; '))
 })
 
 test('the raw 10-bit inputs of the float cases are what the stored frames were made from', () => {

@@ -733,7 +733,7 @@ studio.clips.getMotionBlur('c1')?.shutterDegrees
 setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void
 ```
 
-Switch a clip's motion blur on with a shutter angle, or off with null. The blur blends the source frames each output frame covers when the clip plays faster than 1x; with `smoothSlowMotion` it also makes each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project) from the two frames around it, by blending them or by optical flow, so a slow-down plays smoothly instead of repeating frames. The deprecated `blendSlowMotion` is still accepted in place of `smoothSlowMotion`: `true` is `'blend'`, `false` is off. One undo step.
+Switch a clip's motion blur on with a shutter, or off with null. Like ReelSmart Motion Blur, every pixel is blurred along its own motion, which optical flow measures between the stabilized source frames, over the shutter's share of the frame interval (180 degrees is RSMB's 0.5), at every speed; when the clip plays faster than 1x the source frames each output frame covers are blurred and joined into one smear. With `smoothSlowMotion` it also makes each slow-motion frame (below 1x, or a 30 fps file in a 60 fps project) from the two frames around it, by blending them or by optical flow, so a slow-down plays smoothly instead of repeating frames; with optical flow, `flowDetail` and `flowEdges` tune it. The deprecated `blendSlowMotion` is still accepted in place of `smoothSlowMotion`: `true` is `'blend'`, `false` is off. One undo step.
 
 - Maps to: `SET_MOTION_BLUR (src/studio/motion-blur/ui/actions.ts:20)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT
@@ -741,7 +741,7 @@ Switch a clip's motion blur on with a shutter angle, or off with null. The blur 
 Example:
 
 ```ts
-studio.clips.setMotionBlur('c1', { shutterDegrees: 360, smoothSlowMotion: 'optical-flow' })
+studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
 ```
 
 ### `studio.clips.setSpeedPreset()`
@@ -767,9 +767,9 @@ studio.clips.setSpeedPreset('c1', 'ramp-in-out', { peak: 4, rampFrames: 15 })
 applySmoothEdit(id: ClipId, options?: SmoothEditOptions): SmoothEditResult
 ```
 
-The reference look of the drone reels on one clip, in one call: a speed curve fast-slow-fast (default 4x, 0.45x, 4x, the ramps eased `smooth`) that keeps the clip's source content and takes the length it needs, smooth slow motion and motion blur on (the clip's own shutter angle, else 360), and an eased zoom-in on the clip's width and height from its size to `1 + zoom` times it, over the new length. Earlier width, height and scale keyframes of the clip are replaced. The clips after it move by the speed slider's rule (only past the next clip's start). Returns what it set. One undo step.
+The reference look of the drone reels on one clip, in one call: a speed curve fast-slow-fast (default 4x, 0.45x, 4x, the ramps eased `smooth`) that keeps the clip's source content and takes the length it needs, smooth slow motion by optical flow and motion blur on (the clip's own shutter angle, else 360; the slow part is made by optical flow whatever mode the clip had), and an eased zoom-in on the clip's width and height from its size to `1 + zoom` times it, over the new length. Earlier width, height and scale keyframes of the clip are replaced. The clips after it move by the speed slider's rule (only past the next clip's start). Returns what it set. One undo step.
 
-- Maps to: `SMOOTH_EDIT (src/studio/smooth-edit/action.ts:138)`
+- Maps to: `SMOOTH_EDIT (src/studio/smooth-edit/action.ts:142)`
 - Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT
 
 Example:
@@ -2547,8 +2547,10 @@ A clip's motion blur, as `clips.getMotionBlur` reads it and `clips.setMotionBlur
 
 ```ts
 export interface MotionBlurSettings {
-    shutterDegrees: 90 | 180 | 270 | 360;
+    shutterDegrees: number;
     smoothSlowMotion?: 'blend' | 'optical-flow';
+    flowDetail?: 'normal' | 'high';
+    flowEdges?: 'mix' | 'nearest';
     blendSlowMotion?: boolean;
 }
 ```

@@ -91,7 +91,7 @@ and FFmpeg).
 | `studio/web/` | The static server of the web editor. |
 | `gyroflow/` | A fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its engine for the editor. |
 
-This repository is published by the release process: each release is one commit, tagged `v0.1.5` for this one.
+This repository is published by the release process: each release is one commit, tagged `v0.1.6` for this one.
 
 ## Contributing and security
 

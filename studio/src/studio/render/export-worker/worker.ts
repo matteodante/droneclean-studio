@@ -60,14 +60,10 @@ async function seedMediaLibrary(records: readonly MediaMetadata[]): Promise<void
   useMediaLibraryStore.setState({ mediaItems: Object.values(mediaById), mediaById })
 }
 
-/** The export's rate, where the stage predicates and the session module read the project's: before either is asked */
+/** The export's rate in the timeline's settings store, for the modules the worker loads that read the project's rate */
 async function seedProjectRate(fps: number): Promise<void> {
-  const [{ useTimelineSettingsStore }, { setProjectRate }] = await Promise.all([
-    import('@/features/timeline/stores/timeline-settings-store'),
-    import('@/studio/render/stages/predicates'),
-  ])
+  const { useTimelineSettingsStore } = await import('@/features/timeline/stores/timeline-settings-store')
   useTimelineSettingsStore.setState({ fps })
-  setProjectRate(fps)
 }
 
 /** The project's frame, which every stabilized clip's key carries: the page's, so the keys are the page's */

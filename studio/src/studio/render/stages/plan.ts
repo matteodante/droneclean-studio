@@ -1,6 +1,6 @@
 // The one place a clip frame becomes source frames (design 3.6 section 2.5). Blur off: one sample at weight 1, at the
 // integer source frame the clip shows. Blur on: `planMotionBlur`'s weighted samples over the span the output frame
-// covers. The source frame comes from `clipSourcePosition(item, clipFrame, projectFps)` of `@/studio/speed` (review
+// covers, each with the shutter time it stands for, which the vector blur blurs it over (design 9.2). The source frame comes from `clipSourcePosition(item, clipFrame, projectFps)` of `@/studio/speed` (review
 // finding T8), through `exactSourcePosition`: the plan takes the mapping's own integer `frame`, never the floor of a
 // double, so a position within 1e-12 of a whole frame still names the right one.
 
@@ -14,9 +14,18 @@ import { hasMotionBlur } from './predicates'
 export interface SourceSample {
   readonly index: number
   readonly weight: number
+  /**
+   * With motion blur on: the shutter time this frame stands for, in source frames (> 0); the pipeline blurs it along
+   * each pixel's motion over that long, centred on its time (design 9.2). Absent: the frame as it is (blur off, or
+   * an Amount of 0).
+   */
+  readonly extent?: number
 }
 
-/** The source frames one output frame is made of: weights above 0 that sum to 1, by increasing index. */
+/**
+ * The source frames one output frame is made of: weights above 0 that sum to 1, by increasing index. With motion blur
+ * on (and an Amount above 0) every sample has an `extent`; otherwise none has.
+ */
 export interface SourceFramePlan {
   readonly samples: readonly SourceSample[]
   /**
@@ -74,7 +83,10 @@ export function sourceFramePlan(
       count !== undefined && Number.isSafeInteger(count) && count >= 1
         ? restrictToSourceRange(plan.samples, count)
         : plan.samples
-    const mapped = samples.map((s) => ({ index: s.sourceFrame, weight: s.weight }))
+    // A sample of a closed shutter (extent 0) is the frame as it is: no extent, so no blur pass runs for it
+    const mapped = samples.map((s) =>
+      s.extent > 0 ? { index: s.sourceFrame, weight: s.weight, extent: s.extent } : { index: s.sourceFrame, weight: s.weight },
+    )
     // A gap whose second frame is past the file's end leaves one sample: that frame, shown as it is.
     return plan.flowPhase !== undefined && mapped.length === 2
       ? { samples: mapped, flow: { phase: plan.flowPhase } }

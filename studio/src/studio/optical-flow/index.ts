@@ -6,7 +6,10 @@
  */
 
 /** The flow of one frame size: `measure` a source gap, `interpolate` a frame inside it. */
-export { createOpticalFlow, type GapFlow, type OpticalFlow } from './flow'
+export { createOpticalFlow, type GapFlow, type OpticalFlow, type OpticalFlowOptions } from './flow'
+
+/** How finely the flow follows the motion: a clip's "Motion detail" (design 11.24). */
+export type { FlowDetail } from './scale'
 
 /** The measured gaps of one render, freed once passed (an export) or least recently used (a preview). */
 export { FlowGapCache } from './cache'

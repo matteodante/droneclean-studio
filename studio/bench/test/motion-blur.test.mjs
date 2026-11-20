@@ -63,12 +63,15 @@ test('decodes: each frame once passes; a repeat or a missing frame is named', ()
   )
 })
 
-test('proof: one level of 1023 is the limit', () => {
-  const frame = (n, d) => ({ outputFrame: n, maxDiffLevels: d, samples: [], weightSum: 1 })
-  assert.equal(judgeProof([frame(0, 0.9), frame(1, 1)]).withinTolerance, true)
-  const bad = judgeProof([frame(0, 0.4), frame(7, 1.2)])
-  assert.equal(bad.withinTolerance, false)
-  assert.equal(bad.worstFrame, 7)
+test('proof: a second render must be identical; the distance from the frame blend is reported', () => {
+  const frame = (n, repeat, mean) => ({ outputFrame: n, repeatMaxDiffLevels: repeat, meanDiffLevels: mean, maxDiffLevels: 4 * mean, samples: [], weightSum: 1 })
+  const good = judgeProof([frame(0, 0, 3), frame(1, 0, 5)])
+  assert.equal(good.repeatsExactly, true)
+  assert.equal(good.differenceFromFrameBlend.meanLevels, 4)
+  assert.equal(good.differenceFromFrameBlend.maxLevels, 20)
+  const bad = judgeProof([frame(0, 0, 3), frame(7, 0.02, 3)])
+  assert.equal(bad.repeatsExactly, false)
+  assert.match(bad.problems[0], /frame 7/)
 })
 
 test('frame times: the rate is the mean, the tail and the misses are counted', () => {

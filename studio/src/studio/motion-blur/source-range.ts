@@ -13,7 +13,7 @@ import type { MotionBlurSample } from './weights'
  *
  * Samples that are all inside come back as they are (the same array, so the common case allocates nothing); an
  * empty remainder gives the file's nearest frame (0 when the samples lie below it, `frameCount - 1` above) at
- * weight 1.
+ * weight 1, standing for the samples' whole shutter time. A kept sample keeps its own `extent`.
  *
  * @throws RangeError when `frameCount` is not a whole number >= 1 or `samples` is empty.
  */
@@ -29,8 +29,9 @@ export function restrictToSourceRange(
   if (inside.length === samples.length) return samples
   if (inside.length === 0) {
     const nearest = samples[0]!.sourceFrame < 0 ? 0 : frameCount - 1
-    return [{ sourceFrame: nearest, weight: 1 }]
+    const extent = samples.reduce((total, s) => total + s.extent, 0)
+    return [{ sourceFrame: nearest, weight: 1, extent }]
   }
   const sum = inside.reduce((total, s) => total + s.weight, 0)
-  return inside.map((s) => ({ sourceFrame: s.sourceFrame, weight: s.weight / sum }))
+  return inside.map((s) => ({ sourceFrame: s.sourceFrame, weight: s.weight / sum, extent: s.extent }))
 }

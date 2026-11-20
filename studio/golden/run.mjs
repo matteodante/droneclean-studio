@@ -16,8 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { describeFailure, runToLog, tailOf } from '../headless/lib/build-log.mjs'
 import { CASES } from './cases.mjs'
-import { blurBoxesFile } from './lib/blur.mjs'
-import { flowPatternFile } from './lib/flow.mjs'
+import { flowOcclusionFile, flowPatternFile, stillPatternFile, vectorPatternFile } from './lib/flow.mjs'
 import { describeStats, diffImage, diffStats, flatColour, isIdentical, triptychPng } from './lib/compare.mjs'
 import {
   countLevels,
@@ -141,8 +140,10 @@ function prepareMedia() {
     'raw-ramp': rampFile(),
     'raw-shadow-source': shadowSourceFile(),
     'raw-shadow-piece': shadowPieceFile(),
-    'raw-blur-boxes': blurBoxesFile(),
     'raw-flow-pattern': flowPatternFile(),
+    'raw-flow-occlusion': flowOcclusionFile(),
+    'raw-vector-pattern': vectorPatternFile(),
+    'raw-still-pattern': stillPatternFile(),
   })) {
     const file = path.join(inputs, `${name}.gbrp10le`)
     fs.writeFileSync(file, bytes)

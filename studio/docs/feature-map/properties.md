@@ -244,13 +244,13 @@ Color workspace the panel is the colour grading dock.
 
 ### Motion blur
 - Where: Editor › Properties › Video tab › Playback › Motion blur
-- Does: Switches a clip's motion blur on or off (one undo step); hidden by the `motionBlur` feature switch until the export stage and the preview draw it.
+- Does: Switches a clip's motion blur on or off (one undo step): like ReelSmart Motion Blur, every pixel is blurred along its own motion, measured by optical flow between the stabilized frames, at every speed; a sped-up clip's frames join into one smear. Starts at 180 degrees (RSMB 0.5).
 - SDK: `studio.clips.setMotionBlur`
 - Code: `src/studio/motion-blur/ui/MotionBlurRows.tsx`
 
-### Shutter
-- Where: Editor › Properties › Video tab › Playback › Motion blur › Shutter
-- Does: Picks the shutter angle (90, 180, 270 or 360 degrees) the blur blends the sped-up frames with; shown only while the blur is on.
+### Amount
+- Where: Editor › Properties › Video tab › Playback › Motion blur › Amount
+- Does: Sets how long the shutter stays open, in RSMB's units: 0.05 to 1 in steps of 0.05, 0.5 being 180 degrees (stored once, on release, one undo step); shown only while the blur is on.
 - SDK: `studio.clips.getMotionBlur`
 - Code: `src/studio/motion-blur/ui/MotionBlurRows.tsx`
 

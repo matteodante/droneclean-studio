@@ -26,7 +26,14 @@ import {
   type SpeedEase,
   type SpeedPresetName,
 } from '@/studio/speed'
-import { canHoldMotionBlur, isShutterDegrees, isSmoothSlowMotion, SHUTTER_DEGREES } from '@/studio/motion-blur'
+import {
+  canHoldMotionBlur,
+  flowSettingsOf,
+  isFlowDetail,
+  isFlowEdges,
+  isShutterDegrees,
+  isSmoothSlowMotion,
+} from '@/studio/motion-blur'
 import { setMotionBlur as setMotionBlurAction } from '@/studio/motion-blur/ui/actions'
 import { canHoldSpeedCurve, setSpeedCurve as setSpeedCurveAction } from '@/studio/speed/actions'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
@@ -311,8 +318,42 @@ function requestedSmoothSlowMotion(value: unknown): { mode: MotionBlurSettings['
 }
 
 /**
- * The settings `clips.setMotionBlur` accepts: null, or an object with one of the four angles and an optional smooth slow
- * motion mode, given as `smoothSlowMotion` or as the deprecated `blendSlowMotion`, never both.
+ * The optical flow's two settings a settings object gives (design 11.24): each absent or one of its values, and only
+ * with smooth slow motion by optical flow. The defaults are dropped, as the store's normaliser does.
+ */
+function requireFlowSettings(
+  value: unknown,
+  mode: MotionBlurSettings['smoothSlowMotion'],
+  method: string,
+): Pick<MotionBlurSettings, 'flowDetail' | 'flowEdges'> {
+  const detail = fieldOf(value, 'flowDetail')
+  const edges = fieldOf(value, 'flowEdges')
+  if (detail === undefined && edges === undefined) return {}
+  if ((detail !== undefined && !isFlowDetail(detail)) || (edges !== undefined && !isFlowEdges(edges))) {
+    throw invalidArgumentError({
+      method,
+      argument: 'settings',
+      expectation: '"flowDetail" "normal" or "high", and "flowEdges" "mix" or "nearest", each optional',
+      value,
+      hint: 'Leave them out for the defaults: normal detail, mixed hard edges.',
+    })
+  }
+  if (mode !== 'optical-flow') {
+    throw invalidArgumentError({
+      method,
+      argument: 'settings',
+      expectation: '"flowDetail" and "flowEdges" only with smoothSlowMotion: "optical-flow"',
+      value,
+      hint: 'Add smoothSlowMotion: "optical-flow", or leave flowDetail and flowEdges out.',
+    })
+  }
+  return flowSettingsOf(mode, { flowDetail: detail, flowEdges: edges })
+}
+
+/**
+ * The settings `clips.setMotionBlur` accepts: null, or an object with a shutter in [0, 360] degrees, an optional
+ * smooth slow motion mode, given as `smoothSlowMotion` or as the deprecated `blendSlowMotion`, never both, and with
+ * optical flow its optional `flowDetail` and `flowEdges`.
  */
 function requireMotionBlurSettings(value: unknown, method: string): MotionBlurSettings | null {
   if (value === null) return null
@@ -328,18 +369,18 @@ function requireMotionBlurSettings(value: unknown, method: string): MotionBlurSe
   const degrees = fieldOf(value, 'shutterDegrees')
   const requested = requestedSmoothSlowMotion(value)
   if (isShutterDegrees(degrees) && requested !== null) {
+    const flowSettings = requireFlowSettings(value, requested.mode, method)
     return requested.mode === undefined
       ? { shutterDegrees: degrees }
-      : { shutterDegrees: degrees, smoothSlowMotion: requested.mode }
+      : { shutterDegrees: degrees, smoothSlowMotion: requested.mode, ...flowSettings }
   }
   throw invalidArgumentError({
     method,
     argument: 'settings',
     expectation:
-      'null, or an object whose "shutterDegrees" is 90, 180, 270 or 360 and whose optional "smoothSlowMotion" is "blend" or "optical-flow" (or the deprecated "blendSlowMotion" a boolean)',
+      'null, or an object whose "shutterDegrees" is a number from 0 to 360 (180 is RSMB\'s Blur Amount 0.5, 0 no blur) and whose optional "smoothSlowMotion" is "blend" or "optical-flow" (or the deprecated "blendSlowMotion" a boolean)',
     value,
-    valid: SHUTTER_DEGREES.map(String),
-    hint: 'Pass null to switch the blur off.',
+    hint: 'Pass { shutterDegrees: 180 } for the usual look, or null to switch the blur off.',
   })
 }
 
@@ -1141,7 +1182,12 @@ export function createClipsApi(): ClipsApi {
       if (settings === undefined) return null
       return settings.smoothSlowMotion === undefined
         ? { shutterDegrees: settings.shutterDegrees }
-        : { shutterDegrees: settings.shutterDegrees, smoothSlowMotion: settings.smoothSlowMotion }
+        : {
+            shutterDegrees: settings.shutterDegrees,
+            smoothSlowMotion: settings.smoothSlowMotion,
+            // the optical flow's settings, when not the defaults (design 11.24)
+            ...flowSettingsOf(settings.smoothSlowMotion, settings),
+          }
     },
 
     setMotionBlur(id: ClipId, settings: MotionBlurSettings | null): void {

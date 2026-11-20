@@ -38,19 +38,14 @@ import { secondsToFrame, toRate } from '@/studio/time'
 import type { VideoItem } from '@/types/timeline'
 import type { StagedFrame } from './pipeline'
 import { sourceFramePlan, type SourceFramePlan } from './plan'
-import { needsExactSourceFrame, needsSourceStages, type PlaybackRates } from './predicates'
+import { needsExactSourceFrame, needsSourceStages } from './predicates'
 
 /**
  * Whether a staged clip's frames come from the renderer's source-frame provider: always in an export (the exact frame,
  * at full precision), and in a preview when the clip's stages need the exact frame.
  */
 function stagesFromProvider(item: VideoItem, rctx: ItemRenderContext): boolean {
-  return rctx.renderMode === 'export' || needsExactSourceFrame(item, ratesOf(item, rctx))
-}
-
-/** The source and project rates, which decide whether a blurred clip covers more than one source frame a frame */
-function ratesOf(item: VideoItem, rctx: ItemRenderContext): PlaybackRates {
-  return { source: toRate(item.sourceFps ?? rctx.fps), project: toRate(rctx.fps) }
+  return rctx.renderMode === 'export' || needsExactSourceFrame(item)
 }
 
 /**
@@ -58,7 +53,7 @@ function ratesOf(item: VideoItem, rctx: ItemRenderContext): PlaybackRates {
  * renderer must not refuse the clip, or draw it another way, because that decoder did not open (§2.10).
  */
 export function stagedFromProvider(item: VideoItem, rctx: ItemRenderContext): boolean {
-  return needsSourceStages(item, ratesOf(item, rctx)) && stagesFromProvider(item, rctx)
+  return needsSourceStages(item) && stagesFromProvider(item, rctx)
 }
 
 const log = createLogger('StagedClip')
@@ -109,6 +104,12 @@ function stagedSourcePlan(
   })
 }
 
+/** What the pipeline is given for a plan: one sample with no blur is the frame itself, as a bare index */
+function pipelineSource(plan: SourceFramePlan): number | SourceFramePlan {
+  const only = plan.samples.length === 1 ? plan.samples[0]! : undefined
+  return only !== undefined && only.extent === undefined ? only.index : plan
+}
+
 /** The clip with the framing its keyframes give at timeline frame `frame` (the same clip when it has none; `framing-keyframes.ts`) */
 function framedAt(item: VideoItem, frame: number, rctx: ItemRenderContext): VideoItem {
   const keyframes = rctx.getCurrentKeyframes?.(item.id) ?? rctx.keyframesMap.get(item.id)
@@ -126,8 +127,7 @@ async function stagedPicture(
   const stages = rctx.stages
   const plan = stagedSourcePlan(item, frame, rctx, renderSpan, sourceFrameOffset)
   const framed = framedAt(item, frame, rctx)
-  // One sample is the frame itself, as the pipeline takes a bare index
-  const source = plan.samples.length === 1 ? plan.samples[0]!.index : plan
+  const source = pipelineSource(plan)
   if (rctx.renderMode === 'export') {
     if (!stages)
       throw new Error(

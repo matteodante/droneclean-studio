@@ -16,13 +16,16 @@ import {
 } from './lib/project.mjs'
 import { RAW_HEIGHT, RAW_WIDTH, SHADOW_PIECE_FRAMES, SHADOW_SOURCE_FRAMES } from './lib/float.mjs'
 import {
-  BLUR_HEIGHT,
-  BLUR_SOURCE_FRAMES,
-  BLUR_WIDTH,
-  checkFourTimes180,
-  checkFourTimes360,
-} from './lib/blur.mjs'
-import { checkFlowHalfway, FLOW_HEIGHT, FLOW_SOURCE_FRAMES, FLOW_WIDTH } from './lib/flow.mjs'
+  checkFlowHalfway,
+  checkFlowOcclusion,
+  checkFlowOcclusionTuned,
+  checkVectorBlur,
+  FLOW_HEIGHT,
+  FLOW_SOURCE_FRAMES,
+  FLOW_WIDTH,
+  OCCLUSION_SOURCE_FRAMES,
+  VECTOR_SOURCE_FRAMES,
+} from './lib/flow.mjs'
 import { LOOK_ID, lookOf, linearLookText } from './lib/look.mjs'
 import { STAGE_WARP_CASE, STAGE_WARP_FLOAT_CASE } from './lib/stage-warp.mjs'
 
@@ -605,11 +608,13 @@ add({
 })
 cases.push(STAGE_WARP_FLOAT_CASE)
 
-// --- Motion blur (design 7.2 B, task 7.2) ----------------------------------------------------------------------
-// A raw 12-frame clip (`lib/blur.mjs`): a static grey ramp above, a white box that moves 10 px a frame below. The
-// motion blur switch is off in the app; the golden run turns it on through `setFeatureOverride` while a case renders.
-const BLUR = { width: BLUR_WIDTH, height: BLUR_HEIGHT }
-function addBlur({ id, protects, speed, shutterDegrees, frames, outputFrames, check, sameAsCase }) {
+// --- Motion blur (design 9.2): the vector blur ------------------------------------------------------------------
+// Raw 10-bit clips (`lib/flow.mjs`): the smooth grey texture moving 6 px right and 2 px down a frame (12 frames), and the
+// same texture standing still (6 frames). Every pixel is blurred along its motion, measured by optical flow between the
+// frames around it, over the shutter, centred on its frame's time; above 1x every frame the shutter covers is blurred
+// over its own interval, so the frames join into one smear. The motion blur switch is turned on for each case.
+const FLOW = { width: FLOW_WIDTH, height: FLOW_HEIGHT }
+function addVectorBlur({ id, protects, video, sourceFrames, speed, shutterDegrees, outputFrames, frames, check, sameAsCase }) {
   add({
     id,
     group: 'motion blur',
@@ -617,60 +622,78 @@ function addBlur({ id, protects, speed, shutterDegrees, frames, outputFrames, ch
     items: [
       videoItem({
         id: 'clip',
-        video: 'raw-blur-boxes',
+        video,
         track: 0,
         frames: outputFrames,
-        sourceFrames: BLUR_SOURCE_FRAMES,
+        sourceFrames,
         speed,
         ...(shutterDegrees ? { motionBlur: { shutterDegrees } } : {}),
-        ...BLUR,
+        ...FLOW,
       }),
     ],
     frames,
     float: true,
-    ...BLUR,
+    ...FLOW,
   })
-  // The golden run turns the motion blur switch on through the feature module's override while it renders the case
   Object.assign(cases.at(-1), { check, sameAsCase })
   cases.at(-1).raw.features = ['motionBlur']
 }
-addBlur({
-  id: 'blur-4x-360',
+addVectorBlur({
+  id: 'blur-vector-1x-180',
   protects:
-    'motion blur at 4x with a 360 degree shutter, output frames 0 and 2: each frame is the mean in linear light of the four source frames it covers. The static grey ramp above is unchanged, the moving box below is four boxes each at 25 % of white (code 0.537 of the white-to-black mix), and the gaps stay black. A blend in code values, a wrong weight, a frame early or late or a stage that darkens the picture changes the boxes.',
-  speed: 4,
-  shutterDegrees: 360,
-  outputFrames: 3,
-  frames: [0, 2],
-  check: checkFourTimes360,
-})
-addBlur({
-  id: 'blur-4x-180',
-  protects:
-    'motion blur at 4x with a 180 degree shutter, output frames 0 and 1: the window covers the first two of the four source frames, so two boxes at 50 % and the other two frames absent. A shutter that ignores its angle shows four boxes.',
-  speed: 4,
+    'the vector blur at 1x with a 180 degree shutter (RSMB 0.5), output frames 3 and 6: each is the moving texture averaged in linear light along its motion over half a frame interval, a quarter before the frame and a quarter after, within 1.5 levels of 1023 on average and under half the sharp frame\'s error. A blur along the wrong motion, a one-sided or doubled shutter, a blend in code values or no blur at all fails.',
+  video: 'raw-vector-pattern',
+  sourceFrames: VECTOR_SOURCE_FRAMES,
+  speed: 1,
   shutterDegrees: 180,
-  outputFrames: 3,
-  frames: [0, 1],
-  check: checkFourTimes180,
+  outputFrames: VECTOR_SOURCE_FRAMES,
+  frames: [3, 6],
+  check: checkVectorBlur((n) => [n - 0.25, n + 0.25], (n) => [n]),
 })
-addBlur({
-  id: 'blur-1x-off',
+addVectorBlur({
+  id: 'blur-vector-1x-360',
   protects:
-    'a 1x clip with no blur, source frame 5: the reference the next case must equal bit for bit.',
-  speed: 1,
-  outputFrames: 12,
-  frames: [5],
-})
-addBlur({
-  id: 'blur-1x-on',
-  protects:
-    'a 1x clip with a 360 degree blur on, source frame 5: the shutter covers one source frame, so the pipeline passes it through and the picture equals blur-1x-off exactly (the identity that makes the switch safe at normal speed).',
+    'the vector blur at 1x with a 360 degree shutter, output frame 4: the texture averaged over the whole frame interval, centred on the frame.',
+  video: 'raw-vector-pattern',
+  sourceFrames: VECTOR_SOURCE_FRAMES,
   speed: 1,
   shutterDegrees: 360,
-  outputFrames: 12,
-  frames: [5],
-  sameAsCase: 'blur-1x-off',
+  outputFrames: VECTOR_SOURCE_FRAMES,
+  frames: [4],
+  check: checkVectorBlur((n) => [n - 0.5, n + 0.5], (n) => [n]),
+})
+addVectorBlur({
+  id: 'blur-vector-4x-360',
+  protects:
+    'the vector blur at 4x with a 360 degree shutter, output frame 1: source frames 4 to 7 each blurred over its own interval and averaged, one continuous smear of four frames of motion, under half the error of the frame blend that showed four copies.',
+  video: 'raw-vector-pattern',
+  sourceFrames: VECTOR_SOURCE_FRAMES,
+  speed: 4,
+  shutterDegrees: 360,
+  outputFrames: 3,
+  frames: [1],
+  check: checkVectorBlur((n) => [4 * n - 0.5, 4 * n + 3.5], (n) => [4 * n, 4 * n + 1, 4 * n + 2, 4 * n + 3]),
+})
+addVectorBlur({
+  id: 'blur-still-off',
+  protects: 'a still clip with no blur, source frame 2: the reference the next case must equal bit for bit.',
+  video: 'raw-still-pattern',
+  sourceFrames: FLOW_SOURCE_FRAMES,
+  speed: 1,
+  outputFrames: FLOW_SOURCE_FRAMES,
+  frames: [2],
+})
+addVectorBlur({
+  id: 'blur-still-on',
+  protects:
+    'a still clip with a 180 degree blur on, source frame 2: no motion, so every pixel passes through and the picture equals blur-still-off exactly (the blur adds nothing where nothing moves).',
+  video: 'raw-still-pattern',
+  sourceFrames: FLOW_SOURCE_FRAMES,
+  speed: 1,
+  shutterDegrees: 180,
+  outputFrames: FLOW_SOURCE_FRAMES,
+  frames: [2],
+  sameAsCase: 'blur-still-off',
 })
 
 // --- Optical-flow slow motion (task 11.12) -------------------------------------------------------------------------
@@ -689,7 +712,9 @@ add({
       frames: 8,
       sourceFrames: FLOW_SOURCE_FRAMES,
       speed: 0.5,
-      motionBlur: { shutterDegrees: 360, smoothSlowMotion: 'optical-flow' },
+      // A 1 degree shutter: the vector blur is a fraction of a pixel and passes every pixel through, so the case keeps
+      // testing the interpolation alone (design 9.2)
+      motionBlur: { shutterDegrees: 1, smoothSlowMotion: 'optical-flow' },
       width: FLOW_WIDTH,
       height: FLOW_HEIGHT,
     }),
@@ -700,6 +725,65 @@ add({
   height: FLOW_HEIGHT,
 })
 Object.assign(cases.at(-1), { check: checkFlowHalfway })
+cases.at(-1).raw.features = ['motionBlur']
+
+// --- Optical-flow slow motion over an occlusion (design 11.24) -----------------------------------------------------
+// A raw 6-frame clip (`lib/flow.mjs`): a textured square moving 8 px right a frame over a background moving 4 px left,
+// at 0.5x with smooth slow motion in optical-flow mode: the forward warp's case, where one layer covers another.
+add({
+  id: 'flow-occlusion',
+  group: 'motion blur',
+  protects:
+    "optical-flow slow motion where a layer moves over another, output frames 1, 2 and 3: frames 1 and 3 lie halfway and are made by the forward warp (each flow pixel splatted to the phase, the layer whose two ends match winning a pixel, the holes filled, each frame trusted where its own flow moves with that motion), so the square's edges come from the layer and the frame that really show them: the mean error against the scene is under 0.52 of the plain blend's (the 11.12 backward search made 0.56 on the CPU twin); frame 2 is source frame 1 exactly. A splat, resolve or fill pass that reads or writes the wrong buffer, a key packed wrong, or the backward search back changes the frames in between.",
+  items: [
+    videoItem({
+      id: 'clip',
+      video: 'raw-flow-occlusion',
+      track: 0,
+      frames: 8,
+      sourceFrames: OCCLUSION_SOURCE_FRAMES,
+      speed: 0.5,
+      // An Amount of 0: no vector blur (design 9.2), so the case tests the interpolation alone, as stored
+      motionBlur: { shutterDegrees: 0, smoothSlowMotion: 'optical-flow' },
+      width: FLOW_WIDTH,
+      height: FLOW_HEIGHT,
+    }),
+  ],
+  frames: [1, 2, 3],
+  float: true,
+  width: FLOW_WIDTH,
+  height: FLOW_HEIGHT,
+})
+Object.assign(cases.at(-1), { check: checkFlowOcclusion })
+cases.at(-1).raw.features = ['motionBlur']
+
+// --- The optical flow's two settings off their defaults (design 11.24) ---------------------------------------------
+// The occlusion clip again, with "Motion detail: high" (the flow at the frame's own size, 256 x 128, instead of half),
+// "Hard edges: nearest frame" and an Amount of 0 (no blur, smooth slow motion alone).
+add({
+  id: 'flow-occlusion-tuned',
+  group: 'motion blur',
+  protects:
+    "the clip's optical-flow settings reach the GPU, on the occlusion clip at 0.5x with no blur: high motion detail measures the flow at the frame's size and nearest-frame hard edges take, where neither frame is trusted, the one more likely to show the content; frames 1 and 3 must be under 0.46 of the plain blend's error against the scene (the CPU twin measures 0.42, and 0.47 at the default settings), frame 2 is source frame 1. A setting that does not reach the flow or the interpolation, or a high-detail flow built at the wrong size, changes these frames.",
+  items: [
+    videoItem({
+      id: 'clip',
+      video: 'raw-flow-occlusion',
+      track: 0,
+      frames: 8,
+      sourceFrames: OCCLUSION_SOURCE_FRAMES,
+      speed: 0.5,
+      motionBlur: { shutterDegrees: 0, smoothSlowMotion: 'optical-flow', flowDetail: 'high', flowEdges: 'nearest' },
+      width: FLOW_WIDTH,
+      height: FLOW_HEIGHT,
+    }),
+  ],
+  frames: [1, 2, 3],
+  float: true,
+  width: FLOW_WIDTH,
+  height: FLOW_HEIGHT,
+})
+Object.assign(cases.at(-1), { check: checkFlowOcclusionTuned })
 cases.at(-1).raw.features = ['motionBlur']
 
 // --- The creative look (design 3.6 section 3 row 5.2 look-hook, task 5.2) --------------------------------------

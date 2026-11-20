@@ -23,7 +23,15 @@ import {
   type GatherStep,
   type MotionBlurStage,
 } from '@/studio/motion-blur/stage'
-import { createOpticalFlow, FlowGapCache, type GapFlow, type OpticalFlow } from '@/studio/optical-flow'
+import { createVectorBlurStage, type VectorBlurStage, type VectorSample } from '@/studio/motion-blur/vector-stage'
+import {
+  createOpticalFlow,
+  FlowGapCache,
+  type FlowDetail,
+  type GapFlow,
+  type OpticalFlow,
+  type OpticalFlowOptions,
+} from '@/studio/optical-flow'
 import type { SourceFrame, SourceFrameProvider } from '@/studio/render/frames/types'
 import type { VideoItem } from '@/types/timeline'
 import {
@@ -36,6 +44,7 @@ import {
 import { FrameArena } from './arena'
 import type { ClipStageState } from './failure'
 import type { SourceFramePlan, SourceSample } from './plan'
+import { sourceStageFingerprint } from './predicates'
 import type { Preparer } from './preparer'
 import type { StageRegistry } from './registry'
 import {
@@ -88,6 +97,16 @@ const PREVIEW_WAIT_MS = 50
 const EXPORT_FLOW_GAPS = 2
 const PREVIEW_FLOW_GAPS = 4
 
+/**
+ * How many gaps between staged frames the vector blur keeps (design 9.2, section 5.4): an export needs the gap before
+ * and the gap after the frame it draws (one more through a transition), a preview a few more for scrubbing.
+ */
+const EXPORT_STAGED_GAPS = 4
+const PREVIEW_STAGED_GAPS = 8
+
+/** How many staged neighbour frames the vector blur keeps for the next output frame (one per clip on screen) */
+const HELD_STAGED_FRAMES = 2
+
 /** One clip's staged picture */
 export interface StagedFrame {
   readonly texture: GPUTexture
@@ -113,7 +132,14 @@ export interface StagePipelineOptions {
   /** The motion-blur gather's constructor (the tests' replacement); `createMotionBlurStage` by default */
   readonly gather?: (device: GPUDevice, format: GPUTextureFormat, size: Size) => Promise<MotionBlurStage>
   /** The optical flow's constructor (the tests' replacement); `createOpticalFlow` by default */
-  readonly flow?: (device: GPUDevice, format: GPUTextureFormat, size: Size) => Promise<OpticalFlow>
+  readonly flow?: (
+    device: GPUDevice,
+    format: GPUTextureFormat,
+    size: Size,
+    options?: OpticalFlowOptions,
+  ) => Promise<OpticalFlow>
+  /** The vector motion blur's constructor (the tests' replacement); `createVectorBlurStage` by default */
+  readonly vector?: (device: GPUDevice, format: GPUTextureFormat, size: Size, flowSize: Size) => Promise<VectorBlurStage>
 }
 
 export interface StagePipeline {
@@ -126,11 +152,13 @@ export interface StagePipeline {
    * per-output-frame stages. A plan with one sample is that frame, exactly as the index alone. A plan with `flow`
    * (optical-flow slow motion, task 11.12) is the frame interpolated between its two source frames at that phase, from
    * the decoded frames before any stage; it then goes through every stage as a source frame would, at its fractional
-   * source position (`first + phase`: the stabilization's data at that moment).
+   * source position (`first + phase`: the stabilization's data at that moment). A plan whose samples carry an `extent`
+   * (motion blur on, design 9.2) blurs each sample along each pixel's motion, measured by the optical flow between the
+   * staged frames around it, over its extent, and adds them with their weights.
    *
    * @throws StageError in an export, when an active stage cannot draw the frame.
-   * @throws RangeError when a plan has no sample or a weight that is not in (0, 1], or a flow plan is not two
-   *   consecutive frames with a phase in (0, 1).
+   * @throws RangeError when a plan has no sample or a weight that is not in (0, 1], an extent that is not above 0, or
+   *   a flow plan is not two consecutive frames with a phase in (0, 1).
    */
   render(item: VideoItem, source: number | SourceFramePlan): Promise<StagedFrame>
   /**
@@ -199,8 +227,17 @@ function samplesOf(source: number | SourceFramePlan): readonly SourceSample[] {
   if (Math.abs(sum - 1) > 1e-6) {
     throw new RangeError(`stage pipeline: the weights of a plan must sum to 1, got ${sum}`)
   }
+  assertExtents(samples)
   if (source.flow !== undefined) assertFlowPlan(samples, source.flow.phase)
   return samples
+}
+
+/** A blurred sample's extent is a number above 0 (design 9.2) */
+function assertExtents(samples: readonly SourceSample[]): void {
+  const broken = samples.find((sample) => sample.extent !== undefined && !(Number.isFinite(sample.extent) && sample.extent > 0))
+  if (broken !== undefined) {
+    throw new RangeError(`stage pipeline: a sample's extent must be a number > 0, got ${broken.extent}`)
+  }
 }
 
 /** An optical-flow plan is two consecutive source frames and a phase in (0, 1) */
@@ -450,9 +487,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     source: { acquire(): Promise<SourceFrame>; release(frame: SourceFrame): void },
   ): Promise<StagedFrame> {
     const stages = registry.activeStages(item)
-    if (stages.some((stage) => preparer.statusOf(item, stage.id)?.status !== 'ready')) {
-      await preparer.prepareAll([item], device)
-    }
+    await ensurePrepared(item, stages)
     await untilReady(item, sourceIndex, () =>
       stages.map((stage) => check(item, stage, sourceIndex)),
     )
@@ -470,6 +505,13 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       return { texture, width: size.width, height: size.height, kind: 'fresh' }
     } finally {
       source.release(frame)
+    }
+  }
+
+  /** An export's preparation: every active stage of the clip ready, or the preparer asked to make it so */
+  async function ensurePrepared(item: VideoItem, stages: readonly SourceStage[]): Promise<void> {
+    if (stages.some((stage) => preparer.statusOf(item, stage.id)?.status !== 'ready')) {
+      await preparer.prepareAll([item], device)
     }
   }
 
@@ -715,7 +757,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
    */
   const recordFinal = (
     item: VideoItem,
-    gather: MotionBlurStage,
+    gather: { readonly size: Size },
     run: readonly SourceStage[],
     sizes: readonly Size[],
     sourceIndex: number,
@@ -856,9 +898,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   ): Promise<StagedFrame> {
     const { stages, source: sourceRun, output: outputRun } = byScope(item)
     const firstIndex = samples[0]!.index
-    if (stages.some((stage) => preparer.statusOf(item, stage.id)?.status !== 'ready')) {
-      await preparer.prepareAll([item], device)
-    }
+    await ensurePrepared(item, stages)
     await untilReady(item, firstIndex, () => [
       ...sourceRun.flatMap((stage) => samples.map((sample) => check(item, stage, sample.index))),
       ...outputRun.map((stage) => check(item, stage, firstIndex)),
@@ -977,11 +1017,12 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   /** The interpolated frame of each size: one is enough, interpolated renders take turns (`exclusive`) */
   const interpolated = new Map<string, GPUTexture>()
 
-  const flowFor = async (size: Size): Promise<OpticalFlow> => {
-    const key = `${size.width}x${size.height}`
+  /** The flow of a frame size at a motion detail (a clip's "Motion detail", design 11.24; the vector blur's is normal) */
+  const flowFor = async (size: Size, detail: FlowDetail = 'normal'): Promise<OpticalFlow> => {
+    const key = `${size.width}x${size.height}|${detail}`
     const known = flows.get(key)
     if (known !== undefined) return known
-    const made = await makeFlow(device, STAGED_FORMAT, size)
+    const made = await makeFlow(device, STAGED_FORMAT, size, { detail })
     if (destroyed) {
       made.destroy()
       throw new Error('stage pipeline: destroyed while the optical flow was being built')
@@ -998,6 +1039,12 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     interpolated.set(key, made)
     return made
   }
+
+  /** The clip's optical-flow settings (design 11.24); absent, today's normal detail and mixed hard edges */
+  const flowSettingsOfClip = (item: VideoItem) => ({
+    detail: item.motionBlur?.flowDetail ?? 'normal',
+    edges: item.motionBlur?.flowEdges ?? 'mix',
+  })
 
   /**
    * The frame at `phase` between source frames `first` and `first + 1`, as the source a render reads (`acquire`): both
@@ -1021,9 +1068,10 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
             reason: `its frames differ in size (${b.width}x${b.height} against ${a.width}x${a.height})`,
           })
         }
-        const flow = await flowFor(a)
+        const { detail, edges } = flowSettingsOfClip(item)
+        const flow = await flowFor(a, detail)
         const output = interpolatedPicture(a)
-        const key = `${item.id}|${item.mediaId}|${first}|${a.origin}|${b.origin}|${a.width}x${a.height}`
+        const key = `${item.id}|${item.mediaId}|${first}|${a.origin}|${b.origin}|${a.width}x${a.height}|${detail}`
         const encoder = device.createCommandEncoder({ label: 'optical flow' })
         arena.beginFrame()
         try {
@@ -1032,7 +1080,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
             measured = flow.measure(encoder, a.texture, b.texture)
             gap = measured
           }
-          flow.interpolate(encoder, arena, a.texture, b.texture, gap, phase, output.createView())
+          flow.interpolate(encoder, arena, a.texture, b.texture, gap, phase, output.createView(), { edges })
           device.queue.submit([encoder.finish()])
         } finally {
           void arena.endFrame()
@@ -1059,6 +1107,439 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     return mode === 'export' ? renderExport(item, position, source) : renderPreview(item, position, source)
   }
 
+
+  // --- The vector motion blur (design 9.2): each sample blurred along each pixel's motion, then weighted ----------------
+
+  const vectorStages = new Map<string, VectorBlurStage>()
+  const makeVector = options.vector ?? createVectorBlurStage
+  /** The flows of gaps between staged frames: keyed by everything the staged frames depend on (`stagedKey`) */
+  const stagedGaps = new FlowGapCache<GapFlow>(
+    mode === 'export' ? EXPORT_STAGED_GAPS : PREVIEW_STAGED_GAPS,
+    mode === 'export',
+  )
+  /** The staged neighbour of the last frame drawn, kept as the next frame's own picture: least recently used first */
+  const heldStaged = new Map<string, GPUTexture>()
+
+  const vectorFor = async (size: Size, flowSize: Size): Promise<VectorBlurStage> => {
+    const key = `${size.width}x${size.height}|${flowSize.width}x${flowSize.height}`
+    const known = vectorStages.get(key)
+    if (known !== undefined) return known
+    const made = await makeVector(device, STAGED_FORMAT, size, flowSize)
+    if (destroyed) {
+      made.destroy()
+      throw new Error('stage pipeline: destroyed while the motion blur was being built')
+    }
+    vectorStages.set(key, made)
+    return made
+  }
+
+  /**
+   * What a staged frame is a function of: the clip, its media, the source index, the staged size, the stages that ran
+   * and everything they read (`sourceStageFingerprint`, the framing at the frame being drawn included). A gap's flow is
+   * keyed by its first frame's.
+   */
+  const stagedKey = (item: VideoItem, index: number, run: readonly SourceStage[], size: Size): string =>
+    `${item.id}|${item.mediaId}|${index}|${size.width}x${size.height}|${run.map((stage) => stage.id).join(',')}|${sourceStageFingerprint(item)}`
+
+  const holdStaged = (key: string, texture: GPUTexture): void => {
+    heldStaged.get(key)?.destroy()
+    heldStaged.delete(key)
+    heldStaged.set(key, texture)
+    while (heldStaged.size > HELD_STAGED_FRAMES) {
+      const [oldestKey, oldest] = heldStaged.entries().next().value as [string, GPUTexture]
+      oldest.destroy()
+      heldStaged.delete(oldestKey)
+    }
+  }
+
+  /** Whether source frame `index` of the clip exists (the file's frame count, when the media record knows it) */
+  const inFile = (item: VideoItem, index: number): boolean =>
+    index >= 0 && (item.sourceDuration === undefined || index < item.sourceDuration)
+
+  /** The source indices a vector plan's samples read: each sample's frame and its neighbours inside the file */
+  const vectorIndices = (item: VideoItem, samples: readonly SourceSample[]): number[] => {
+    const wanted = new Set<number>()
+    for (const sample of samples) {
+      for (const index of [sample.index - 1, sample.index, sample.index + 1]) if (inFile(item, index)) wanted.add(index)
+    }
+    return [...wanted].sort((a, b) => a - b)
+  }
+
+  /** One sample of a vector render, its decoded frames held until its commands are submitted */
+  interface PreparedSample {
+    readonly sample: SourceSample
+    /** The picture's staged texture when it was held from the frame before; else staged from `frames` */
+    readonly held?: GPUTexture
+    /** The interpolated frame of a smooth slow motion (optical flow), staged at `first + phase` */
+    readonly interpolated?: { readonly frame: SourceFrame; readonly phase: number }
+    /** Decoded frames by source index, to stage */
+    readonly frames: Map<number, SourceFrame>
+    /** The gaps found in the cache, by their first index */
+    readonly cached: Map<number, GapFlow>
+    /** The gaps to measure now, by their first index */
+    readonly toMeasure: readonly number[]
+    /** The neighbour after, staged now, to be held for the next frame */
+    readonly holdNext: boolean
+  }
+
+  /** The frames' holder of one sample: decodes each index once, the plan's first frame reused, sizes checked */
+  const frameTaker = (item: VideoItem, first: SourceFrame | undefined, frames: Map<number, SourceFrame>) =>
+    async (index: number): Promise<SourceFrame> => {
+      const known = frames.get(index)
+      if (known !== undefined) return known
+      const frame =
+        first !== undefined && first.index === index
+          ? first
+          : await decoded(item, 'motion-blur', index, () => provider.frameAt(item, index))
+      frames.set(index, frame)
+      const reference = first ?? frames.values().next().value!
+      if (!sameSize(frame, reference)) {
+        throw new StageError({
+          clip: clipName(item),
+          stage: 'motion-blur',
+          sourceIndex: index,
+          reason: `its frames differ in size (${frame.width}x${frame.height} against ${reference.width}x${reference.height})`,
+        })
+      }
+      return frame
+    }
+
+  /** The gap starting at `gapFirst` from the cache, by its staged frames' key */
+  const cachedGap = (item: VideoItem, gapFirst: number, run: readonly SourceStage[], size: Size): GapFlow | undefined =>
+    stagedGaps.get(`gap|${stagedKey(item, gapFirst, run, size)}`)
+
+  /**
+   * What the frame between source frames `i` and `i + 1` needs (smooth slow motion by optical flow): the interpolated
+   * frame, and the gap between the two staged frames, whose motion it is blurred by.
+   */
+  async function prepareInterpolatedSample(
+    item: VideoItem,
+    sample: SourceSample,
+    phase: number,
+    run: readonly SourceStage[],
+    size: Size,
+    take: (index: number) => Promise<SourceFrame>,
+    frames: Map<number, SourceFrame>,
+  ): Promise<PreparedSample> {
+    const i = sample.index
+    const frame = await interpolatedSource(item, i, phase).acquire()
+    const gap = cachedGap(item, i, run, size)
+    if (gap === undefined) {
+      await take(i)
+      await take(i + 1)
+    }
+    return {
+      sample,
+      interpolated: { frame, phase },
+      frames,
+      cached: gap === undefined ? new Map() : new Map([[i, gap]]),
+      toMeasure: gap === undefined ? [i] : [],
+      holdNext: false,
+    }
+  }
+
+  /**
+   * Decodes what sample `sample` needs: its frame (unless its staged picture is held from the frame before) and the
+   * frames of the gaps around it that the cache does not hold. `first`, when given, is the plan's first frame, already
+   * decoded. Every frame is put in `frames` as soon as it is held, so the caller gives all of them back whatever fails.
+   */
+  async function prepareVectorSample(
+    item: VideoItem,
+    sample: SourceSample,
+    flowPhase: number | undefined,
+    run: readonly SourceStage[],
+    size: Size,
+    first: SourceFrame | undefined,
+    frames: Map<number, SourceFrame>,
+  ): Promise<PreparedSample> {
+    const take = frameTaker(item, first, frames)
+    if (flowPhase !== undefined) return prepareInterpolatedSample(item, sample, flowPhase, run, size, take, frames)
+    const i = sample.index
+    const key = stagedKey(item, i, run, size)
+    const held = heldStaged.get(key)
+    if (held !== undefined) {
+      // used now: the most recently used, kept until two newer neighbours push it out
+      heldStaged.delete(key)
+      heldStaged.set(key, held)
+    }
+    const cached = new Map<number, GapFlow>()
+    const toMeasure: number[] = []
+    for (const gapFirst of [i - 1, i].filter((g) => inFile(item, g) && inFile(item, g + 1))) {
+      const gap = cachedGap(item, gapFirst, run, size)
+      if (gap !== undefined) cached.set(gapFirst, gap)
+      else toMeasure.push(gapFirst)
+    }
+    // the gaps measured now need both their frames; a held picture stands in for frame i
+    const needed = new Set(toMeasure.flatMap((gapFirst) => [gapFirst, gapFirst + 1]))
+    needed.add(i)
+    if (held !== undefined) needed.delete(i)
+    for (const index of [...needed].sort((a, b) => a - b)) await take(index)
+    // the neighbour after is staged into a texture of its own when it is measured now and the run changes the frame
+    return { sample, held, frames, cached, toMeasure, holdNext: toMeasure.includes(i) && run.length > 0 }
+  }
+
+  /**
+   * The blurred sample's picture and gaps: the interpolated frame staged at its fractional position with the gap it
+   * lies in (from its nearer frame's side), or the staged frame with the gaps before and after it.
+   */
+  function vectorSampleOf(
+    item: VideoItem,
+    prepared: PreparedSample,
+    encoder: GPUCommandEncoder,
+    run: readonly SourceStage[],
+    sizes: readonly Size[],
+    taken: GPUTexture[],
+    stage: (index: number) => GPUTexture,
+    gapOf: (gapFirst: number) => GapFlow | undefined,
+  ): VectorSample {
+    const { sample, interpolated } = prepared
+    const i = sample.index
+    const base = { extent: sample.extent!, weight: sample.weight }
+    if (interpolated !== undefined) {
+      const picture = encodeRun(encoder, item, run, sizes, i + interpolated.phase, interpolated.frame.texture, undefined, taken)
+      const gap = gapOf(i)
+      if (gap === undefined) return { picture, ...base }
+      return interpolated.phase <= 0.5 ? { picture, after: gap, ...base } : { picture, before: gap, ...base }
+    }
+    const before = gapOf(i - 1)
+    const after = gapOf(i)
+    return {
+      picture: stage(i),
+      ...(before !== undefined ? { before } : {}),
+      ...(after !== undefined ? { after } : {}),
+      ...base,
+    }
+  }
+
+  /**
+   * Records a prepared sample into one command buffer and submits it: the staged frames it needs, the gaps' flows it
+   * measures, and the blur pass at `step` (into `output` for `only` and `last`). The measured gaps are cached and the
+   * staged neighbour after is held only once the commands are submitted.
+   */
+  function recordVectorSample(
+    item: VideoItem,
+    prepared: PreparedSample,
+    run: readonly SourceStage[],
+    sizes: readonly Size[],
+    size: Size,
+    flow: OpticalFlow,
+    vector: VectorBlurStage,
+    step: GatherStep,
+    output?: GPUTextureView,
+  ): void {
+    const i = prepared.sample.index
+    const encoder = device.createCommandEncoder({ label: `vector blur ${step}` })
+    const measured = new Map<number, GapFlow>()
+    let heldNext: GPUTexture | undefined
+    arena.beginFrame()
+    try {
+      const taken: GPUTexture[] = []
+      const staged = new Map<number, GPUTexture>(prepared.held !== undefined ? [[i, prepared.held]] : [])
+      const stage = (index: number): GPUTexture => {
+        const known = staged.get(index)
+        if (known !== undefined) return known
+        const frame = prepared.frames.get(index)
+        if (frame === undefined) throw new Error(`vector blur: source frame ${index} was not decoded`)
+        if (prepared.holdNext && index === i + 1) heldNext = createTexture(size, 'staged-neighbour')
+        const texture = encodeRun(encoder, item, run, sizes, index, frame.texture, index === i + 1 ? heldNext : undefined, taken)
+        staged.set(index, texture)
+        return texture
+      }
+      for (const gapFirst of prepared.toMeasure) measured.set(gapFirst, flow.measure(encoder, stage(gapFirst), stage(gapFirst + 1)))
+      const gapOf = (gapFirst: number) => prepared.cached.get(gapFirst) ?? measured.get(gapFirst)
+      vector.pass(encoder, arena, vectorSampleOf(item, prepared, encoder, run, sizes, taken, stage, gapOf), step, output)
+      device.queue.submit([encoder.finish()])
+    } catch (error) {
+      for (const gap of measured.values()) gap.destroy()
+      heldNext?.destroy()
+      throw gatherError(item, i, error)
+    } finally {
+      void arena.endFrame()
+    }
+    for (const [gapFirst, gap] of measured) {
+      stagedGaps.set(`gap|${stagedKey(item, gapFirst, run, size)}`, item.id, gapFirst, gap)
+    }
+    if (heldNext !== undefined) holdStaged(stagedKey(item, i + 1, run, size), heldNext)
+  }
+
+  /** Frees the vector blur's flows, held frames and stages */
+  function destroyVectorBlur(): void {
+    stagedGaps.clear()
+    for (const texture of heldStaged.values()) texture.destroy()
+    heldStaged.clear()
+    for (const vector of vectorStages.values()) vector.destroy()
+    vectorStages.clear()
+  }
+
+  /** The gather's steps for `count` samples, one sample a pass */
+  const vectorSteps = (count: number): GatherStep[] =>
+    Array.from({ length: count }, (_, index) =>
+      count === 1 ? 'only' : index === 0 ? 'first' : index === count - 1 ? 'last' : 'middle',
+    )
+
+  /**
+   * Blurs every sample in order and adds it into the output frame, then runs the per-output-frame stages: the clip's
+   * staged picture. Gives every decoded frame back, `first` included.
+   */
+  async function runVector(
+    item: VideoItem,
+    samples: readonly SourceSample[],
+    flowPhase: number | undefined,
+    sourceRun: readonly SourceStage[],
+    outputRun: readonly SourceStage[],
+    sizes: { source: readonly Size[]; output: readonly Size[] },
+    first: SourceFrame,
+  ): Promise<{ texture: GPUTexture; size: Size }> {
+    // the plan's first frame goes to the first sample's frames, which give it back; if that sample did not need it
+    // (its picture held, its gaps cached) or never ran, it goes back here
+    const frames = new Map<number, SourceFrame>()
+    // A frame between two source frames (smooth slow motion by optical flow) is one picture, the interpolated one; its
+    // two samples are only the blend the interpolation falls back to inside
+    const jobs = flowPhase !== undefined ? [{ ...samples[0]!, weight: 1 }] : samples
+    try {
+      const size = sizes.source.at(-1) ?? first
+      const flow = await flowFor(size)
+      const vector = await vectorFor(size, flow.flowSize)
+      const steps = vectorSteps(jobs.length)
+      let done: { texture: GPUTexture; size: Size } | undefined
+      for (const [index, sample] of jobs.entries()) {
+        frames.clear()
+        const prepared = await prepareVectorSample(item, sample, flowPhase, sourceRun, size, index === 0 ? first : undefined, frames)
+        const record = (into?: GPUTextureView) =>
+          timedStage('gather.record', () =>
+            recordVectorSample(item, prepared, sourceRun, sizes.source, size, flow, vector, steps[index]!, into),
+          )
+        if (index < jobs.length - 1) record()
+        else done = recordFinal(item, vector, outputRun, sizes.output, jobs[0]!.index, record)
+        releaseAll(frames, index === 0 ? first : undefined)
+      }
+      if (stageTimingsEnabled()) await timedStageAsync('gather.gpu', () => device.queue.onSubmittedWorkDone())
+      return done!
+    } catch (error) {
+      releaseAll(frames, first)
+      throw error
+    }
+  }
+
+  /**
+   * Gives back `frames`, and `first` when it is not among them (each once: a frame given back is removed, and `first`
+   * is forgotten once given back)
+   */
+  function releaseAll(frames: Map<number, SourceFrame>, first: SourceFrame | undefined): void {
+    for (const frame of frames.values()) provider.release(frame)
+    if (first !== undefined && frames.get(first.index) !== first && !releasedFirsts.has(first)) provider.release(first)
+    if (first !== undefined) releasedFirsts.add(first)
+    frames.clear()
+  }
+  /** The plans' first frames already given back (an error after the first sample must not give one back twice) */
+  const releasedFirsts = new WeakSet<SourceFrame>()
+
+  /** The source stages' and output stages' answers for a vector plan: every frame it reads, and its moment */
+  const vectorChecks = (
+    item: VideoItem,
+    samples: readonly SourceSample[],
+    phase: number | undefined,
+    source: readonly SourceStage[],
+    output: readonly SourceStage[],
+  ): { source: Check[]; output: Check[] } => {
+    const firstIndex = samples[0]!.index
+    const indices: number[] = [...vectorIndices(item, samples), ...(phase !== undefined ? [firstIndex + phase] : [])]
+    return {
+      source: source.map((stage) => firstBlocking(indices.map((index) => check(item, stage, index)))),
+      output: output.map((stage) => check(item, stage, firstIndex)),
+    }
+  }
+
+  async function renderVectorExport(
+    item: VideoItem,
+    samples: readonly SourceSample[],
+    flow: { readonly phase: number } | undefined,
+  ): Promise<StagedFrame> {
+    const { stages, source: sourceRun, output: outputRun } = byScope(item)
+    const firstIndex = samples[0]!.index
+    await ensurePrepared(item, stages)
+    await untilReady(item, firstIndex, () => {
+      const checks = vectorChecks(item, samples, flow?.phase, sourceRun, outputRun)
+      return [...checks.source, ...checks.output]
+    })
+    const first = await decoded(item, 'motion-blur', firstIndex, () => provider.frameAt(item, firstIndex))
+    let sizes = { source: [] as Size[], output: [] as Size[] }
+    try {
+      await untilReady(item, firstIndex, () => {
+        const answer = gatherSizes(item, sourceRun, outputRun, first, firstIndex)
+        if ('kind' in answer) return [answer]
+        sizes = answer
+        return []
+      })
+    } catch (error) {
+      provider.release(first)
+      throw error
+    }
+    const { texture, size } = await runVector(item, samples, flow?.phase, sourceRun, outputRun, sizes, first)
+    remember(item, texture, size, true)
+    return { texture, width: size.width, height: size.height, kind: 'fresh' }
+  }
+
+  async function renderVectorPreview(
+    item: VideoItem,
+    samples: readonly SourceSample[],
+    flow: { readonly phase: number } | undefined,
+  ): Promise<StagedFrame> {
+    const { stages, source, output } = byScope(item)
+    let checks = vectorChecks(item, samples, flow?.phase, source, output)
+    if (await waitedBriefly([...checks.source, ...checks.output])) checks = vectorChecks(item, samples, flow?.phase, source, output)
+    const held = blocked(item, [...checks.source, ...checks.output])
+    if (held) return held
+    // No good frame to hold: the samples with the stages that can draw
+    const sourceRun = source.filter((_stage, index) => checks.source[index]!.kind === 'ok')
+    const outputRun = output.filter((_stage, index) => checks.output[index]!.kind === 'ok')
+    try {
+      return await drawVectorPreview(item, samples, flow?.phase, sourceRun, outputRun, stages.length)
+    } catch (error) {
+      // A frame that cannot be decoded or blurred is the clip's failure: shown, and the last good frame held
+      if (!(error instanceof StageError)) throw error
+      const heldOnFailure = blocked(item, [{ kind: 'fail', stage: error.stage, error }])
+      if (heldOnFailure) return heldOnFailure
+      throw error
+    }
+  }
+
+  /**
+   * The preview's blurred picture: the stages that cannot size their output leave the run (or the clip's last good
+   * frame is held instead).
+   */
+  async function drawVectorPreview(
+    item: VideoItem,
+    samples: readonly SourceSample[],
+    phase: number | undefined,
+    startSource: readonly SourceStage[],
+    startOutput: readonly SourceStage[],
+    activeCount: number,
+  ): Promise<StagedFrame> {
+    const firstIndex = samples[0]!.index
+    const first = await decoded(item, 'motion-blur', firstIndex, () => provider.frameAt(item, firstIndex))
+    let sourceRun = startSource
+    let outputRun = startOutput
+    for (;;) {
+      const answer = gatherSizes(item, sourceRun, outputRun, first, firstIndex)
+      if (!('kind' in answer)) {
+        // `runVector` gives every frame back, the first included
+        const { texture, size } = await runVector(item, samples, phase, sourceRun, outputRun, answer, first)
+        const fresh = sourceRun.length + outputRun.length === activeCount
+        remember(item, texture, size, fresh)
+        if (fresh) options.onState?.(item, null)
+        return { texture, width: size.width, height: size.height, kind: fresh ? 'fresh' : 'partial' }
+      }
+      const heldNow = blocked(item, [answer])
+      if (heldNow) {
+        provider.release(first)
+        return heldNow
+      }
+      sourceRun = sourceRun.filter((stage) => stage.id !== answer.stage)
+      outputRun = outputRun.filter((stage) => stage.id !== answer.stage)
+    }
+  }
+
   return {
     render(item, source) {
       if (destroyed) return Promise.reject(new Error('stage pipeline: used after destroy'))
@@ -1067,6 +1548,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         samples = samplesOf(source)
       } catch (error) {
         return Promise.reject(error)
+      }
+      if (typeof source !== 'number' && samples.some((sample) => sample.extent !== undefined)) {
+        return exclusive(() =>
+          mode === 'export' ? renderVectorExport(item, samples, source.flow) : renderVectorPreview(item, samples, source.flow),
+        )
       }
       if (samples.length === 1) {
         const sourceIndex = samples[0]!.index
@@ -1105,6 +1591,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       flows.clear()
       for (const texture of interpolated.values()) texture.destroy()
       interpolated.clear()
+      destroyVectorBlur()
       arena.destroy()
     },
   }

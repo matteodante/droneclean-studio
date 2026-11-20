@@ -79,8 +79,8 @@ describe('the table of design 7.2, section 5.7', () => {
     for (let timelineFrame = 0; timelineFrame < 600; timelineFrame += 1) {
       const plan = planAt(4, timelineFrame, 180)
       expect(plan.samples).toEqual([
-        { sourceFrame: timelineFrame * 4, weight: 0.5 },
-        { sourceFrame: timelineFrame * 4 + 1, weight: 0.5 },
+        { sourceFrame: timelineFrame * 4, weight: 0.5, extent: 1 },
+        { sourceFrame: timelineFrame * 4 + 1, weight: 0.5, extent: 1 },
       ])
       expect(plan.frameCount).toBe(4)
     }
@@ -88,11 +88,11 @@ describe('the table of design 7.2, section 5.7', () => {
 
   it('shortens the blend with a partial shutter at 4x: 3 frames at 1/3 at 270, 1 at 90', () => {
     expect(planAt(4, 0, 270).samples).toEqual([
-      { sourceFrame: 0, weight: 1 / 3 },
-      { sourceFrame: 1, weight: 1 / 3 },
-      { sourceFrame: 2, weight: 1 / 3 },
+      { sourceFrame: 0, weight: 1 / 3, extent: 1 },
+      { sourceFrame: 1, weight: 1 / 3, extent: 1 },
+      { sourceFrame: 2, weight: 1 / 3, extent: 1 },
     ])
-    expect(planAt(4, 0, 90).samples).toEqual([{ sourceFrame: 0, weight: 1 }])
+    expect(planAt(4, 0, 90).samples).toEqual([{ sourceFrame: 0, weight: 1, extent: 1 }])
   })
 
   it('counts the clip’s source start in the plan: frame 2 at 4x starts on source frame 508', () => {
@@ -107,7 +107,7 @@ describe('the table of design 7.2, section 5.7', () => {
     expect(plan.samples.map((sample) => sample.sourceFrame)).toEqual([508, 509, 510, 511])
   })
 
-  it('is the identity at 1x and 0.5x for every angle: 600 of 600 frames at weight 1', () => {
+  it('is one frame at weight 1 at 1x and 0.5x for every angle, on 600 of 600 frames', () => {
     for (const speed of [1, 0.5]) {
       for (const shutterDegrees of SHUTTERS) {
         let identity = 0
@@ -237,10 +237,11 @@ describe('the slow-motion blend (19 Nov 2026)', () => {
 
   it('alternates a source frame and an even mix of the next two at 0.5x, for every angle', () => {
     for (const shutterDegrees of SHUTTERS) {
-      expect(blendAt(0.5, 10, shutterDegrees).samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+      const extent = (0.5 * shutterDegrees) / 360
+      expect(blendAt(0.5, 10, shutterDegrees).samples).toEqual([{ sourceFrame: 5, weight: 1, extent }])
       expect(blendAt(0.5, 11, shutterDegrees).samples).toEqual([
-        { sourceFrame: 5, weight: 0.5 },
-        { sourceFrame: 6, weight: 0.5 },
+        { sourceFrame: 5, weight: 0.5, extent },
+        { sourceFrame: 6, weight: 0.5, extent },
       ])
     }
   })
@@ -257,13 +258,13 @@ describe('the slow-motion blend (19 Nov 2026)', () => {
 
   it('changes nothing at 1x, and leaves a sped-up frame to the shutter', () => {
     for (let frame = 0; frame < 60; frame += 1) {
-      expect(blendAt(1, frame).samples).toEqual([{ sourceFrame: frame, weight: 1 }])
+      expect(blendAt(1, frame).samples).toEqual([{ sourceFrame: frame, weight: 1, extent: 0.5 }])
     }
     expect(blendAt(4, 2, 360).samples).toEqual(planAt(4, 2, 360).samples)
   })
 
   it('is off unless asked: 0.5x without the blend holds the frame', () => {
-    expect(planAt(0.5, 11, 180).samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+    expect(planAt(0.5, 11, 180).samples).toEqual([{ sourceFrame: 5, weight: 1, extent: 0.25 }])
   })
 
   it('carries no flow phase: the blend is the picture', () => {
@@ -285,8 +286,8 @@ describe('optical-flow slow motion (task 11.12)', () => {
     const between = flowAt(0.5, 11)
     expect(between.flowPhase).toBe(0.5)
     expect(between.samples).toEqual([
-      { sourceFrame: 5, weight: 0.5 },
-      { sourceFrame: 6, weight: 0.5 },
+      { sourceFrame: 5, weight: 0.5, extent: 0.25 },
+      { sourceFrame: 6, weight: 0.5, extent: 0.25 },
     ])
     expect([1, 2, 3].map((frame) => flowAt(0.25, frame).flowPhase)).toEqual([0.25, 0.5, 0.75])
   })
@@ -294,7 +295,7 @@ describe('optical-flow slow motion (task 11.12)', () => {
   it('shows a frame that lands on a source frame as that frame, with no phase', () => {
     for (const shutterDegrees of SHUTTERS) {
       const on = flowAt(0.5, 10, shutterDegrees)
-      expect(on.samples).toEqual([{ sourceFrame: 5, weight: 1 }])
+      expect(on.samples).toEqual([{ sourceFrame: 5, weight: 1, extent: (0.5 * shutterDegrees) / 360 }])
       expect(on.flowPhase).toBeUndefined()
     }
   })
@@ -302,7 +303,7 @@ describe('optical-flow slow motion (task 11.12)', () => {
   it('changes nothing at 1x, and leaves a sped-up frame to the shutter', () => {
     for (let frame = 0; frame < 60; frame += 1) {
       const plan = flowAt(1, frame)
-      expect(plan.samples).toEqual([{ sourceFrame: frame, weight: 1 }])
+      expect(plan.samples).toEqual([{ sourceFrame: frame, weight: 1, extent: 0.5 }])
       expect(plan.flowPhase).toBeUndefined()
     }
     expect(flowAt(4, 2, 360)).toEqual(planAt(4, 2, 360))
@@ -361,11 +362,79 @@ describe('a cut between two source frames', () => {
   })
 })
 
+describe('the shutter time each sample stands for (design 9.2, section 5.3)', () => {
+  it('blurs a 1x frame over the shutter’s share of its interval, for any angle', () => {
+    for (const shutterDegrees of [18, 90, 162, 180, 270, 333, 360]) {
+      for (let timelineFrame = 0; timelineFrame < 60; timelineFrame += 1) {
+        const [only, ...rest] = planAt(1, timelineFrame, shutterDegrees).samples
+        expect(rest).toEqual([])
+        expect(only!.extent).toBeCloseTo(shutterDegrees / 360, 12)
+      }
+    }
+  })
+
+  it('gives every sample of a sped-up frame its overlap with the window, so the extents add up to the window', () => {
+    for (const speed of [1.5, 2, 2.5, 4, 7.3]) {
+      for (const shutterDegrees of [90, 180, 252, 360]) {
+        for (let timelineFrame = 0; timelineFrame < 40; timelineFrame += 1) {
+          const plan = planAt(speed, timelineFrame, shutterDegrees)
+          const window = ((plan.endFrame - plan.startFrame) * shutterDegrees) / 360
+          const total = plan.samples.reduce((sum, sample) => sum + sample.extent, 0)
+          expect(total).toBeCloseTo(window, 9)
+          for (const sample of plan.samples) {
+            expect(sample.extent).toBeGreaterThan(0)
+            expect(sample.extent).toBeLessThanOrEqual(1 + 1e-12)
+            expect(sample.extent).toBeCloseTo(sample.weight * window, 9)
+          }
+        }
+      }
+    }
+  })
+
+  it('shrinks the blur of a held slow frame with the speed: 0.5x at 180 degrees is a quarter of a frame', () => {
+    expect(planAt(0.5, 7, 180).samples[0]!.extent).toBeCloseTo(0.25, 12)
+    expect(planAt(0.25, 7, 360).samples[0]!.extent).toBeCloseTo(0.25, 12)
+  })
+
+  it('follows a ramp: the extents of every frame of design 7.1’s ramp add up to its window', () => {
+    for (let timelineFrame = 0; timelineFrame < 600; timelineFrame += 7) {
+      const plan = planMotionBlur({ clip: clipOf(RAMP_600), timelineFrame, projectRate: RATE_59_94, shutterDegrees: 180 })
+      const total = plan.samples.reduce((sum, sample) => sum + sample.extent, 0)
+      expect(total).toBeCloseTo((plan.endFrame - plan.startFrame) / 2, 9)
+    }
+  })
+})
+
+describe('a small shutter at a fractional position', () => {
+  it('gives the one frame its window covers a weight of exactly 1, whatever the rounding of the window', () => {
+    // A 1 degree shutter at 4x, the clip shifted by a fraction of a frame (the bench's bare reference frames): the
+    // window lies inside one source frame, and its length against `close - open` differs by a few ulps
+    let worst = 0
+    for (const shutterDegrees of [1, 3.7, 18, 90]) {
+      for (const sourceStart of [0, 1, 2.000001, 3, 1196]) {
+        for (let timelineFrame = 0; timelineFrame < 200; timelineFrame += 1) {
+          const plan = planMotionBlur({ clip: clipOf(flatCurve(4), sourceStart), timelineFrame, projectRate: RATE_59_94, shutterDegrees })
+          for (const sample of plan.samples) worst = Math.max(worst, sample.weight)
+          if (plan.samples.length === 1) expect(plan.samples[0]!.weight).toBe(1)
+        }
+      }
+    }
+    expect(worst).toBeLessThanOrEqual(1)
+  })
+})
+
 describe('input validation', () => {
-  it('refuses a shutter that is not one of the four angles, naming it', () => {
-    for (const shutterDegrees of [0, 45, 361, Number.NaN] as ShutterDegrees[]) {
+  it('refuses a shutter outside [0, 360], naming it', () => {
+    for (const shutterDegrees of [-0.5, -90, 361, Number.NaN, Number.POSITIVE_INFINITY] as ShutterDegrees[]) {
       expect(() => planAt(2, 0, shutterDegrees)).toThrowError(RangeError)
       expect(() => planAt(2, 0, shutterDegrees)).toThrowError(/shutterDegrees/)
+    }
+  })
+
+  it('a closed shutter blurs nothing: one sample, the frame shown, with no extent of blur', () => {
+    for (const speed of [1, 4, 0.25]) {
+      const plan = planAt(speed, 3, 0)
+      expect(plan.samples).toEqual([{ sourceFrame: Math.floor(3 * speed), weight: 1, extent: 0 }])
     }
   })
 

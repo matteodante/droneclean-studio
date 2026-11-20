@@ -1,15 +1,20 @@
 // The CPU twin of the optical-flow kernels (`kernels.ts`), one function per kernel, in the same order and with the same
 // arithmetic (in doubles where the GPU has floats), for the tests: what the flow recovers from a known motion, and what
 // the interpolated frame is, can then be checked without a GPU. The pyramid and the work per level come from the same
-// `scale.ts` as the GPU's. The GPU path itself is checked end to end by the golden case `flow-half-speed` (golden/cases.mjs).
+// `scale.ts` as the GPU's. The GPU path itself is checked end to end by the golden cases `flow-half-speed` and
+// `flow-occlusion` (golden/cases.mjs).
 
+import { splatPackingFor, type SplatPacking } from './kernels'
 import {
   CONSISTENCY_SIGMA,
+  FILL_PASSES,
   flowLevels,
   flowScaleFor,
   flowSizeFor,
   levelWork,
   LK_MAX_STEP,
+  type FlowDetail,
+  type FlowEdges,
   type FlowFrameSize,
 } from './scale'
 
@@ -239,10 +244,10 @@ export interface GapFields {
   readonly backward: Field
 }
 
-/** `OpticalFlow.measure` on the CPU: both luma pyramids, then both directions */
-export function measureGap(first: Picture, second: Picture): GapFields {
-  const size = flowSizeFor(first)
-  const scale = flowScaleFor(first)
+/** `OpticalFlow.measure` on the CPU at `detail`: both luma pyramids, then both directions */
+export function measureGap(first: Picture, second: Picture, detail: FlowDetail = 'normal'): GapFields {
+  const size = flowSizeFor(first, detail)
+  const scale = flowScaleFor(first, detail)
   const levels = flowLevels(size)
   const pyramid = (frame: Picture): Plane[] => {
     const list = [lumaOf(frame, size, scale)]
@@ -254,70 +259,193 @@ export function measureGap(first: Picture, second: Picture): GapFields {
   return { forward: solve(a, b), backward: solve(b, a) }
 }
 
-/** The fragment shader of `INTERPOLATE_WGSL` on the CPU (without the half-float rounding of the write) */
-export function interpolateFrame(first: Picture, second: Picture, gap: GapFields, phase: number): Picture {
-  const { width: W, height: H } = first
-  const { width: fw, height: fh } = gap.forward
-  const rx = W / fw
-  const ry = H / fh
-  const out: Picture = { width: W, height: H, data: new Float64Array(W * H * 4) }
-  const flowAt = (f: Field, px: number, py: number): [number, number] => {
-    const qx = Math.min(Math.max((px + 0.5) / rx - 0.5, 0), fw - 1)
-    const qy = Math.min(Math.max((py + 0.5) / ry - 0.5, 0), fh - 1)
-    const x0 = Math.floor(qx)
-    const y0 = Math.floor(qy)
-    const x1 = Math.min(x0 + 1, fw - 1)
-    const y1 = Math.min(y0 + 1, fh - 1)
-    const fx = qx - x0
-    const fy = qy - y0
-    const at = (x: number, y: number, c: number) => f.data[(y * fw + x) * 2 + c]!
-    const value = (c: number) => mix(mix(at(x0, y0, c), at(x1, y0, c), fx), mix(at(x0, y1, c), at(x1, y1, c), fx), fy)
-    return [value(0) * rx, value(1) * ry]
+/** The Catmull-Rom weights of the four pixels around a fractional position `f` (`catmullRom` in `INTERPOLATE_WGSL`) */
+function catmullRom(f: number): [number, number, number, number] {
+  const f2 = f * f
+  const f3 = f2 * f
+  return [-0.5 * f3 + f2 - 0.5 * f, 1.5 * f3 - 2.5 * f2 + 1, -1.5 * f3 + 2 * f2 + 0.5 * f, 0.5 * f3 - 0.5 * f2]
+}
+
+/**
+ * Channel `c` of `picture` at (px, py): bicubic over the 4 x 4 pixels around it, clamped to the range of the 2 x 2
+ * nearest (`colAt` in `INTERPOLATE_WGSL`)
+ */
+export function sampleBicubic(picture: Picture, px: number, py: number, c: number): number {
+  const { width: W, height: H } = picture
+  const qx = Math.min(Math.max(px, 0), W - 1)
+  const qy = Math.min(Math.max(py, 0), H - 1)
+  const bx = Math.floor(qx)
+  const by = Math.floor(qy)
+  const wx = catmullRom(qx - bx)
+  const wy = catmullRom(qy - by)
+  const at = (x: number, y: number) =>
+    picture.data[(clampInt(y, 0, H - 1) * W + clampInt(x, 0, W - 1)) * 4 + c]!
+  let sum = 0
+  for (let j = 0; j < 4; j += 1) {
+    let row = 0
+    for (let i = 0; i < 4; i += 1) row += wx[i]! * at(bx - 1 + i, by - 1 + j)
+    sum += wy[j]! * row
   }
-  const colAt = (picture: Picture, px: number, py: number, c: number): number => {
-    const qx = Math.min(Math.max(px, 0), W - 1)
-    const qy = Math.min(Math.max(py, 0), H - 1)
-    const x0 = Math.floor(qx)
-    const y0 = Math.floor(qy)
-    const x1 = Math.min(x0 + 1, W - 1)
-    const y1 = Math.min(y0 + 1, H - 1)
-    const fx = qx - x0
-    const fy = qy - y0
-    const at = (x: number, y: number) => picture.data[(y * W + x) * 4 + c]!
-    return mix(mix(at(x0, y0), at(x1, y0), fx), mix(at(x0, y1), at(x1, y1), fx), fy)
-  }
-  const t = phase
+  const near = [at(bx, by), at(bx + 1, by), at(bx, by + 1), at(bx + 1, by + 1)]
+  return Math.min(Math.max(sum, Math.min(...near)), Math.max(...near))
+}
+
+/** A flow field's value at a frame position (x, y), bilinearly, in frame pixels (`fieldAt` in `INTERPOLATE_WGSL`) */
+function fieldAt(
+  data: Float64Array,
+  stride: number,
+  size: FlowFrameSize,
+  rx: number,
+  ry: number,
+  x: number,
+  y: number,
+): [number, number] {
+  const { width: fw, height: fh } = size
+  const qx = Math.min(Math.max((x + 0.5) / rx - 0.5, 0), fw - 1)
+  const qy = Math.min(Math.max((y + 0.5) / ry - 0.5, 0), fh - 1)
+  const x0 = Math.floor(qx)
+  const y0 = Math.floor(qy)
+  const x1 = Math.min(x0 + 1, fw - 1)
+  const y1 = Math.min(y0 + 1, fh - 1)
+  const fx = qx - x0
+  const fy = qy - y0
+  const at = (px: number, py: number, c: number) => data[(py * fw + px) * stride + c]!
+  const value = (c: number) => mix(mix(at(x0, y0, c), at(x1, y0, c), fx), mix(at(x0, y1, c), at(x1, y1, c), fx), fy)
+  return [value(0) * rx, value(1) * ry]
+}
+
+/**
+ * The frame's value from its two moved samples `a` (frame 0) and `b` (frame 1): weighted by how far each frame's own
+ * flow at its sample point is from the motion at the phase (`e0`, `e1`, frame pixels), and where neither is trusted
+ * the two samples mixed by the phase (`fragmentMain` in `INTERPOLATE_WGSL`)
+ */
+export function mixSamples(
+  a: number,
+  b: number,
+  e0: number,
+  e1: number,
+  phase: number,
+  edges: FlowEdges = 'mix',
+): number {
   const s2 = CONSISTENCY_SIGMA * CONSISTENCY_SIGMA
-  const smoothstep = (e0: number, e1: number, v: number) => {
-    const k = Math.min(Math.max((v - e0) / (e1 - e0), 0), 1)
-    return k * k * (3 - 2 * k)
+  const w0 = (1 - phase) * Math.exp((-e0 * e0) / s2)
+  const w1 = phase * Math.exp((-e1 * e1) / s2)
+  const ws = w0 + w1
+  const k = Math.min(Math.max((ws - 0.02) / (0.15 - 0.02), 0), 1)
+  const warped = (w0 * a + w1 * b) / Math.max(ws, 1e-6)
+  // "hard edges: nearest frame": the frame more likely to see the content, else the two mixed by the phase
+  const moved = edges === 'nearest' ? (w0 >= w1 ? a : b) : (1 - phase) * a + phase * b
+  return mix(moved, warped, k * k * (3 - 2 * k))
+}
+
+/** `splat`'s key: the quantized luma difference of a vector's two ends, its direction, then its index (`SplatPacking`) */
+const splatKey = (packing: SplatPacking, difference: number, direction: number, index: number) =>
+  Math.min(Math.trunc(difference * packing.errorScale), packing.errorMax) * 2 ** (packing.indexBits + 1) +
+  direction * 2 ** packing.indexBits +
+  index
+
+const SPLAT_CORNERS = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [1, 1],
+] as const
+
+/** `splat`: each flow pixel of both frames carried to where it is at `phase`, the smallest key kept per pixel */
+function splat(la: Plane, lb: Plane, gap: GapFields, phase: number, packing: SplatPacking): Float64Array {
+  const { width: fw, height: fh } = gap.forward
+  const keys = new Float64Array(fw * fh).fill(Number.POSITIVE_INFINITY)
+  // into the 2 x 2 pixels around the point
+  const land = (px: number, py: number, key: number) => {
+    for (const [i, j] of SPLAT_CORNERS) {
+      const x = Math.floor(px) + i
+      const y = Math.floor(py) + j
+      if (x >= 0 && y >= 0 && x < fw && y < fh) keys[y * fw + x] = Math.min(keys[y * fw + x]!, key)
+    }
   }
+  for (let i = 0; i < fw * fh; i += 1) {
+    const x = i % fw
+    const y = Math.floor(i / fw)
+    const [fx, fy] = [gap.forward.data[i * 2]!, gap.forward.data[i * 2 + 1]!]
+    land(x + phase * fx, y + phase * fy, splatKey(packing, Math.abs(la.data[i]! - samplePlane(lb, x + fx, y + fy)), 0, i))
+    const [bx, by] = [gap.backward.data[i * 2]!, gap.backward.data[i * 2 + 1]!]
+    const difference = Math.abs(lb.data[i]! - samplePlane(la, x + bx, y + by))
+    land(x + (1 - phase) * bx, y + (1 - phase) * by, splatKey(packing, difference, 1, i))
+  }
+  return keys
+}
+
+/** `resolve`: the winner's vector as the motion from frame 0 to frame 1 (x, y, 1 where something landed, else zeros) */
+function resolve(keys: Float64Array, gap: GapFields, packing: SplatPacking): Float64Array {
+  const field = new Float64Array(keys.length * 4)
+  keys.forEach((key, i) => {
+    if (key === Number.POSITIVE_INFINITY) return
+    const index = key % 2 ** packing.indexBits
+    const fromSecond = Math.floor(key / 2 ** packing.indexBits) % 2 === 1
+    const source = fromSecond ? gap.backward.data : gap.forward.data
+    const sign = fromSecond ? -1 : 1
+    field.set([sign * source[index * 2]!, sign * source[index * 2 + 1]!, 1, 0], i * 4)
+  })
+  return field
+}
+
+/** `fill`, one pass: a pixel nothing landed on takes the mean of its found 3 x 3 neighbours */
+function fillPass(field: Float64Array, fw: number, fh: number): Float64Array {
+  const next = field.slice()
+  for (let i = 0; i < fw * fh; i += 1) {
+    if (field[i * 4 + 2]! > 0) continue
+    const x = i % fw
+    const y = Math.floor(i / fw)
+    const found = [-1, 0, 1]
+      .flatMap((j) => [-1, 0, 1].map((k) => [x + k, y + j] as const))
+      .filter(([xx, yy]) => xx >= 0 && yy >= 0 && xx < fw && yy < fh && field[(yy * fw + xx) * 4 + 2]! > 0)
+      .map(([xx, yy]) => (yy * fw + xx) * 4)
+    if (found.length === 0) continue
+    const mean = (c: number) => found.reduce((sum, o) => sum + field[o + c]!, 0) / found.length
+    next.set([mean(0), mean(1), 1, 0], i * 4)
+  }
+  return next
+}
+
+/** The motion at `phase` at the flow's size (`splat`, `resolve`, then `fill` FILL_PASSES times): x, y, found */
+function motionAtPhase(first: Picture, second: Picture, gap: GapFields, phase: number): Float64Array {
+  const size = { width: gap.forward.width, height: gap.forward.height }
+  const scale = first.width / size.width
+  const packing = splatPackingFor(size.width * size.height)
+  const keys = splat(lumaOf(first, size, scale), lumaOf(second, size, scale), gap, phase, packing)
+  let field = resolve(keys, gap, packing)
+  for (let pass = 0; pass < FILL_PASSES; pass += 1) field = fillPass(field, size.width, size.height)
+  return field
+}
+
+/** The fragment shader of `INTERPOLATE_WGSL` on the CPU (without the half-float rounding of the write) */
+export function interpolateFrame(
+  first: Picture,
+  second: Picture,
+  gap: GapFields,
+  phase: number,
+  options: { readonly edges?: FlowEdges } = {},
+): Picture {
+  const { width: W, height: H } = first
+  const size = { width: gap.forward.width, height: gap.forward.height }
+  const rx = W / size.width
+  const ry = H / size.height
+  const atPhase = motionAtPhase(first, second, gap, phase)
+  const out: Picture = { width: W, height: H, data: new Float64Array(W * H * 4) }
+  const t = phase
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
-      let y0: [number, number] = [x, y]
-      for (let k = 0; k < 3; k += 1) {
-        const f = flowAt(gap.forward, y0[0], y0[1])
-        y0 = [x - t * f[0], y - t * f[1]]
-      }
-      let y1: [number, number] = [x, y]
-      for (let k = 0; k < 3; k += 1) {
-        const f = flowAt(gap.backward, y1[0], y1[1])
-        y1 = [x - (1 - t) * f[0], y - (1 - t) * f[1]]
-      }
-      const fa = flowAt(gap.forward, y0[0], y0[1])
-      const fb = flowAt(gap.backward, y1[0], y1[1])
-      const backA = flowAt(gap.backward, y0[0] + fa[0], y0[1] + fa[1])
-      const backB = flowAt(gap.forward, y1[0] + fb[0], y1[1] + fb[1])
-      const e0 = Math.hypot(fa[0] + backA[0], fa[1] + backA[1])
-      const e1 = Math.hypot(fb[0] + backB[0], fb[1] + backB[1])
-      const w0 = (1 - t) * Math.exp((-e0 * e0) / s2)
-      const w1 = t * Math.exp((-e1 * e1) / s2)
-      const ws = w0 + w1
-      const k = smoothstep(0.02, 0.15, ws)
+      const [fx, fy] = fieldAt(atPhase, 4, size, rx, ry, x, y)
+      const y0: [number, number] = [x - t * fx, y - t * fy]
+      const y1: [number, number] = [x + (1 - t) * fx, y + (1 - t) * fy]
+      const own0 = fieldAt(gap.forward.data, 2, size, rx, ry, y0[0], y0[1])
+      const own1 = fieldAt(gap.backward.data, 2, size, rx, ry, y1[0], y1[1])
+      const e0 = Math.hypot(own0[0] - fx, own0[1] - fy)
+      const e1 = Math.hypot(own1[0] + fx, own1[1] + fy)
       for (let c = 0; c < 4; c += 1) {
-        const warped = (w0 * colAt(first, y0[0], y0[1], c) + w1 * colAt(second, y1[0], y1[1], c)) / Math.max(ws, 1e-6)
-        const blend = (1 - t) * colAt(first, x, y, c) + t * colAt(second, x, y, c)
-        out.data[(y * W + x) * 4 + c] = mix(blend, warped, k)
+        const a = sampleBicubic(first, y0[0], y0[1], c)
+        const b = sampleBicubic(second, y1[0], y1[1], c)
+        out.data[(y * W + x) * 4 + c] = mixSamples(a, b, e0, e1, t, options.edges)
       }
     }
   }

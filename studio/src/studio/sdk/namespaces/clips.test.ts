@@ -1883,7 +1883,7 @@ describe('studio.clips', () => {
       expect(result.speedCurve.map((key) => key.speed)).toEqual([4, 0.45, 0.45, 4])
       expect(result.speedCurve[result.speedCurve.length - 1]!.frame).toBe(duration)
       expect(studio.clips.getSpeedCurve('curved')!.keys).toEqual(result.speedCurve)
-      expect(studio.clips.getMotionBlur('curved')).toEqual({ shutterDegrees: 360, smoothSlowMotion: 'blend' })
+      expect(studio.clips.getMotionBlur('curved')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
       expect(result.zoom).toEqual({ firstFrame: 0, lastFrame: duration - 1, scale: 1.2 })
       expect(undoDepth()).toBe(depth + 1)
       expect(lastCommandType()).toBe('CLIPS_APPLY_SMOOTH_EDIT')
@@ -2435,7 +2435,8 @@ describe('studio.clips', () => {
     })
 
     it.each([
-      [{ shutterDegrees: 200 }],
+      [{ shutterDegrees: 400 }],
+      [{ shutterDegrees: -1 }],
       [{ shutterDegrees: '180' }],
       [{}],
       [undefined],
@@ -2450,7 +2451,49 @@ describe('studio.clips', () => {
       expect(error.code).toBe('INVALID_ARGUMENT')
       expect(error.argument).toBe('settings')
       expect(error.message).toContain('clips.setMotionBlur: "settings"')
-      expect(error.valid).toEqual(['90', '180', '270', '360'])
+      expect(error.message).toContain('from 0 to 360')
+      expect(studio.clips.getMotionBlur('c1')).toBeNull()
+      expect(undoDepth()).toBe(depth)
+    })
+
+    it("keeps optical flow's motion detail and hard edges, leaves the defaults out, one undo step (design 11.24)", () => {
+      const depth = undoDepth()
+      studio.clips.setMotionBlur('c1', {
+        shutterDegrees: 0,
+        smoothSlowMotion: 'optical-flow',
+        flowDetail: 'high',
+        flowEdges: 'nearest',
+      })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({
+        shutterDegrees: 0,
+        smoothSlowMotion: 'optical-flow',
+        flowDetail: 'high',
+        flowEdges: 'nearest',
+      })
+      expect(undoDepth()).toBe(depth + 1)
+
+      studio.clips.setMotionBlur('c1', {
+        shutterDegrees: 180,
+        smoothSlowMotion: 'optical-flow',
+        flowDetail: 'normal',
+        flowEdges: 'mix',
+      })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+    })
+
+    it.each([
+      [{ shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowDetail: 'ultra' }, '"flowDetail" "normal" or "high"'],
+      [{ shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowEdges: true }, '"flowEdges" "mix" or "nearest"'],
+      [{ shutterDegrees: 180, smoothSlowMotion: 'blend', flowDetail: 'high' }, 'only with smoothSlowMotion: "optical-flow"'],
+      [{ shutterDegrees: 180, flowEdges: 'nearest' }, 'only with smoothSlowMotion: "optical-flow"'],
+    ])('refuses the optical-flow settings %j with INVALID_ARGUMENT, naming the rule', (settings, rule) => {
+      const depth = undoDepth()
+      const error = rejected(() =>
+        studio.clips.setMotionBlur('c1', settings as unknown as { shutterDegrees: 180 }),
+      )
+      expect(error.code).toBe('INVALID_ARGUMENT')
+      expect(error.argument).toBe('settings')
+      expect(error.message).toContain(rule)
       expect(studio.clips.getMotionBlur('c1')).toBeNull()
       expect(undoDepth()).toBe(depth)
     })

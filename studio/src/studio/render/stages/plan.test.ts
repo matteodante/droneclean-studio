@@ -70,11 +70,12 @@ describe('sourceFramePlan', () => {
   it('blur on at 4x with a 360 shutter: four equal samples over the span', () => {
     const plan = sourceFramePlan(clip({ motionBlur: { shutterDegrees: 360 } }), 2, sources(4))
     // frame 2 covers source [108, 112): frames 108..111 at a quarter each.
+    // each blurred over its own source interval, so the four join into one smear (design 9.2)
     expect(plan.samples).toEqual([
-      { index: 108, weight: 0.25 },
-      { index: 109, weight: 0.25 },
-      { index: 110, weight: 0.25 },
-      { index: 111, weight: 0.25 },
+      { index: 108, weight: 0.25, extent: 1 },
+      { index: 109, weight: 0.25, extent: 1 },
+      { index: 110, weight: 0.25, extent: 1 },
+      { index: 111, weight: 0.25, extent: 1 },
     ])
   })
 
@@ -84,9 +85,9 @@ describe('sourceFramePlan', () => {
     expect(plan.samples.reduce((sum, s) => sum + s.weight, 0)).toBeCloseTo(1, 12)
   })
 
-  it('blur on at 1x is still one sample at weight 1', () => {
+  it('blur on at 1x is one sample at weight 1, blurred over the shutter’s share of its interval', () => {
     const plan = sourceFramePlan(clip({ motionBlur: { shutterDegrees: 360 } }), 5, sources(1))
-    expect(plan.samples).toEqual([{ index: 105, weight: 1 }])
+    expect(plan.samples).toEqual([{ index: 105, weight: 1, extent: 1 }])
   })
 
   it('blur on but no query for the clip falls back to the single sample', () => {
@@ -133,6 +134,34 @@ describe('sourceFramePlan', () => {
         smoothSlowMotion: 'optical-flow',
       }),
     })
+    // 0.5x at 180 degrees: each frame stands for a quarter of a source frame's motion
+    expect(sourceFramePlan(item, 3, at(3))).toEqual({
+      samples: [
+        { index: 101, weight: 0.5, extent: 0.25 },
+        { index: 102, weight: 0.5, extent: 0.25 },
+      ],
+      flow: { phase: 0.5 },
+    })
+    expect(sourceFramePlan(item, 4, at(4))).toEqual({ samples: [{ index: 102, weight: 1, extent: 0.25 }] })
+    // The file's last gap: its second frame (200) does not exist, so the frame is 199 alone, with no flow
+    expect(sourceFramePlan(item, 1, at(1, 199))).toEqual({ samples: [{ index: 199, weight: 1, extent: 0.25 }] })
+  })
+
+  it('an Amount of 0 is optical-flow slow motion with no blur: the phase, and no extent on any sample', () => {
+    const rate = toRate(60)
+    const item = clip({ motionBlur: { shutterDegrees: 0, smoothSlowMotion: 'optical-flow' }, sourceDuration: 200 })
+    const at = (frame: number): SourceFramePlanSources => ({
+      ...sources(0.5),
+      sourceFrameCount: (it) => it.sourceDuration,
+      motionBlurQuery: (): MotionBlurQuery => ({
+        clip: { type: 'video', sourceStart: 100, sourceFps: 60, speed: 0.5 },
+        timelineFrame: frame,
+        projectRate: rate,
+        shutterDegrees: 0,
+        smoothSlowMotion: 'optical-flow',
+      }),
+    })
+    // Matteo, 20 Nov 2026: Twixtor without a smear; the pipeline draws an interpolated frame and runs no blur pass
     expect(sourceFramePlan(item, 3, at(3))).toEqual({
       samples: [
         { index: 101, weight: 0.5 },
@@ -141,8 +170,6 @@ describe('sourceFramePlan', () => {
       flow: { phase: 0.5 },
     })
     expect(sourceFramePlan(item, 4, at(4))).toEqual({ samples: [{ index: 102, weight: 1 }] })
-    // The file's last gap: its second frame (200) does not exist, so the frame is 199 as it is, with no flow
-    expect(sourceFramePlan(item, 1, at(1, 199))).toEqual({ samples: [{ index: 199, weight: 1 }] })
   })
 
   it('refuses a bad position and a non-video item', () => {

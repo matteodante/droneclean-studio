@@ -2,8 +2,9 @@
 // creates) on a clip at 4x with the blur on, asked for consecutive frames back to back (what playing asks for), and for a
 // paused frame (a jump to it, and a redraw of it), at the project's full 3840x2880 and at the preview's usual size
 // (`getRealtimePreviewRenderSize`: 1,920 x 1,080 pixels' worth, 1664x1248 for this project). The 4x clip with the blur
-// off is the same run for comparison. A 1x clip with the blur on is checked to draw the same frame as with it off, and
-// the 4x clip to draw a different one (so the run did draw a blur).
+// off is the same run for comparison, and a 1x clip with the vector blur at 180 degrees (design 9.2) the cost at normal
+// speed. Both blurred clips are checked to draw a different frame from the clip with the blur off (so the run did draw a
+// blur, at 1x too).
 //
 // Not included: presenting the canvas, the pump's scheduling, the interface, audio. 59.94 fps is kept when the mean
 // frame time is under 16.68 ms and the tail (p99) is not far above it; `keeps5994` states both.
@@ -76,7 +77,7 @@ export async function measure(ctx) {
         spec: { speed: 4, motionBlur: { shutterDegrees: 360 } },
       },
       { label: '4x blur off', spec: { speed: 4 } },
-      { label: '1x blur on', spec: { motionBlur: { shutterDegrees: 360 } } },
+      { label: '1x blur on', spec: { motionBlur: { shutterDegrees: 180 } } },
     ]) {
       console.log(`   preview ${variant.label}, ${size.label} size`)
       try {
@@ -123,8 +124,8 @@ export async function measure(ctx) {
         frames: [0, 100, 150],
       }),
     )
-  console.log('   same frame at 1x, different at 4x')
-  const oneX = await compare({ motionBlur: { shutterDegrees: 360 } })
+  console.log('   a different frame at 1x and at 4x')
+  const oneX = await compare({ motionBlur: { shutterDegrees: 180 } })
   const fourX = await compare({ speed: 4, motionBlur: { shutterDegrees: 360 } })
   return {
     ...(await ctx.header(name, { segment })),
@@ -145,7 +146,7 @@ export async function measure(ctx) {
       runs,
       stageMarks,
       oneXBlurOnVersusOff: {
-        sameFrame: oneX.every((f) => f.identical),
+        blurDrawn: oneX.every((f) => !f.identical),
         frames: oneX,
       },
       fourXBlurOnVersusOff: {

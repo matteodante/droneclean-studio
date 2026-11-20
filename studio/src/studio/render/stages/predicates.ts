@@ -2,8 +2,9 @@
 //
 //   needsSourceStages(item)      does any stage change this clip's pixels?
 //   needsExactSourceFrame(item)  must this clip be drawn from the exact decoded source frame: no DOM `<video>`, no
-//                                packet copy? True for a stage keyed by integer source frames (stabilization, a
-//                                blur that blends frames), a speed curve, cleaned shadow pieces or a reversed clip.
+//                                packet copy? True for a stage keyed by integer source frames (stabilization, the
+//                                motion blur, which reads the neighbour frames), a speed curve, cleaned shadow pieces or
+//                                a reversed clip.
 //                                Not for an input colour transform or a look: they act on whatever frame is drawn.
 //
 // A clip that needs stages but not the exact frame (input colour, a look) is drawn in the preview from FreeCut's
@@ -16,33 +17,7 @@
 import { isFeatureShown } from '@/studio/feature-switches'
 import { rawTestKitActive } from '@/studio/render/frames/backends/raw-test'
 import { nativeExportActive } from '@/studio/render/precise/native-session'
-import { toRate, type Rate } from '@/studio/time'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
-
-/** The two rates the number of source frames per output frame depends on (a 120 fps clip in a 60 fps project). */
-export interface PlaybackRates {
-  readonly source: Rate
-  readonly project: Rate
-}
-
-/**
- * The project's rate, which the playback rates default to: the call sites ask about a clip alone, and a clip's source
- * rate against the project's decides how many source frames an output frame covers. Set by the renderer on creation and
- * by the page's session as the timeline's rate changes; until it is set, the rates are taken as equal.
- */
-let projectRate: Rate | undefined
-
-/** Tells the predicates the project's rate (a number or an exact rate); `undefined` forgets it. */
-export function setProjectRate(fps: number | Rate | undefined): void {
-  projectRate = fps === undefined ? undefined : toRate(fps)
-}
-
-/** The rates of a clip: the ones given, or its source rate against the project's, when both are known. */
-function ratesOf(item: VideoItem, given: PlaybackRates | undefined): PlaybackRates | undefined {
-  if (given !== undefined) return given
-  if (projectRate === undefined || item.sourceFps === undefined) return undefined
-  return { source: toRate(item.sourceFps), project: projectRate }
-}
 
 function videoOf(item: TimelineItem): VideoItem | undefined {
   return item.type === 'video' ? item : undefined
@@ -70,37 +45,16 @@ export function hasMotionBlur(item: TimelineItem): boolean {
   return videoOf(item)?.motionBlur !== undefined && isFeatureShown('motionBlur')
 }
 
-/** The fastest source frames-per-output-frame ratio of the clip's speed: its constant speed, or its curve's peak. */
-function peakSpeed(video: VideoItem): number {
-  const curve = video.speedCurve
-  if (curve !== undefined) return Math.max(...curve.keys.map((key) => key.speed))
-  return video.speed ?? 1
-}
-
-/** The slowest one: its constant speed, or its curve's lowest key. */
-function lowestSpeed(video: VideoItem): number {
-  const curve = video.speedCurve
-  if (curve !== undefined) return Math.min(...curve.keys.map((key) => key.speed))
-  return video.speed ?? 1
-}
-
 /**
- * Whether motion blur can blend more than one source frame for this clip: it is on, and one output frame can cover
- * more than one source frame, or less than one with smooth slow motion on (blend or optical flow). Every shutter angle is the identity at and below 1x with equal rates (design 7.2
- * section 4.1), so a blurred clip at normal speed needs no stage. Without `rates` the clip's source rate and the project's
- * (`setProjectRate`) are used, or taken as equal while the project's is unknown; with them, a faster source than project counts like a faster clip.
+ * What the per-source-frame stages of a clip read, as one string (design 9.2, section 5.4): its stabilization (the
+ * framing at the frame being drawn included), its input colour and its cleaned shadow pieces. Two staged frames of the
+ * same media and index are the same picture when these agree, so the motion blur keys the flows it measures on staged
+ * frames, and the staged neighbour it keeps, with it.
  */
-export function hasMotionBlurSpan(item: TimelineItem, rates?: PlaybackRates): boolean {
+export function sourceStageFingerprint(item: TimelineItem): string {
   const video = videoOf(item)
-  if (video === undefined || !hasMotionBlur(item)) return false
-  const known = ratesOf(video, rates)
-  const rateRatio =
-    known === undefined
-      ? 1
-      : (known.source.num * known.project.den) / (known.source.den * known.project.num)
-  if (peakSpeed(video) * rateRatio > 1) return true
-  // Smooth slow motion makes a frame from two source frames wherever an output frame covers less than one.
-  return video.motionBlur?.smoothSlowMotion !== undefined && lowestSpeed(video) * rateRatio < 1
+  if (video === undefined) return ''
+  return JSON.stringify([video.stabilization ?? null, video.inputColor ?? null, video.shadowRemoval?.pieces ?? null])
 }
 
 /**
@@ -112,26 +66,27 @@ function preciseExportActive(): boolean {
   return nativeExportActive() || rawTestKitActive()
 }
 
-/** Whether any stage changes this clip's pixels: stabilization, input colour, a look, or a blur that blends frames. */
-export function needsSourceStages(item: TimelineItem, rates?: PlaybackRates): boolean {
+/** Whether any stage changes this clip's pixels: stabilization, input colour, a look, or the motion blur. */
+export function needsSourceStages(item: TimelineItem): boolean {
   return (
     (videoOf(item) !== undefined && preciseExportActive()) ||
-    isStabilized(item) || hasInputColour(item) || hasLook(item) || hasMotionBlurSpan(item, rates)
+    isStabilized(item) || hasInputColour(item) || hasLook(item) || hasMotionBlur(item)
   )
 }
 
 /**
  * Whether this clip must be drawn from the exact decoded source frame, never from a DOM `<video>` that plays at a
- * constant rate: a stage keyed by integer source frames (the stabilization's warp, a blur that blends frames: S1), a
- * speed curve, cleaned shadow pieces, or a reversed clip. An input colour transform or a look acts on the frame it is
- * given, so on its own it needs no exact frame (a copy of the file's packets is refused for it by `needsSourceStages`).
+ * constant rate: a stage keyed by integer source frames (the stabilization's warp, the motion blur, which measures the
+ * motion to the neighbour frames: S1), a speed curve, cleaned shadow pieces, or a reversed clip. An input colour
+ * transform or a look acts on the frame it is given, so on its own it needs no exact frame (a copy of the file's
+ * packets is refused for it by `needsSourceStages`).
  */
-export function needsExactSourceFrame(item: TimelineItem, rates?: PlaybackRates): boolean {
+export function needsExactSourceFrame(item: TimelineItem): boolean {
   const video = videoOf(item)
   if (video === undefined) return false
   return (
     isStabilized(item) ||
-    hasMotionBlurSpan(item, rates) ||
+    hasMotionBlur(item) ||
     video.speedCurve !== undefined ||
     (video.shadowRemoval?.pieces.length ?? 0) > 0 ||
     video.isReversed === true
@@ -143,6 +98,6 @@ export function needsExactSourceFrame(item: TimelineItem, rates?: PlaybackRates)
  * (S1): a clip that has stages and needs the exact frame. A clip with only per-pixel stages may take the `<video>` in
  * a preview, fed into its stages.
  */
-export function needsExactStagedFrame(item: TimelineItem, rates?: PlaybackRates): boolean {
-  return needsSourceStages(item, rates) && needsExactSourceFrame(item, rates)
+export function needsExactStagedFrame(item: TimelineItem): boolean {
+  return needsSourceStages(item) && needsExactSourceFrame(item)
 }

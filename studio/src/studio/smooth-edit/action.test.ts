@@ -113,21 +113,29 @@ describe('smoothEditClip', () => {
     expect(item.sourceEnd).toBe(Math.floor(spent))
   })
 
-  it('turns on smooth slow motion and motion blur, keeping the clip own shutter angle', () => {
+  it('turns on smooth slow motion by optical flow and motion blur, keeping the clip own shutter angle', () => {
     seed({ motionBlur: { shutterDegrees: 180 } })
 
     const result = smoothEditClip('a')!
 
-    expect(stored().motionBlur).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
-    expect(result.motionBlur).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
+    expect(stored().motionBlur).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+    expect(result.motionBlur).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
   })
 
-  it('uses a 360 degree shutter on a clip that had no blur', () => {
+  it('uses the default 180 degree shutter on a clip that had no blur', () => {
     seed()
 
     smoothEditClip('a')
 
-    expect(stored().motionBlur).toEqual({ shutterDegrees: 360, smoothSlowMotion: 'blend' })
+    expect(stored().motionBlur).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+  })
+
+  it('makes the slow part by optical flow on a clip that was on frame blending (the reference look, design 11.24)', () => {
+    seed({ motionBlur: { shutterDegrees: 270, smoothSlowMotion: 'blend' } })
+
+    smoothEditClip('a')
+
+    expect(stored().motionBlur).toEqual({ shutterDegrees: 270, smoothSlowMotion: 'optical-flow' })
   })
 
   it('zooms: width and height keyframes span the new length, eased, from 1 to 1 + zoom', () => {

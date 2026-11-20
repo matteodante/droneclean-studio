@@ -1,7 +1,7 @@
 {
   "name": "droneclean-studio-desktop",
   "productName": "DroneClean Studio",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Desktop shell of DroneClean Studio: Electron main process, preload and packaging for the editor in ../",
   "dependencies": {

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { useMediaLibraryStore } from '@/features/media-library/stores/media-library-store'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import { setFeatureOverride } from '@/studio/feature-switches'
-import { hasMotionBlurSpan, needsSourceStages } from '@/studio/render/stages/predicates'
+import { needsSourceStages } from '@/studio/render/stages/predicates'
 import { createDerivedSizeStore, derivedSizeKey } from '@/studio/render/stages/derived-sizes'
 import { derivedSizes, stagedSourceDimensions } from '@/studio/render/stages/staged-size'
 import { STAGE_TIMINGS_FLAG, stageTimingsEnabled, timedStage } from '@/studio/render/timings'
@@ -107,11 +107,8 @@ describe('beginning a worker export', () => {
     expect(stabilizationEngineKey(STABILIZED)).not.toBe(pageKey)
   })
 
-  it('gives the worker the export’s project rate, so a blurred clip is staged as the page stages it', async () => {
+  it('gives the worker the export’s project rate, and stages a blurred clip at any rate (the vector blur, design 9.2)', async () => {
     setFeatureOverride('motionBlur', true)
-    // A 59.94 clip at normal speed with motion blur: in a 59.94 project one output frame covers one source frame, so
-    // the blur blends nothing and the clip needs no stage; read against the timeline settings' default of 30 fps it
-    // would cover two and be staged
     const blurred = {
       ...STABILIZED,
       stabilization: undefined,
@@ -121,12 +118,10 @@ describe('beginning a worker export', () => {
     } as VideoItem
     const page = await beginWorkerExport(start({ projectFps: 60000 / 1001 }))
     expect(useTimelineSettingsStore.getState().fps).toBe(60000 / 1001)
-    expect(hasMotionBlurSpan(blurred)).toBe(false)
-    expect(needsSourceStages(blurred)).toBe(false)
+    expect(needsSourceStages(blurred)).toBe(true)
     page.end()
     const slower = await beginWorkerExport(start({ projectFps: 30 }))
     expect(useTimelineSettingsStore.getState().fps).toBe(30)
-    expect(hasMotionBlurSpan(blurred)).toBe(true)
     expect(needsSourceStages(blurred)).toBe(true)
     slower.end()
   })

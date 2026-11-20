@@ -1,6 +1,7 @@
 // The WebGPU side of the optical-flow probe (design 11.12): a coarse-to-fine Lucas-Kanade flow, a bidirectional
 // warp with consistency weights, and the two measurements that drive them (timing, quality). Driven by run.mjs.
 import { KERNELS } from './kernels.mjs'
+import { KERNELS_V2 } from './kernels-v2.mjs'
 
 const WG = 16
 let device
@@ -19,7 +20,7 @@ async function init() {
   })
   device.addEventListener('uncapturederror', (e) => console.error('GPU error', e.error?.message))
   pipelines = {}
-  for (const [name, code] of Object.entries(KERNELS)) {
+  for (const [name, code] of Object.entries({ ...KERNELS, ...KERNELS_V2 })) {
     const module = device.createShaderModule({ code })
     const info2 = await module.getCompilationInfo()
     for (const m of info2.messages)
@@ -47,7 +48,7 @@ function buf(
 
 function uniform(words) {
   const b = device.createBuffer({
-    size: 32,
+    size: Math.max(32, Math.ceil((words.length * 4) / 16) * 16),
     usage: GPUBufferUsage.UNIFORM,
     mappedAtCreation: true,
   })
@@ -132,7 +133,98 @@ function buildPlan(W, H, scale) {
     }
     return { ops, flow0: flow[0] }
   })
-  return { W, H, scale, w0, h0, levels: lv, col, pyramidOps, dirs, interpOps: new Map() }
+  // Design 11.24: the round-trip confidence of each direction at the flow's size, and the flow brought up to the
+  // frame's size by a joint bilateral filter guided by the frame's luma (`kernels-v2.mjs`).
+  const conf = [0, 1].map(() => buf(w0 * h0 * 4))
+  const full = [0, 1].map(() => buf(W * H * 8))
+  const refineOps = []
+  for (let d = 0; d < 2; d++) {
+    refineOps.push(op('conf', [w0, h0, { f: 1.0 }, 0], [dirs[d].flow0, dirs[1 - d].flow0, conf[d]], w0, h0))
+  }
+  for (let d = 0; d < 2; d++) {
+    refineOps.push(
+      op(
+        'jbu',
+        [W, H, w0, h0, { f: W / w0 }, { f: H / h0 }, { f: 12.0 }, 0],
+        [col[d], pyr[d][0], dirs[d].flow0, conf[d], full[d]],
+        W,
+        H,
+      ),
+    )
+  }
+  // ... and the candidate pick on the refined flows (full-size luma of both frames, then one pick per direction)
+  const lumFull = [0, 1].map(() => buf(W * H * 4))
+  const picked = [0, 1].map(() => buf(W * H * 8))
+  const pickOps = [0, 1].map((f) => op('luma', [W, H, W, H, 1, 0, 0, 0], [col[f], lumFull[f]], W, H))
+  for (let d = 0; d < 2; d++) {
+    pickOps.push(
+      op(
+        'pick',
+        [W, H, w0, h0, { f: W / w0 }, { f: H / h0 }, { f: 0.5 }, 0],
+        [lumFull[d], lumFull[1 - d], dirs[d].flow0, full[d], picked[d]],
+        W,
+        H,
+      ),
+    )
+  }
+  // Run 4: the vector choice at the flow's size, and the forward warp's buffers
+  const pickedLow = [0, 1].map(() => buf(w0 * h0 * 8))
+  const pickLowOps = [0, 1].map((d) =>
+    op('pickl', [w0, h0, { i: 3 }, 0], [pyr[d][0], pyr[1 - d][0], dirs[d].flow0, pickedLow[d]], w0, h0),
+  )
+  if (w0 * h0 > 1 << 21) throw new Error('forward warp: the flow is too large for the splat index')
+  const zbuf = buf(w0 * h0 * 4)
+  const ft = [buf(w0 * h0 * 16), buf(w0 * h0 * 16)]
+  return {
+    W, H, scale, w0, h0, levels: lv, col, pyr, pyramidOps, dirs, refineOps, full, pickOps, picked,
+    pickedLow, pickLowOps, zbuf, ft, interpOps: new Map(),
+  }
+}
+
+/** The flows a variant reads: `low` today's, `full` refined, `picked` refined and picked, `picklow` picked at the flow's size */
+function flowsOf(plan, which) {
+  if (which === 'picked') return plan.picked
+  if (which === 'full') return plan.full
+  if (which === 'picklow') return plan.pickedLow
+  return [plan.dirs[0].flow0, plan.dirs[1].flow0]
+}
+
+/** Run 4: the forward warp at phase t from `flows` (at the flow's size), drawn into `out` with interpolation `mode` */
+function fwdOps(plan, t, out, { flows: which = 'low', mode = 6, fills = 8 }) {
+  const { w0, h0, W, H } = plan
+  const flows = flowsOf(plan, which)
+  const n = w0 * h0
+  const list = [
+    op('fclear', [n, 0, 0, 0], [plan.zbuf], n, 1, true),
+    op('fsplat', [w0, h0, { f: t }, 0], [plan.pyr[0][0], plan.pyr[1][0], flows[0], flows[1], plan.zbuf], w0, h0),
+    op('fresolve', [n, 0, 0, 0], [plan.zbuf, flows[0], flows[1], plan.ft[0]], n, 1, true),
+  ]
+  for (let k = 0; k < fills; k++) {
+    list.push(op('ffill', [w0, h0, 0, 0], [plan.ft[k % 2], plan.ft[(k + 1) % 2]], w0, h0))
+  }
+  list.push(
+    op(
+      'fwdinterp',
+      [W, H, w0, h0, { f: t }, { f: SIGMA_FULL_RES_PX }, { f: W / w0 }, { f: H / h0 }, mode, 0, 0, 0],
+      [plan.col[0], plan.col[1], flows[0], flows[1], plan.ft[fills % 2], out],
+      W,
+      H,
+    ),
+  )
+  return list
+}
+
+/** The design 11.24 interpolation: `full` reads the refined flows, `mode` 1 = borders, 2 = warp fallback, 3 = both */
+function interp2Op(plan, t, out, { full, picked = false, flows: which, mode }) {
+  const [fw, fh] = full ? [plan.W, plan.H] : [plan.w0, plan.h0]
+  const flows = which ? flowsOf(plan, which) : picked ? plan.picked : full ? plan.full : [plan.dirs[0].flow0, plan.dirs[1].flow0]
+  return op(
+    'interp2',
+    [plan.W, plan.H, fw, fh, { f: t }, { f: SIGMA_FULL_RES_PX }, { f: plan.W / fw }, { f: plan.H / fh }, mode, 0, 0, 0],
+    [plan.col[0], plan.col[1], flows[0], flows[1], out],
+    plan.W,
+    plan.H,
+  )
 }
 
 function interpOp(plan, t, out) {
@@ -209,7 +301,13 @@ async function timing({ set, W, H, scale, pairs, warmup = 2 }) {
   const plan = buildPlan(W, H, scale)
   const out = buf(W * H * 4)
   const interp = interpOp(plan, 0.5, out)
-  const stages = { pyramid: [], flowFwd: [], flowBwd: [], interp: [], whole: [] }
+  const interpBest = interp2Op(plan, 0.5, out, { full: true, picked: true, mode: 7 })
+  const interpNew = interp2Op(plan, 0.5, out, { flows: 'low', mode: 6 })
+  const forward = fwdOps(plan, 0.5, out, { flows: 'low' })
+  const stages = {
+    pyramid: [], flowFwd: [], flowBwd: [], interp: [], whole: [], refine: [], pick: [], interpBest: [], wholeBest: [],
+    interpNew: [], pickLow: [], forward: [], wholePickForward: [],
+  }
   let prev = await fetchFrame(set, 0)
   for (let i = 0; i < pairs + warmup; i++) {
     const next = await fetchFrame(set, i + 1)
@@ -222,6 +320,27 @@ async function timing({ set, W, H, scale, pairs, warmup = 2 }) {
       flowBwd: await run(plan.dirs[1].ops),
       interp: await run([interp]),
       whole: await run([...plan.pyramidOps, ...plan.dirs[0].ops, ...plan.dirs[1].ops, interp]),
+      refine: await run(plan.refineOps),
+      pick: await run(plan.pickOps),
+      interpNew: await run([interpNew]),
+      pickLow: await run(plan.pickLowOps),
+      forward: await run(forward),
+      wholePickForward: await run([
+        ...plan.pyramidOps,
+        ...plan.dirs[0].ops,
+        ...plan.dirs[1].ops,
+        ...plan.pickLowOps,
+        ...fwdOps(plan, 0.5, out, { flows: 'picklow' }),
+      ]),
+      interpBest: await run([interpBest]),
+      wholeBest: await run([
+        ...plan.pyramidOps,
+        ...plan.dirs[0].ops,
+        ...plan.dirs[1].ops,
+        ...plan.refineOps,
+        ...plan.pickOps,
+        interpBest,
+      ]),
     }
     if (i >= warmup) for (const k of Object.keys(s)) stages[k].push(s[k])
     prev = next
@@ -238,6 +357,79 @@ async function timing({ set, W, H, scale, pairs, warmup = 2 }) {
   }
 }
 
+// Run 4: RIFE (the editor's own model, `walterlow/RIFE_fp32_timestep`, downloaded once for this test with Matteo's OK)
+// on onnxruntime-web's WebGPU backend, as `src/infrastructure/interpolation/rife-interpolator.ts` runs it: the frame
+// padded to a multiple of 64 (edge pixels repeated), planar RGB 0..1, pinned input size.
+let ort
+const rifeSessions = new Map()
+const rifeTimes = []
+async function rifeSession(W, H) {
+  const key = `${W}x${H}`
+  if (rifeSessions.has(key)) return rifeSessions.get(key)
+  if (!ort) {
+    // a URL of run.mjs's server (onnxruntime-web's dist folder), not a module path
+    const served = '/ort/ort.bundle.min.mjs'
+    ort = await import(served)
+    ort.env.wasm.wasmPaths = { mjs: '/ort/ort-wasm-simd-threaded.jsep.mjs', wasm: '/ort/ort-wasm-simd-threaded.jsep.wasm' }
+    ort.env.wasm.numThreads = 1
+  }
+  const bytes = new Uint8Array(await (await fetch('/model')).arrayBuffer())
+  const PW = Math.ceil(W / 64) * 64
+  const PH = Math.ceil(H / 64) * 64
+  const session = await ort.InferenceSession.create(bytes, {
+    executionProviders: ['webgpu'],
+    graphOptimizationLevel: 'all',
+    freeDimensionOverrides: { dynamic_dim_0: 1, dynamic_dim_1: 6, dynamic_dim_2: PH, dynamic_dim_3: PW },
+  })
+  const made = { session, PW, PH }
+  rifeSessions.set(key, made)
+  return made
+}
+async function rifeFrame(a, c, W, H, t) {
+  const { session, PW, PH } = await rifeSession(W, H)
+  const plane = PW * PH
+  const input = new Float32Array(6 * plane)
+  for (let y = 0; y < PH; y++) {
+    const sy = Math.min(y, H - 1)
+    for (let x = 0; x < PW; x++) {
+      const s = (sy * W + Math.min(x, W - 1)) * 4
+      const d = y * PW + x
+      for (let ch = 0; ch < 3; ch++) {
+        input[ch * plane + d] = a[s + ch] / 255
+        input[(3 + ch) * plane + d] = c[s + ch] / 255
+      }
+    }
+  }
+  const tensor = new ort.Tensor('float32', input, [1, 6, PH, PW])
+  const phase = new ort.Tensor('float32', new Float32Array([t]), [])
+  const t0 = performance.now()
+  const results = await session.run({ input: tensor, timestep: phase })
+  rifeTimes.push(performance.now() - t0)
+  const data = results.output.data
+  const out = new Uint8Array(W * H * 4)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const s = y * PW + x
+      const d = (y * W + x) * 4
+      for (let ch = 0; ch < 3; ch++) out[d + ch] = Math.max(0, Math.min(255, Math.round(data[ch * plane + s] * 255)))
+      out[d + 3] = 255
+    }
+  }
+  results.output.dispose?.()
+  tensor.dispose?.()
+  phase.dispose?.()
+  return out
+}
+
+/** RIFE's time per frame at a size (after `warmup` runs): what `run.mjs` reports beside the GPU timings */
+async function rifeTiming({ set, W, H, pairs = 8, warmup = 2 }) {
+  const a = await fetchFrame(set, 0)
+  const c = await fetchFrame(set, 1)
+  const before = rifeTimes.length
+  for (let i = 0; i < pairs + warmup; i++) await rifeFrame(a, c, W, H, 0.5)
+  return { set, W, H, msPerFrame: summary(rifeTimes.slice(before + warmup)) }
+}
+
 async function post(name, data) {
   const r = await fetch(`/out?name=${encodeURIComponent(name)}`, { method: 'POST', body: data })
   if (!r.ok) throw new Error(`post ${name}: ${r.status}`)
@@ -248,11 +440,26 @@ async function post(name, data) {
  * (nearest, blend, flow at each scale in `scales`); the predicted frames go to the server in order (pair, phase),
  * and the page returns the flow statistics.
  */
-async function quality({ set, W, H, nFrames, gap, ts, scales, tag }) {
+async function quality({ set, W, H, nFrames, gap, ts, scales, variants = [], tag }) {
   const plans = scales.map((s) => {
     const p = buildPlan(W, H, s)
     const out = buf(W * H * 4)
     return { scale: s, plan: p, out, interps: ts.map((t) => interpOp(p, t, out)) }
+  })
+  // Design 11.24's variants: { name, scale, full, mode } on the plan of that scale (mode 0 is the 11.12 kernel)
+  const variantOps = variants.map((v) => {
+    const owner = plans.find((p) => p.scale === v.scale)
+    if (!owner) throw new Error(`variant ${v.name}: no plan at scale ${v.scale}`)
+    const out = buf(W * H * 4)
+    if (v.kind === 'rife') return { ...v, owner, out, interps: [] }
+    const interps = ts.map((t) =>
+      v.kind === 'fwd'
+        ? fwdOps(owner.plan, t, out, v)
+        : v.mode === 0 && !v.full && !v.flows
+          ? [interpOp(owner.plan, t, out)]
+          : [interp2Op(owner.plan, t, out, v)],
+    )
+    return { ...v, owner, out, interps }
   })
   const motion = []
   for (let i = 0; i + gap < nFrames; i += gap) {
@@ -274,11 +481,28 @@ async function quality({ set, W, H, nFrames, gap, ts, scales, tag }) {
     for (const { scale, plan, out, interps } of plans) {
       device.queue.writeBuffer(plan.col[0], 0, a)
       device.queue.writeBuffer(plan.col[1], 0, c)
-      await run([...plan.pyramidOps, ...plan.dirs[0].ops, ...plan.dirs[1].ops])
+      const mine = variantOps.filter((v) => v.owner.plan === plan)
+      const refine = [
+        ...(mine.some((v) => v.full) ? plan.refineOps : []),
+        ...(mine.some((v) => v.picked) ? plan.pickOps : []),
+        ...(mine.some((v) => v.flows === 'picklow') ? plan.pickLowOps : []),
+      ]
+      await run([...plan.pyramidOps, ...plan.dirs[0].ops, ...plan.dirs[1].ops, ...refine])
       for (let k = 0; k < ts.length; k++) {
         await run([interps[k]])
         const px = new Uint8Array(await readback(out, W * H * 4))
         await post(`${tag}_flow${scale}`, px)
+      }
+      for (const v of variantOps.filter((v) => v.owner.plan === plan)) {
+        for (let k = 0; k < ts.length; k++) {
+          if (v.kind === 'rife') {
+            await post(`${tag}_${v.name}`, await rifeFrame(a, c, W, H, ts[k]))
+            continue
+          }
+          await run(v.interps[k])
+          const px = new Uint8Array(await readback(v.out, W * H * 4))
+          await post(`${tag}_${v.name}`, px)
+        }
       }
       if (scale === scales[0]) {
         const fl = new Float32Array(await readback(plan.dirs[0].flow0, plan.w0 * plan.h0 * 8))
@@ -297,5 +521,5 @@ async function quality({ set, W, H, nFrames, gap, ts, scales, tag }) {
   return { tag, motion }
 }
 
-window.probe = { init, timing, quality }
+window.probe = { init, timing, quality, rifeTiming, rifeTimes: () => summary(rifeTimes) }
 window.probeReady = true

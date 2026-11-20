@@ -8,7 +8,6 @@
 // (`perDevice`). Until then `sync` finds no device and prepares nothing.
 
 import { useItemsStore } from '@/features/timeline/stores/items-store'
-import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import {
   setStabilizationProjectFrame,
   stabilizationProjectAspect,
@@ -20,17 +19,11 @@ import { createLookStage } from './look'
 import { createPreparer, type Preparer } from './preparer'
 import { createStageRegistry, type StageRegistry } from './registry'
 import { createStabilizeStage } from './stabilize'
-import { isStabilized, setProjectRate } from './predicates'
+import { isStabilized } from './predicates'
 import { derivedSizes } from './staged-size'
 import type { VideoItem } from '@/types/timeline'
 
-// The predicates' project rate follows the timeline's, so a call site that asks about a clip alone (the preview's
-// status, smart copy before an export) knows it covers two source frames when a 120 fps clip sits in a 60 fps project.
-setProjectRate(useTimelineSettingsStore.getState().fps)
-useTimelineSettingsStore.subscribe((state) => setProjectRate(state.fps))
-
-// A stabilized clip is made at the project's aspect, so the stabilization follows the project's frame as it does the
-// rate: the clip's key, and with it its engine's frame size and its derived size, change with the frame. When the aspect
+// A stabilized clip is made at the project's aspect, so the stabilization follows the project's frame: the clip's key, and with it its engine's frame size and its derived size, change with the frame. When the aspect
 // changes, the engines and the preparer are told at once (they otherwise look at the keys only when the items change).
 function followProjectFrame(metadata: { width: number; height: number } | undefined): void {
   setStabilizationProjectFrame(metadata)

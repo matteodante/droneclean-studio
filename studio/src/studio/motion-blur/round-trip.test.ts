@@ -112,14 +112,14 @@ describe('VideoItem.motionBlur round trip', () => {
     expect(stored()?.motionBlur).toEqual({ shutterDegrees: 90 })
   })
 
-  it('passes the project schema the bundle load validates with, even with an unknown angle', () => {
+  it('passes the project schema the bundle load validates with, even with a shutter out of range', () => {
     useItemsStore
       .getState()
       .setItems([
         makeTimelineVideoItem({
           id: 'clip-1',
           trackId: TRACK.id,
-          motionBlur: { shutterDegrees: 200 as 180 },
+          motionBlur: { shutterDegrees: 400 },
         }),
       ])
     const project = projectFromTimeline(buildTimelineFromStores())
@@ -129,8 +129,18 @@ describe('VideoItem.motionBlur round trip', () => {
     expect(result.success).toBe(true)
   })
 
-  it.each([[200], [0], [-90], ['180'], [null], [Number.NaN]])(
-    'clamps the angle %s to 360 on load',
+  it.each([[200], [126], [360], [18], [0]])('keeps any shutter in [0, 360], %s degrees, on load', async (angle) => {
+    useItemsStore
+      .getState()
+      .setItems([makeTimelineVideoItem({ id: 'clip-1', trackId: TRACK.id, motionBlur: { shutterDegrees: angle } })])
+
+    await saveAndLoad()
+
+    expect(stored()?.motionBlur).toEqual({ shutterDegrees: angle })
+  })
+
+  it.each([[400], [-90], ['180'], [null], [Number.NaN]])(
+    'falls the shutter %s back to 180 on load',
     async (angle) => {
       useItemsStore
         .getState()
@@ -138,13 +148,13 @@ describe('VideoItem.motionBlur round trip', () => {
           makeTimelineVideoItem({
             id: 'clip-1',
             trackId: TRACK.id,
-            motionBlur: { shutterDegrees: angle as 180 },
+            motionBlur: { shutterDegrees: angle as number },
           }),
         ])
 
       await saveAndLoad()
 
-      expect(stored()?.motionBlur).toEqual({ shutterDegrees: 360 })
+      expect(stored()?.motionBlur).toEqual({ shutterDegrees: 180 })
     },
   )
 

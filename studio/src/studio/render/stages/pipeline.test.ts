@@ -3,7 +3,8 @@ import type { SourceFrame, SourceFrameProvider } from '@/studio/render/frames/ty
 import type { VideoItem } from '@/types/timeline'
 import type { ClipStageState } from './failure'
 import type { MotionBlurStage } from '@/studio/motion-blur/stage'
-import type { OpticalFlow } from '@/studio/optical-flow'
+import type { OpticalFlow, OpticalFlowOptions } from '@/studio/optical-flow'
+import type { VectorBlurStage } from '@/studio/motion-blur/vector-stage'
 import { createStagePipeline, type StagePipelineOptions } from './pipeline'
 import type { PrepareStatus } from './preparer'
 import { createStageRegistry } from './registry'
@@ -143,25 +144,51 @@ function setup(mode: 'export' | 'preview', status: () => PrepareStatus | undefin
   const flowCalls: string[] = []
   const gapsDestroyed: number[] = []
   const flowDestroyed = vi.fn()
-  const flow = vi.fn(async (_device: GPUDevice, format: GPUTextureFormat, size: { width: number; height: number }): Promise<OpticalFlow> => {
-    flowCalls.push(`flow ${format} ${size.width}x${size.height}`)
+  const flow = vi.fn(async (_device: GPUDevice, format: GPUTextureFormat, size: { width: number; height: number }, options?: OpticalFlowOptions): Promise<OpticalFlow> => {
+    const detail = options?.detail ?? 'normal'
+    flowCalls.push(`flow ${format} ${size.width}x${size.height}${detail === 'normal' ? '' : ` ${detail}`}`)
     let measured = 0
     return {
       frameSize: size,
+      detail,
       flowSize: { width: size.width / 2, height: size.height / 2 },
       measure: () => {
         const gap = (measured += 1)
         log.push(`measure ${gap}`)
-        return { forward: {} as GPUBuffer, backward: {} as GPUBuffer, destroy: () => gapsDestroyed.push(gap) }
+        return {
+          forward: {} as GPUBuffer,
+          backward: {} as GPUBuffer,
+          firstLuma: {} as GPUBuffer,
+          secondLuma: {} as GPUBuffer,
+          destroy: () => gapsDestroyed.push(gap),
+        }
       },
-      interpolate: (_encoder, _uploads, _first, _second, _gap, phase, output) =>
-        log.push(`interpolate ${phase} into ${(output as unknown as { of: string }).of}`),
+      interpolate: (_encoder, _uploads, _first, _second, _gap, phase, output, interpolateOptions) =>
+        log.push(
+          `interpolate ${phase} into ${(output as unknown as { of: string }).of}${interpolateOptions?.edges === 'nearest' ? ' nearest' : ''}`,
+        ),
       destroy: flowDestroyed,
     }
   })
+  const vectorDestroyed = vi.fn()
+  const vector = vi.fn(
+    async (_device: GPUDevice, _format: GPUTextureFormat, size: { width: number; height: number }, flowSize: { width: number; height: number }): Promise<VectorBlurStage> => ({
+      size,
+      flowSize,
+      accumulatorFormat: 'rgba16float',
+      pass: (_encoder, _uploads, sample, step, output) => {
+        const picture = (sample.picture as unknown as FakeTexture).label ?? 'source'
+        log.push(
+          `vector ${step} w${sample.weight} e${sample.extent} ${picture} ${sample.before ? 'before' : '-'} ${sample.after ? 'after' : '-'}${output ? ' out' : ''}`,
+        )
+      },
+      destroy: vectorDestroyed,
+    }),
+  )
   const options: StagePipelineOptions = {
     gather,
     flow,
+    vector,
     device,
     mode,
     registry,
@@ -170,7 +197,7 @@ function setup(mode: 'export' | 'preview', status: () => PrepareStatus | undefin
     onState: (_item, state) => states.push(state),
     onReady,
   }
-  return { pipeline: createStagePipeline(options), gather, gatherCalls, gatherDestroyed, flow, flowCalls, flowDestroyed, gapsDestroyed, log, textures, stabilize, colour, look, provider, preparer, states, onReady }
+  return { pipeline: createStagePipeline(options), gather, gatherCalls, gatherDestroyed, flow, flowCalls, flowDestroyed, gapsDestroyed, vector, vectorDestroyed, log, textures, stabilize, colour, look, provider, preparer, states, onReady }
 }
 
 describe('the stage pipeline', () => {
@@ -571,6 +598,24 @@ describe('optical-flow slow motion (task 11.12)', () => {
     expect(staged).toMatchObject({ kind: 'fresh', width: 300, height: 170 })
   })
 
+  it("follows the clip's motion detail and hard edges (design 11.24), each detail with its own flow and gaps", async () => {
+    const { pipeline, log, flowCalls } = setup('export')
+    const tuned = {
+      ...item({}),
+      motionBlur: { shutterDegrees: 0, smoothSlowMotion: 'optical-flow', flowDetail: 'high', flowEdges: 'nearest' },
+    } as unknown as VideoItem
+    await pipeline.render(tuned, between(8, 0.5))
+    expect(flowCalls).toEqual(['flow rgba16float 320x240 high'])
+    expect(log.filter((line) => line.startsWith('measure') || line.startsWith('interpolate'))).toEqual([
+      'measure 1',
+      'interpolate 0.5 into interpolated-frame nearest',
+    ])
+    // the same gap at normal detail is another flow and another measurement
+    await pipeline.render(item({}), between(8, 0.5))
+    expect(flowCalls).toEqual(['flow rgba16float 320x240 high', 'flow rgba16float 320x240'])
+    expect(log.filter((line) => line.startsWith('measure'))).toEqual(['measure 1', 'measure 1'])
+  })
+
   it('asks every stage whether it is ready at the fractional position, before decoding', async () => {
     const { pipeline, stabilize } = setup('export')
     const ready = vi.spyOn(stabilize.stage, 'ready')
@@ -657,5 +702,138 @@ describe('optical-flow slow motion (task 11.12)', () => {
     expect(flowDestroyed).toHaveBeenCalledOnce()
     expect(gapsDestroyed).toEqual([1])
     expect(textures.find((texture) => texture.label === 'interpolated-frame')?.destroyed).toBe(true)
+  })
+})
+
+describe('the vector motion blur (design 9.2)', () => {
+  /** One sample at 1x, blurred over `extent` source frames */
+  const blurred = (index: number, extent = 0.5) => ({ samples: [{ index, weight: 1, extent }] })
+  const clip = (extra: Record<string, unknown> = {}) => ({ ...item({ stabilize: true }), mediaId: 'media-1', ...extra }) as VideoItem
+
+  it('stages the frame and both neighbours, measures the gap before and the gap after, and blurs in one pass', async () => {
+    const { pipeline, log, provider, flowCalls, vector } = setup('export')
+    const staged = await pipeline.render(clip(), blurred(10))
+
+    expect(log).toEqual([
+      'frame 10',
+      'frame 9',
+      'frame 11',
+      'stabilize 9 320x240>300x170 rgba16float',
+      'stabilize 10 320x240>300x170 rgba16float',
+      'measure 1',
+      'stabilize 11 320x240>300x170 rgba16float',
+      'measure 2',
+      'vector only w1 e0.5 stage-intermediate before after out',
+      'submit',
+      'release',
+      'release',
+      'release',
+    ])
+    // the flow runs on the staged frames, at their size
+    expect(flowCalls).toEqual(['flow rgba16float 300x170'])
+    expect(vector).toHaveBeenCalledWith(expect.anything(), 'rgba16float', { width: 300, height: 170 }, { width: 150, height: 85 })
+    expect(provider.release).toHaveBeenCalledTimes(3)
+    expect(staged).toMatchObject({ kind: 'fresh', width: 300, height: 170 })
+  })
+
+  it('keeps the neighbour it staged and the gap it measured for the next frame: one new frame staged, one gap measured', async () => {
+    const { pipeline, log } = setup('export')
+    await pipeline.render(clip(), blurred(10))
+    log.length = 0
+    await pipeline.render(clip(), blurred(11))
+
+    expect(log.filter((line) => line.startsWith('stabilize') || line.startsWith('measure') || line.startsWith('vector'))).toEqual([
+      'stabilize 12 320x240>300x170 rgba16float',
+      'measure 3',
+      'vector only w1 e0.5 staged-neighbour before after out',
+    ])
+  })
+
+  it('measures again when the stabilization changes: the flows of other staged frames are not reused', async () => {
+    const { pipeline, log } = setup('export')
+    await pipeline.render(clip({ stabilization: { enabled: true, smoothness: 0.5 } }), blurred(10))
+    log.length = 0
+    await pipeline.render(clip({ stabilization: { enabled: true, smoothness: 0.6 } }), blurred(10))
+
+    expect(log.filter((line) => line.startsWith('measure'))).toEqual(['measure 3', 'measure 4'])
+  })
+
+  it('blurs every sample of a 4x frame over its own interval, first, middle, middle, last', async () => {
+    const { pipeline, log } = setup('export')
+    const plan = { samples: [20, 21, 22, 23].map((index) => ({ index, weight: 0.25, extent: 1 })) }
+    await pipeline.render(clip(), plan)
+
+    expect(log.filter((line) => line.startsWith('vector'))).toEqual([
+      'vector first w0.25 e1 stage-intermediate before after',
+      'vector middle w0.25 e1 staged-neighbour before after',
+      'vector middle w0.25 e1 staged-neighbour before after',
+      'vector last w0.25 e1 staged-neighbour before after out',
+    ])
+    // the gaps 19-20 through 23-24, each measured once
+    expect(log.filter((line) => line.startsWith('measure'))).toHaveLength(5)
+  })
+
+  it('has no gap before the file’s first frame and none after its last', async () => {
+    const { pipeline, log } = setup('export')
+    await pipeline.render(clip({ sourceDuration: 30 }), blurred(0))
+    await pipeline.render(clip({ sourceDuration: 30 }), blurred(29))
+
+    expect(log.filter((line) => line.startsWith('vector'))).toEqual([
+      'vector only w1 e0.5 stage-intermediate - after out',
+      'vector only w1 e0.5 stage-intermediate before - out',
+    ])
+    expect(log).not.toContain('frame -1')
+    expect(log).not.toContain('frame 30')
+  })
+
+  it('blurs a plain clip (no source stage) from its decoded frames', async () => {
+    const { pipeline, log } = setup('export')
+    await pipeline.render({ ...item({}), mediaId: 'media-1' } as VideoItem, blurred(5))
+
+    expect(log.filter((line) => line.startsWith('vector'))).toEqual(['vector only w1 e0.5 source before after out'])
+  })
+
+  it('asks the source stages about the neighbours too, and a preview shows what it can while one is not ready', async () => {
+    const { pipeline, stabilize, states } = setup('preview')
+    const ready = vi.spyOn(stabilize.stage, 'ready')
+    const release = stabilize.notReady()
+    const staged = await pipeline.render(clip(), blurred(10))
+
+    expect([...new Set(ready.mock.calls.map((call) => call[1]))].sort((a, b) => a - b)).toEqual([9, 10, 11])
+    expect(staged.kind).toBe('partial')
+    expect(states.at(-1)).toMatchObject({ kind: 'opening', stage: 'stabilize' })
+    release()
+  })
+
+  it('blurs the frame between two source frames as one picture, by the motion of the gap it lies in', async () => {
+    const { pipeline, log } = setup('export')
+    const between = {
+      samples: [
+        { index: 8, weight: 0.75, extent: 0.25 },
+        { index: 9, weight: 0.25, extent: 0.25 },
+      ],
+      flow: { phase: 0.25 },
+    }
+    await pipeline.render(clip(), between)
+
+    expect(log.filter((line) => line.startsWith('interpolate') || line.startsWith('vector'))).toEqual([
+      'interpolate 0.25 into interpolated-frame',
+      // nearer the first frame: the gap's motion from that side
+      'vector only w1 e0.25 stage-intermediate - after out',
+    ])
+  })
+
+  it('refuses an extent that is not above 0', async () => {
+    const { pipeline } = setup('export')
+    await expect(pipeline.render(clip(), { samples: [{ index: 3, weight: 1, extent: 0 }] })).rejects.toThrow(/extent/)
+  })
+
+  it('frees its stages and held frames when the pipeline is destroyed', async () => {
+    const { pipeline, vectorDestroyed, textures } = setup('export')
+    await pipeline.render(clip(), blurred(10))
+    pipeline.destroy()
+
+    expect(vectorDestroyed).toHaveBeenCalledTimes(1)
+    expect(textures.filter((texture) => texture.label === 'staged-neighbour').every((texture) => texture.destroyed)).toBe(true)
   })
 })

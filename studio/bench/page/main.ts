@@ -771,11 +771,10 @@ function blurProofItems(): {
   return {
     clip,
     speed,
-    referenceAt: (offset) => ({
-      ...clip,
-      motionBlur: { shutterDegrees: 90 },
-      sourceStart: sourceStart + offset,
-    }),
+    // the bare source frame `offset` into the output frame's span: the clip shifted, with a 1 degree shutter (staged, so
+    // it reaches the float sink as the blurred frame does, and blurred by a fraction of a pixel, so every pixel passes
+    // through as the decoder gave it; with the blur off the clip is not staged and its float frame is not this one)
+    referenceAt: (offset) => ({ ...clip, motionBlur: { shutterDegrees: 1 }, sourceStart: sourceStart + offset }),
   }
 }
 
@@ -802,7 +801,9 @@ function keepExportOnThisPage(): void {
 
 interface BlurProofFrame {
   outputFrame: number
-  samples: Array<{ sourceFrame: number; weight: number }>
+  samples: Array<{ sourceFrame: number; weight: number; extent: number }>
+  /** The largest difference, in levels of 1023, between the frame and the same frame rendered by a second renderer */
+  repeatMaxDiffLevels: number
   maxDiffLevels: number
   meanDiffLevels: number
   p9999DiffLevels: number
@@ -816,11 +817,11 @@ interface BlurProofFrame {
 }
 
 /**
- * Design 7.2 slice E: each of `outputFrames` is rendered with the blur on through the export renderer, and its float
- * accumulator is read through the test sink. The reference is the same renderer's own frames of the source (the clip with a
- * 90 degree shutter, one bare source frame per output frame, read the same way) averaged in linear light on the CPU with the plan's weights. Both sides come from the
- * one decoder and the one source path, so the comparison isolates the gather; it says nothing about how the source
- * path's colour differs from FFmpeg's.
+ * Design 9.2: each of `outputFrames` is rendered with the vector blur on through the export renderer, twice (a second
+ * renderer of its own: the export must repeat bit for bit), and its float accumulator is read through the test sink.
+ * It is also compared with the frame blend design 7.2 drew (the plan's bare source frames, rendered at a 1 degree
+ * shutter, which passes them through, and averaged in linear light on the CPU with the plan's weights): how far the
+ * vector blur moved the picture from the copies. Both sides come from the one decoder and the one source path.
  */
 async function proveBlur(outputFrames: number[]): Promise<BlurProofFrame[]> {
   if (!session) throw new Error('call prepare() first')
@@ -848,6 +849,7 @@ async function proveBlur(outputFrames: number[]): Promise<BlurProofFrame[]> {
   const results: BlurProofFrame[] = []
   setPreciseOutputSink(sink)
   const blurRenderer = await open(blurred)
+  const repeatRenderer = await open(await buildComposition())
   const referenceRenderers = new Map<number, Awaited<ReturnType<typeof open>>>()
   const referenceRenderer = async (offset: number) => {
     let renderer = referenceRenderers.get(offset)
@@ -867,6 +869,12 @@ async function proveBlur(outputFrames: number[]): Promise<BlurProofFrame[]> {
       })
       await blurRenderer.renderFrame(n)
       const blurredFrame = take()
+      await repeatRenderer.renderFrame(n)
+      const repeated = take()
+      let repeatMax = 0
+      for (let i = 0; i < repeated.rgba16.length; i++) {
+        if (i % 4 !== 3) repeatMax = Math.max(repeatMax, Math.abs(repeated.rgba16[i]! - blurredFrame.rgba16[i]!))
+      }
       const mean = new LinearMean(width * height)
       for (const sample of plan.samples) {
         const offset = sample.sourceFrame - (clip.sourceStart ?? 0) - speed * n
@@ -884,7 +892,8 @@ async function proveBlur(outputFrames: number[]): Promise<BlurProofFrame[]> {
       const comparison = compareToLinearMean(blurredFrame.rgba16, mean, width)
       results.push({
         outputFrame: n,
-        samples: plan.samples.map((s) => ({ sourceFrame: s.sourceFrame, weight: s.weight })),
+        samples: plan.samples.map((s) => ({ sourceFrame: s.sourceFrame, weight: s.weight, extent: s.extent })),
+        repeatMaxDiffLevels: (repeatMax / 65535) * 1023,
         maxDiffLevels: comparison.maxDiffLevels,
         meanDiffLevels: comparison.meanDiffLevels,
         p9999DiffLevels: comparison.p9999DiffLevels,
@@ -900,6 +909,7 @@ async function proveBlur(outputFrames: number[]): Promise<BlurProofFrame[]> {
   } finally {
     setPreciseOutputSink(null)
     blurRenderer.dispose()
+    repeatRenderer.dispose()
     for (const renderer of referenceRenderers.values()) renderer.dispose()
   }
   return results

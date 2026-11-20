@@ -1,13 +1,12 @@
 /**
- * The two rows of the clip panel's Playback section that set motion blur (design 7.2, section
- * 4.7): a switch, and while it is on the shutter angle. `video-section.tsx` draws them with one
- * line, so the fork needs no other element in the clip panel.
+ * The rows of the clip panel's Playback section that set motion blur (design 7.2, section 4.7; design 9.2, section
+ * 7): a switch, and while it is on the amount (a slider in RSMB's units, 0.5 = 180 degrees) and the smooth slow
+ * motion. `video-section.tsx` draws them with one line, so the fork needs no other element in the clip panel.
  *
- * They are hidden while the `motionBlur` feature switch is off (nothing draws the blur until the
- * export stage and the preview land: AGENTS.md, a feature is finished or hidden), and for a
- * selection with no clip that can carry blur. Every change goes through `setMotionBlur`, so the
- * switch, each shutter choice and each smooth slow motion choice (off, frame blending, optical
- * flow: task 11.12) are one undo step however many clips are selected.
+ * They are hidden while the `motionBlur` feature switch is off, and for a selection with no clip that can carry blur.
+ * Every change goes through `setMotionBlur`, so the switch, each amount and each smooth slow motion choice (off, frame
+ * blending, optical flow: task 11.12) are one undo step however many clips are selected; the slider stores once, on
+ * release. With optical flow, `OpticalFlowRows` adds its motion detail and hard edges (design 11.24).
  */
 
 import { useTranslation } from 'react-i18next'
@@ -19,19 +18,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PropertyRow } from '@/shared/ui/property-controls'
+import { PropertyRow, SliderInput } from '@/shared/ui/property-controls'
 import { isFeatureShown } from '@/studio/feature-switches'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { setMotionBlur } from './actions'
+import { OpticalFlowRows } from './OpticalFlowRows'
 import {
+  amountOfShutter,
+  AMOUNT_STEP,
   canHoldMotionBlur,
   DEFAULT_SHUTTER_DEGREES,
-  isShutterDegrees,
+  flowSettingsOf,
   isSmoothSlowMotion,
-  SHUTTER_DEGREES,
+  shutterOfAmount,
   SMOOTH_SLOW_MOTION,
 } from '../settings'
-import type { MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from '../types'
+import type { FlowDetail, FlowEdges, MotionBlurSettings, ShutterDegrees, SmoothSlowMotion } from '../types'
 
 /** The select's value for "off": smooth slow motion is absent from the settings */
 const SMOOTH_OFF = 'off'
@@ -39,6 +41,8 @@ const SMOOTH_OFF = 'off'
 /** The smooth slow motion select's choices, in its order */
 const SMOOTH_CHOICES: readonly (SmoothSlowMotion | typeof SMOOTH_OFF)[] = [SMOOTH_OFF, ...SMOOTH_SLOW_MOTION]
 
+/** The slider stores on release only: a drag previews nothing (each stored value is a blur the renderer must redo) */
+const NO_LIVE_CHANGE = () => {}
 
 interface MotionBlurRowsProps {
   /** The selected items; the rows work on the video clips among them that can carry blur */
@@ -66,21 +70,30 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
     targets.find((item) => item.motionBlur !== undefined)?.motionBlur?.shutterDegrees ??
     DEFAULT_SHUTTER_DEGREES
   const fastest = Math.max(...targets.map(peakSpeed))
-  const smooth: SmoothSlowMotion | undefined = targets.find((item) => item.motionBlur !== undefined)?.motionBlur
-    ?.smoothSlowMotion
+  const shown = targets.find((item) => item.motionBlur !== undefined)?.motionBlur
+  const smooth: SmoothSlowMotion | undefined = shown?.smoothSlowMotion
+  const flowDetail: FlowDetail = shown?.flowDetail ?? 'normal'
+  const flowEdges: FlowEdges = shown?.flowEdges ?? 'mix'
   const smoothLabels: Record<SmoothSlowMotion | typeof SMOOTH_OFF, string> = {
     off: t('editor.videoSection.smoothSlowMotionOff', { defaultValue: 'Off' }),
     blend: t('editor.videoSection.smoothSlowMotionBlend', { defaultValue: 'Frame blending' }),
     'optical-flow': t('editor.videoSection.smoothSlowMotionFlow', { defaultValue: 'Optical flow' }),
   }
-  /** The blur settings with the shutter and the smooth slow motion the rows show, one of them changed. */
+  /** The blur settings the rows show (shutter, smooth slow motion, optical flow's two), one of them changed. */
   const settingsWith = (change: {
     shutterDegrees?: ShutterDegrees
     smoothSlowMotion?: SmoothSlowMotion | typeof SMOOTH_OFF
+    flowDetail?: FlowDetail
+    flowEdges?: FlowEdges
   }): MotionBlurSettings => {
     const shutterDegrees = change.shutterDegrees ?? shutter
     const mode = change.smoothSlowMotion ?? smooth ?? SMOOTH_OFF
-    return mode === SMOOTH_OFF ? { shutterDegrees } : { shutterDegrees, smoothSlowMotion: mode }
+    if (mode === SMOOTH_OFF) return { shutterDegrees }
+    const flow = flowSettingsOf(mode, {
+      flowDetail: change.flowDetail ?? flowDetail,
+      flowEdges: change.flowEdges ?? flowEdges,
+    })
+    return { shutterDegrees, smoothSlowMotion: mode, ...flow }
   }
 
   return (
@@ -105,30 +118,25 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
       )}
       {enabled && (
         <>
-          <PropertyRow
-            label={t('editor.videoSection.motionBlurShutter', { defaultValue: 'Shutter' })}
-          >
-            <Select
-              value={String(shutter)}
-              onValueChange={(value) => {
-                const degrees = Number(value)
-                if (isShutterDegrees(degrees)) setMotionBlur(ids, settingsWith({ shutterDegrees: degrees }))
-              }}
-            >
-              <SelectTrigger className="h-7 text-xs" data-testid="motion-blur-shutter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SHUTTER_DEGREES.map((degrees) => (
-                  <SelectItem key={degrees} value={String(degrees)} className="text-xs">
-                    {t('editor.videoSection.motionBlurDegrees', {
-                      degrees,
-                      defaultValue: '{{degrees}}°',
-                    })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <PropertyRow label={t('editor.videoSection.motionBlurAmount', { defaultValue: 'Amount' })}>
+            <div className="flex-1 min-w-0" data-testid="motion-blur-amount">
+              <SliderInput
+                value={amountOfShutter(shutter)}
+                min={0}
+                max={1}
+                step={AMOUNT_STEP}
+                onLiveChange={NO_LIVE_CHANGE}
+                onChange={(amount) => setMotionBlur(ids, settingsWith({ shutterDegrees: shutterOfAmount(amount) }))}
+                formatValue={(amount) =>
+                  t('editor.videoSection.motionBlurAmountValue', {
+                    amount: amount.toFixed(2),
+                    degrees: Math.round(shutterOfAmount(amount)),
+                    defaultValue: '{{amount}} · {{degrees}}°',
+                  })
+                }
+                className="flex-1 min-w-0"
+              />
+            </div>
           </PropertyRow>
           <PropertyRow
             label={t('editor.videoSection.motionBlurBlendSlow', { defaultValue: 'Smooth slow motion' })}
@@ -157,12 +165,13 @@ export function MotionBlurRows({ items }: MotionBlurRowsProps) {
               </SelectContent>
             </Select>
           </PropertyRow>
-          {fastest <= 1 && smooth === undefined && (
-            <p className="text-xs text-muted-foreground" data-testid="motion-blur-identity">
-              {t('editor.videoSection.motionBlurIdentity', {
-                defaultValue: 'No effect at this speed',
-              })}
-            </p>
+          {smooth === 'optical-flow' && (
+            <OpticalFlowRows
+              detail={flowDetail}
+              edges={flowEdges}
+              onDetail={(detail) => setMotionBlur(ids, settingsWith({ flowDetail: detail }))}
+              onEdges={(edges) => setMotionBlur(ids, settingsWith({ flowEdges: edges }))}
+            />
           )}
         </>
       )}

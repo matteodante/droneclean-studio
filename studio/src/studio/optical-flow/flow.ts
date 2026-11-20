@@ -4,22 +4,27 @@
 //
 //   measure       the flows of one source gap, both ways, at the flow's size (`flowSizeFor`): two luma pyramids, then
 //                 per direction a coarse-to-fine Lucas-Kanade (warp, solve, median, per round). The finest level's two
-//                 flows are copied into a `GapFlow` the caller keeps for every output frame inside that gap;
-//   interpolate   the frame at a phase between the gap's two frames, from them and the gap's flows, drawn into the
-//                 caller's `rgba16float` texture.
+//                 flows and the two frames' luma at that size are copied into a `GapFlow` the caller keeps for every
+//                 output frame inside that gap;
+//   interpolate   the frame at a phase between the gap's two frames (design 11.24's forward warp, `kernels.ts`): the
+//                 gap's flow pixels splatted to the phase, the holes filled, then the frame drawn from the two frames
+//                 into the caller's `rgba16float` texture.
 //
-// Every uniform but the phase is fixed by the size, so the scratch buffers' bind groups are made once; the frames'
-// bind groups and the phase's uniform (in the caller's frame arena) are made per call.
+// Every uniform but the phase is fixed by the size, so the scratch buffers' bind groups are made once; the bind groups
+// that name a gap's buffers or the frames, and the phase's uniforms (in the caller's frame arena), are made per call.
 
 import { perDevice } from '@/studio/render/device-cache'
-import { FLOW_KERNELS, INTERPOLATE_WGSL, type FlowKernel } from './kernels'
+import { FLOW_KERNELS, INTERPOLATE_WGSL, splatPackingFor, type FlowKernel } from './kernels'
 import {
   CONSISTENCY_SIGMA,
+  FILL_PASSES,
   flowLevels,
   flowScaleFor,
   flowSizeFor,
   levelWork,
   LK_MAX_STEP,
+  type FlowDetail,
+  type FlowEdges,
   type FlowFrameSize,
 } from './scale'
 
@@ -39,8 +44,10 @@ const WORKGROUP = 16
 const WORKGROUP_1D = 256
 /** Each fixed uniform sits at its own multiple of the largest uniform offset alignment WebGPU allows */
 const UNIFORM_STRIDE = 256
-/** The interpolation's uniform: eight 32-bit words */
-const INTERPOLATE_UNIFORM_BYTES = 32
+/** The interpolation's uniform: twelve 32-bit words (nine used) */
+const INTERPOLATE_UNIFORM_BYTES = 48
+/** The splat's uniform: eight 32-bit words (six used) */
+const SPLAT_UNIFORM_BYTES = 32
 
 /** The flows of one source gap, both ways, at the flow's size: what the cache keeps and the interpolation reads */
 export interface GapFlow {
@@ -48,6 +55,10 @@ export interface GapFlow {
   readonly forward: GPUBuffer
   /** From the second frame to the first, in the second frame's coordinates */
   readonly backward: GPUBuffer
+  /** The first frame's luma (0..255) at the flow's size: the forward warp's splat compares the two ends of a vector */
+  readonly firstLuma: GPUBuffer
+  /** The second frame's luma at the flow's size */
+  readonly secondLuma: GPUBuffer
   destroy(): void
 }
 
@@ -56,11 +67,25 @@ export interface FlowUploads {
   upload(data: ArrayBufferView): { readonly buffer: GPUBuffer; readonly offset: number; readonly size: number }
 }
 
+/** What a flow is made for besides its frame size */
+export interface OpticalFlowOptions {
+  /** How finely the flow follows the motion (`FlowDetail`, a clip's "Motion detail"); `'normal'` by default */
+  readonly detail?: FlowDetail
+}
+
+/** How one frame is made */
+export interface InterpolateOptions {
+  /** Where neither frame is trusted (`FlowEdges`, a clip's "Hard edges"); `'mix'` by default */
+  readonly edges?: FlowEdges
+}
+
 /** The optical flow of one frame size; see the file's header */
 export interface OpticalFlow {
   /** The frames' size */
   readonly frameSize: FlowFrameSize
-  /** The flow's size: `flowSizeFor(frameSize)` */
+  /** How finely the flow follows the motion */
+  readonly detail: FlowDetail
+  /** The flow's size: `flowSizeFor(frameSize, detail)` */
   readonly flowSize: FlowFrameSize
   /**
    * Records the flows of the gap from `first` to `second` (two `rgba16float` textures of `frameSize`) into `encoder`
@@ -81,6 +106,7 @@ export interface OpticalFlow {
     gap: GapFlow,
     phase: number,
     output: GPUTextureView,
+    options?: InterpolateOptions,
   ): void
   /** Destroys the pyramids and scratch buffers (the pipelines belong to the device's cache) */
   destroy(): void
@@ -134,6 +160,7 @@ function pipelinesFor(device: GPUDevice, format: GPUTextureFormat): Promise<Pipe
         texture(2),
         storage(3),
         storage(4),
+        storage(5),
       ],
     })
     const module = device.createShaderModule({ label: 'optical-flow-interpolate', code: INTERPOLATE_WGSL })
@@ -196,17 +223,21 @@ function assertFrame(texture: GPUTexture, size: FlowFrameSize, which: string): v
 }
 
 /**
- * Creates the optical flow for frames of `frameSize`, drawing interpolated frames in `format` (the pipeline's
- * `rgba16float`).
+ * Creates the optical flow for frames of `frameSize` at `options.detail`, drawing interpolated frames in `format` (the
+ * pipeline's `rgba16float`).
  *
- * @throws RangeError when the size is not a positive whole number of pixels.
+ * @throws RangeError when the size is not a positive whole number of pixels, or its flow has more pixels than the
+ *   forward warp addresses (`splatPackingFor`).
  */
 export async function createOpticalFlow(
   device: GPUDevice,
   format: GPUTextureFormat,
   frameSize: FlowFrameSize,
+  options: OpticalFlowOptions = {},
 ): Promise<OpticalFlow> {
-  const flowSize = flowSizeFor(frameSize)
+  const detail = options.detail ?? 'normal'
+  const flowSize = flowSizeFor(frameSize, detail)
+  const packing = splatPackingFor(flowSize.width * flowSize.height)
   const pipelines = await pipelinesFor(device, format)
   const levels = flowLevels(flowSize)
   const owned: GPUBuffer[] = []
@@ -225,6 +256,10 @@ export async function createOpticalFlow(
     scratch: [perLevel(8, 'optical-flow-gradient'), perLevel(4, 'optical-flow-difference'), perLevel(8, 'optical-flow-step')].flat(),
   }
   const count = levels.length
+  // The forward warp's scratch: the splat's keys, and the motion at the phase (ping-pong for the fill passes)
+  const flowPixels = flowSize.width * flowSize.height
+  const splatKeys = buffer(flowPixels * 4, 'optical-flow-splat')
+  const atPhase = [buffer(flowPixels * 16, 'optical-flow-at-phase-0'), buffer(flowPixels * 16, 'optical-flow-at-phase-1')] as const
   const gradient = (level: number) => plan.scratch[level]!
   const difference = (level: number) => plan.scratch[count + level]!
   const step = (level: number) => plan.scratch[2 * count + level]!
@@ -286,15 +321,44 @@ export async function createOpticalFlow(
     }
     return list
   })
-  fixed.push(...pyramidDispatches, ...directionDispatches.flat())
+  // The forward warp's fixed dispatches: clearing the splat, and the fill passes (resolve writes atPhase[0], pass k reads
+  // atPhase[k % 2] and writes the other, so the motion at the phase ends in atPhase[FILL_PASSES % 2])
+  const clearDispatch: Dispatch = {
+    kernel: 'clear',
+    words: [flowPixels, 0, 0, 0],
+    buffers: [splatKeys],
+    width: flowPixels,
+    height: 1,
+    oneD: true,
+  }
+  const fillDispatches: Dispatch[] = Array.from({ length: FILL_PASSES }, (_, pass) => ({
+    kernel: 'fill' as const,
+    words: [flowSize.width, flowSize.height, 0, 0],
+    buffers: [atPhase[pass % 2]!, atPhase[(pass + 1) % 2]!],
+    width: flowSize.width,
+    height: flowSize.height,
+  }))
+  const resolveWords: Word[] = [flowPixels, packing.indexBits, 0, 0]
+  fixed.push(...pyramidDispatches, ...directionDispatches.flat(), clearDispatch, ...fillDispatches)
 
-  // One buffer holds every fixed uniform, each at its own 256-byte offset; the two luma passes' uniforms come last
-  const lumaWords: Word[] = [frameSize.width, frameSize.height, flowSize.width, flowSize.height, flowScaleFor(frameSize), 0, 0, 0]
-  const uniformBytes = new ArrayBuffer((fixed.length + 1) * UNIFORM_STRIDE)
+  // One buffer holds every fixed uniform, each at its own 256-byte offset; the luma passes' and resolve's come last
+  const lumaWords: Word[] = [
+    frameSize.width,
+    frameSize.height,
+    flowSize.width,
+    flowSize.height,
+    flowScaleFor(frameSize, detail),
+    0,
+    0,
+    0,
+  ]
+  const uniformBytes = new ArrayBuffer((fixed.length + 2) * UNIFORM_STRIDE)
   const uniformView = new DataView(uniformBytes)
   fixed.forEach((dispatch, index) => writeWords(uniformView, index * UNIFORM_STRIDE, dispatch.words))
   const lumaOffset = fixed.length * UNIFORM_STRIDE
   writeWords(uniformView, lumaOffset, lumaWords)
+  const resolveOffset = (fixed.length + 1) * UNIFORM_STRIDE
+  writeWords(uniformView, resolveOffset, resolveWords)
   const uniforms = buffer(uniformBytes.byteLength, 'optical-flow-uniforms', BUFFER_UNIFORM | BUFFER_COPY_DST)
   device.queue.writeBuffer(uniforms, 0, uniformBytes)
 
@@ -317,11 +381,65 @@ export async function createOpticalFlow(
   const recorded = fixed.map(recordedOf)
   const pyramidRecorded = recorded.slice(0, pyramidDispatches.length)
   const backwardStart = pyramidDispatches.length + directionDispatches[0]!.length
+  const directionEnd = backwardStart + directionDispatches[1]!.length
   const directionRecorded = [
     recorded.slice(pyramidDispatches.length, backwardStart),
-    recorded.slice(backwardStart),
+    recorded.slice(backwardStart, directionEnd),
   ] as const
+  const clearRecorded = recorded[directionEnd]!
+  const fillRecorded = recorded.slice(directionEnd + 1)
   const finestBytes = flowSize.width * flowSize.height * 8
+  const lumaBytes = flowSize.width * flowSize.height * 4
+  const flowGrid = { x: Math.ceil(flowSize.width / WORKGROUP), y: Math.ceil(flowSize.height / WORKGROUP) }
+
+  /** The splat of one gap at one phase: its uniform (the phase) lives in the caller's arena */
+  const splatRecorded = (gap: GapFlow, uploads: FlowUploads, phase: number): Recorded => {
+    const bytes = new ArrayBuffer(SPLAT_UNIFORM_BYTES)
+    writeWords(new DataView(bytes), 0, [
+      flowSize.width,
+      flowSize.height,
+      { f: phase },
+      packing.indexBits,
+      { f: packing.errorScale },
+      packing.errorMax,
+      0,
+      0,
+    ])
+    const range = uploads.upload(new Uint8Array(bytes))
+    return {
+      pipeline: pipelines.compute.splat,
+      group: device.createBindGroup({
+        label: 'optical-flow-splat',
+        layout: pipelines.compute.splat.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: range.buffer, offset: range.offset, size: SPLAT_UNIFORM_BYTES } },
+          { binding: 1, resource: { buffer: gap.firstLuma } },
+          { binding: 2, resource: { buffer: gap.secondLuma } },
+          { binding: 3, resource: { buffer: gap.forward } },
+          { binding: 4, resource: { buffer: gap.backward } },
+          { binding: 5, resource: { buffer: splatKeys } },
+        ],
+      }),
+      ...flowGrid,
+    }
+  }
+  /** The winners of one gap's splat, as the motion at the phase, into atPhase[0] */
+  const resolveRecorded = (gap: GapFlow): Recorded => ({
+    pipeline: pipelines.compute.resolve,
+    group: device.createBindGroup({
+      label: 'optical-flow-resolve',
+      layout: pipelines.compute.resolve.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: uniforms, offset: resolveOffset, size: 16 } },
+        { binding: 1, resource: { buffer: splatKeys } },
+        { binding: 2, resource: { buffer: gap.forward } },
+        { binding: 3, resource: { buffer: gap.backward } },
+        { binding: 4, resource: { buffer: atPhase[0] } },
+      ],
+    }),
+    x: Math.ceil(flowPixels / WORKGROUP_1D),
+    y: 1,
+  })
 
   const lumaGroup = (frame: GPUTexture, into: GPUBuffer): Recorded => ({
     pipeline: pipelines.compute.luma,
@@ -351,6 +469,7 @@ export async function createOpticalFlow(
   let destroyed = false
   return {
     frameSize: { width: frameSize.width, height: frameSize.height },
+    detail,
     flowSize,
     measure(encoder, first, second) {
       if (destroyed) throw new Error('optical flow: used after destroy')
@@ -361,8 +480,14 @@ export async function createOpticalFlow(
         lumaGroup(second, plan.pyramids[1][0]!),
         ...pyramidRecorded,
       ])
-      const forward = device.createBuffer({ label: 'optical-flow-gap-forward', size: Math.max(16, finestBytes), usage: GAP_USAGE })
-      const backward = device.createBuffer({ label: 'optical-flow-gap-backward', size: Math.max(16, finestBytes), usage: GAP_USAGE })
+      const gapBuffer = (label: string, bytes: number) =>
+        device.createBuffer({ label: `optical-flow-gap-${label}`, size: Math.max(16, bytes), usage: GAP_USAGE })
+      const forward = gapBuffer('forward', finestBytes)
+      const backward = gapBuffer('backward', finestBytes)
+      const firstLuma = gapBuffer('first-luma', lumaBytes)
+      const secondLuma = gapBuffer('second-luma', lumaBytes)
+      encoder.copyBufferToBuffer(plan.pyramids[0][0]!, 0, firstLuma, 0, lumaBytes)
+      encoder.copyBufferToBuffer(plan.pyramids[1][0]!, 0, secondLuma, 0, lumaBytes)
       run(encoder, 'optical-flow-forward', directionRecorded[0])
       encoder.copyBufferToBuffer(plan.flows[0][0]!, 0, forward, 0, finestBytes)
       run(encoder, 'optical-flow-backward', directionRecorded[1])
@@ -370,13 +495,17 @@ export async function createOpticalFlow(
       return {
         forward,
         backward,
+        firstLuma,
+        secondLuma,
         destroy() {
           forward.destroy()
           backward.destroy()
+          firstLuma.destroy()
+          secondLuma.destroy()
         },
       }
     },
-    interpolate(encoder, uploads, first, second, gap, phase, output) {
+    interpolate(encoder, uploads, first, second, gap, phase, output, interpolateOptions = {}) {
       if (destroyed) throw new Error('optical flow: used after destroy')
       if (!(phase > 0 && phase < 1)) {
         throw new RangeError(`optical flow: a phase must be inside (0, 1), got ${phase}`)
@@ -393,8 +522,19 @@ export async function createOpticalFlow(
         { f: CONSISTENCY_SIGMA },
         { f: frameSize.width / flowSize.width },
         { f: frameSize.height / flowSize.height },
+        interpolateOptions.edges === 'nearest' ? 1 : 0,
+        0,
+        0,
+        0,
       ])
       const range = uploads.upload(new Uint8Array(bytes))
+      // The motion at the phase: the gap's flow pixels splatted, the winners resolved, the holes filled
+      run(encoder, 'optical-flow-at-phase', [
+        clearRecorded,
+        splatRecorded(gap, uploads, phase),
+        resolveRecorded(gap),
+        ...fillRecorded,
+      ])
       const pass = encoder.beginRenderPass({
         label: 'optical-flow-interpolate',
         colorAttachments: [{ view: output, loadOp: 'clear', clearValue: { r: 0, g: 0, b: 0, a: 0 }, storeOp: 'store' }],
@@ -411,6 +551,7 @@ export async function createOpticalFlow(
             { binding: 2, resource: second.createView() },
             { binding: 3, resource: { buffer: gap.forward } },
             { binding: 4, resource: { buffer: gap.backward } },
+            { binding: 5, resource: { buffer: atPhase[FILL_PASSES % 2]! } },
           ],
         }),
         [range.offset],

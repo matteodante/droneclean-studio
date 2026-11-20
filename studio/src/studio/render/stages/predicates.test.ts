@@ -1,15 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
-import { toRate } from '@/studio/time'
 import { setNativeExportSession } from '@/studio/render/precise/native-session'
 import {
   hasInputColour,
   hasLook,
-  hasMotionBlurSpan,
   isStabilized,
   needsExactSourceFrame,
   needsSourceStages,
-  setProjectRate,
+  sourceStageFingerprint,
 } from './predicates'
 
 const looks = vi.hoisted(() => ({ shown: true }))
@@ -61,7 +59,7 @@ describe('needsSourceStages and needsExactSourceFrame: the truth table', () => {
     ['input colour none', { inputColor: 'none' }, false, false],
     ['a look', { look: { id: 'film', intensity: 1 } }, true, false],
     ['a look at intensity 0', { look: { id: 'film', intensity: 0 } }, false, false],
-    ['motion blur at 1x', { motionBlur: { shutterDegrees: 180 } }, false, false],
+    ['motion blur at 1x', { motionBlur: { shutterDegrees: 180 } }, true, true],
     ['motion blur at 4x', { motionBlur: { shutterDegrees: 180 }, speed: 4 }, true, true],
     [
       'motion blur on a curve that peaks at 4x',
@@ -69,7 +67,7 @@ describe('needsSourceStages and needsExactSourceFrame: the truth table', () => {
       true,
       true,
     ],
-    ['motion blur below 1x', { motionBlur: { shutterDegrees: 360 }, speed: 0.5 }, false, false],
+    ['motion blur below 1x', { motionBlur: { shutterDegrees: 360 }, speed: 0.5 }, true, true],
     ['a speed curve alone', { speedCurve: curve }, false, true],
     [
       'a speed curve that stays at 1x',
@@ -127,90 +125,39 @@ describe('motion blur and its feature switch', () => {
     expect(needsSourceStages(blurred)).toBe(true)
     expect(needsExactSourceFrame(blurred)).toBe(true)
     looks.shown = false
-    expect(hasMotionBlurSpan(blurred)).toBe(false)
     expect(needsSourceStages(blurred)).toBe(false)
     expect(needsExactSourceFrame(blurred)).toBe(false)
   })
 })
 
-describe('motion blur and the playback rates', () => {
-  const blurred = clip({ motionBlur: { shutterDegrees: 360 } })
-
-  it('equal rates: no span above 1x', () => {
-    const rate = toRate(60)
-    expect(hasMotionBlurSpan(blurred, { source: rate, project: rate })).toBe(false)
-  })
-
-  it('a 120 fps source in a 60 fps project covers two source frames at 1x', () => {
-    expect(hasMotionBlurSpan(blurred, { source: toRate(120), project: toRate(60) })).toBe(true)
-    expect(needsSourceStages(blurred, { source: toRate(120), project: toRate(60) })).toBe(true)
-  })
-
-  it('59.94 into 60 stays one sample', () => {
-    expect(hasMotionBlurSpan(blurred, { source: toRate(59.94), project: toRate(60) })).toBe(false)
-  })
-
-  it('a clip without blur never has a span, whatever the rates', () => {
-    expect(
-      hasMotionBlurSpan(clip({ speed: 4 }), { source: toRate(120), project: toRate(60) }),
-    ).toBe(false)
-  })
-})
-
-describe('smooth slow motion (blend, or optical flow: task 11.12)', () => {
-  const blended = (extra: Record<string, unknown> = {}) =>
-    clip({ motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'blend' }, ...extra })
-  const flowed = (extra: Record<string, unknown> = {}) =>
-    clip({ motionBlur: { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' }, ...extra })
-  const equal = { source: toRate(60), project: toRate(60) }
-
-  it('a clip below 1x is made from two frames, so it is drawn through the stages from exact frames', () => {
-    for (const smooth of [blended, flowed]) {
-      expect(hasMotionBlurSpan(smooth({ speed: 0.5 }), equal)).toBe(true)
-      expect(needsSourceStages(smooth({ speed: 0.5 }), equal)).toBe(true)
-      expect(needsExactSourceFrame(smooth({ speed: 0.5 }), equal)).toBe(true)
+describe('the vector blur acts at every speed (design 9.2)', () => {
+  it('stages a blurred clip from exact frames at 1x, slower and faster, whatever its rate', () => {
+    for (const extra of [{ speed: 1 }, { speed: 0.5 }, { speed: 4 }, { speed: 1, sourceFps: 120 }, { speed: 1, sourceFps: 30 }]) {
+      const item = clip({ motionBlur: { shutterDegrees: 180 }, ...extra })
+      expect(needsSourceStages(item)).toBe(true)
+      expect(needsExactSourceFrame(item)).toBe(true)
     }
   })
 
-  it('a 30 fps file in a 60 fps project blends at 1x, a 60 fps one does not', () => {
-    expect(hasMotionBlurSpan(blended({ speed: 1 }), { source: toRate(30), project: toRate(60) })).toBe(true)
-    expect(hasMotionBlurSpan(blended({ speed: 1 }), equal)).toBe(false)
-  })
-
-  it('without the blend a slow clip still needs nothing', () => {
-    expect(hasMotionBlurSpan(clip({ motionBlur: { shutterDegrees: 180 }, speed: 0.5 }), equal)).toBe(false)
+  it('leaves a clip without blur unstaged, whatever its speed', () => {
+    for (const speed of [0.5, 1, 4]) {
+      expect(needsSourceStages(clip({ speed }))).toBe(false)
+      expect(needsExactSourceFrame(clip({ speed }))).toBe(false)
+    }
   })
 })
 
-describe('the predicates derive the rates from the clip and the project (no argument at the call sites)', () => {
-  const fast = (extra: Record<string, unknown> = {}) => clip({ sourceFps: 120, speed: 1, ...extra })
-
-  beforeEach(() => setProjectRate(toRate(60)))
-  afterEach(() => setProjectRate(undefined))
-
-  it('a blur clip at 1x with a 120 fps source in a 60 fps project is staged and exact', () => {
-    const item = fast({ motionBlur: { shutterDegrees: 360 } })
-    expect(hasMotionBlurSpan(item)).toBe(true)
-    expect(needsSourceStages(item)).toBe(true)
-    expect(needsExactSourceFrame(item)).toBe(true)
-  })
-
-  it('the same clip with blur off is not staged', () => {
-    expect(needsSourceStages(fast())).toBe(false)
-    expect(needsExactSourceFrame(fast())).toBe(false)
-  })
-
-  it('equal rates and 59.94 into 60 stay unstaged; a 60 fps source in a 59.94 project is staged', () => {
-    const blur = { motionBlur: { shutterDegrees: 360 } }
-    expect(needsSourceStages(fast({ ...blur, sourceFps: 60 }))).toBe(false)
-    expect(needsSourceStages(fast({ ...blur, sourceFps: 59.94 }))).toBe(false)
-    setProjectRate(toRate(59.94))
-    expect(needsSourceStages(fast({ ...blur, sourceFps: 60 }))).toBe(true)
-  })
-
-  it('without a known project rate the rates are equal', () => {
-    setProjectRate(undefined)
-    expect(needsSourceStages(fast({ motionBlur: { shutterDegrees: 360 } }))).toBe(false)
+describe('the fingerprint of what the per-source-frame stages read', () => {
+  it('changes with the stabilization, its framing, the input colour and the cleaned pieces, and with nothing else', () => {
+    const base = clip({ stabilization: { enabled: true, smoothness: 0.5 } })
+    const same = sourceStageFingerprint(base)
+    expect(sourceStageFingerprint(clip({ stabilization: { enabled: true, smoothness: 0.5 }, speed: 4, label: 'x' }))).toBe(same)
+    expect(sourceStageFingerprint(clip({ stabilization: { enabled: true, smoothness: 0.6 } }))).not.toBe(same)
+    expect(sourceStageFingerprint(clip({ stabilization: { enabled: true, smoothness: 0.5, framingX: 0.1 } }))).not.toBe(same)
+    expect(sourceStageFingerprint(clip({ stabilization: { enabled: true, smoothness: 0.5 }, inputColor: 'dlog-m' }))).not.toBe(same)
+    expect(
+      sourceStageFingerprint(clip({ stabilization: { enabled: true, smoothness: 0.5 }, shadowRemoval: { pieces: [{ from: 1 }] } })),
+    ).not.toBe(same)
   })
 })
 
