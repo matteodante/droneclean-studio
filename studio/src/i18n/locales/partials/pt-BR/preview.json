@@ -68,7 +68,11 @@
       "loadingMedia": "Carregando midia",
       "videoPreview": "Pre-visualizacao de video",
       "emptyTitle": "Ainda não há nada na linha do tempo",
-      "emptyDescription": "Importe mídia, arraste um clipe para a linha do tempo e pressione Espaço para visualizar."
+      "emptyDescription": "Importe mídia, arraste um clipe para a linha do tempo e pressione Espaço para visualizar.",
+      "gradeComparisonSplit": "Comparação dividida de correção de cor",
+      "gradeComparisonBefore": "Antes",
+      "gradeComparisonAfter": "Depois",
+      "gradeComparisonWipe": "Ajustar a comparação dividida"
     },
     "zoom": {
       "ariaLabel": "Nível de zoom: {{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "Não foi possível inspecionar o vídeo solto.",
       "unableToInspectFile": "Não foi possível inspecionar o arquivo solto.",
       "unableToImportFile": "Não foi possível importar o arquivo solto."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Resolução de reprodução",
+        "tooltip": "Resolução de reprodução: {{value}}",
+        "full": "Completa",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Renderizar prévia",
+        "renderInOut": "Renderizar da entrada à saída",
+        "renderTimeline": "Renderizar a linha do tempo inteira",
+        "clear": "Excluir a prévia renderizada",
+        "shortcut": "Renderizar prévia (da entrada à saída, ou a linha do tempo inteira)",
+        "rendering": "Renderizando prévia {{percent}}%",
+        "cancel": "Cancelar a renderização da prévia",
+        "barLabel": "Prévia renderizada",
+        "done": "Prévia renderizada: {{seconds}} s de linha do tempo em {{took}} s.",
+        "alreadyDone": "Este intervalo já está renderizado.",
+        "cancelled": "Renderização da prévia cancelada. A parte já renderizada permanece.",
+        "changed": "Renderização da prévia interrompida: o projeto mudou durante a renderização. Os quadros ainda válidos permanecem.",
+        "full": "Renderização da prévia interrompida: o cache da prévia está cheio (1 GB). A parte já renderizada permanece.",
+        "unsupported": "Este computador não consegue guardar quadros renderizados neste tamanho. A prévia continua ao vivo.",
+        "error": "Falha na renderização da prévia: {{message}}",
+        "empty": "Nada para renderizar: a linha do tempo está vazia.",
+        "busy": "Já há uma renderização da prévia em andamento.",
+        "noPreview": "Abra o projeto no editor para renderizar a prévia."
+      }
     }
   }
 }

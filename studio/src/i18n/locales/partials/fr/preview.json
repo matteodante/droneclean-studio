@@ -68,7 +68,11 @@
       "loadingMedia": "Chargement des médias…",
       "videoPreview": "Prévisualisation vidéo",
       "emptyTitle": "Rien sur la timeline pour l’instant",
-      "emptyDescription": "Importez des médias, faites glisser un clip sur la timeline, puis appuyez sur Espace pour prévisualiser."
+      "emptyDescription": "Importez des médias, faites glisser un clip sur la timeline, puis appuyez sur Espace pour prévisualiser.",
+      "gradeComparisonSplit": "Comparaison d’étalonnage partagée",
+      "gradeComparisonBefore": "Avant",
+      "gradeComparisonAfter": "Après",
+      "gradeComparisonWipe": "Ajuster la comparaison partagée"
     },
     "zoom": {
       "ariaLabel": "Niveau de zoom : {{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "Impossible d'inspecter la vidéo déposée.",
       "unableToInspectFile": "Impossible d'inspecter le fichier déposé.",
       "unableToImportFile": "Impossible d'importer le fichier déposé."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Résolution de lecture",
+        "tooltip": "Résolution de lecture : {{value}}",
+        "full": "Intégrale",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Rendu de l'aperçu",
+        "renderInOut": "Rendu de l'entrée à la sortie",
+        "renderTimeline": "Rendu de toute la timeline",
+        "clear": "Supprimer l'aperçu rendu",
+        "shortcut": "Rendu de l'aperçu (de l'entrée à la sortie, ou toute la timeline)",
+        "rendering": "Rendu de l'aperçu {{percent}} %",
+        "cancel": "Annuler le rendu de l'aperçu",
+        "barLabel": "Aperçu rendu",
+        "done": "Aperçu rendu : {{seconds}} s de timeline en {{took}} s.",
+        "alreadyDone": "Cette plage est déjà rendue.",
+        "cancelled": "Rendu de l'aperçu annulé. La partie déjà rendue est conservée.",
+        "changed": "Rendu de l'aperçu arrêté : le projet a changé pendant le rendu. Les images encore valides sont conservées.",
+        "full": "Rendu de l'aperçu arrêté : le cache de l'aperçu est plein (1 Go). La partie déjà rendue est conservée.",
+        "unsupported": "Cet ordinateur ne peut pas stocker les images rendues à cette taille. L'aperçu reste en direct.",
+        "error": "Échec du rendu de l'aperçu : {{message}}",
+        "empty": "Rien à rendre : la timeline est vide.",
+        "busy": "Un rendu de l'aperçu est déjà en cours.",
+        "noPreview": "Ouvrez le projet dans l'éditeur pour en rendre l'aperçu."
+      }
     }
   }
 }

@@ -242,7 +242,7 @@ describe('changes', () => {
     expect(changes.removed).toEqual([])
   })
 
-  it("reports the effect switch as its `enabled` field", () => {
+  it('reports the effect switch as its `enabled` field', () => {
     const effectId = addStoredEffect()
 
     const { changes } = transaction('EFFECTS_UPDATE', () => {

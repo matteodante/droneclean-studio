@@ -1,0 +1,26 @@
+{
+  "lottieBrowser": {
+    "tabLabel": "Lottie",
+    "browseIntro": "Le animazioni Lottie provengono da LottieFiles, online. Sfogliare scarica il catalogo e le sue immagini di anteprima da lottiefiles.com.",
+    "browseButton": "Sfoglia LottieFiles",
+    "searchPlaceholder": "Cerca animazioni",
+    "clearSearch": "Cancella ricerca",
+    "categories": {
+      "featured": "In evidenza",
+      "popular": "Popolari",
+      "recent": "Recenti"
+    },
+    "addToMedia": "Aggiungi alla libreria multimediale",
+    "added": "Aggiunta alla libreria multimediale",
+    "importFailed": "Importazione non riuscita — clicca per riprovare",
+    "by": "di {{author}}",
+    "empty": "Nessuna animazione trovata",
+    "error": "Impossibile caricare le animazioni",
+    "retry": "Riprova",
+    "previous": "Pagina precedente",
+    "next": "Pagina successiva",
+    "goToPage": "Vai alla pagina",
+    "ofTotal": "di {{total}}",
+    "attributionNote": "Animazioni gratuite da LottieFiles, con la <license>Lottie Simple License</license>. Cita l'autore originale quando pubblichi."
+  }
+}

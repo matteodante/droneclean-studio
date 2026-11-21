@@ -91,9 +91,21 @@ function curveOf(keyframe: Keyframe): Pick<KeyframeInfo, 'bezier' | 'spring'> {
 }
 
 /** One finite number inside `[min, max]`, or `INVALID_ARGUMENT` naming it. */
-function requireBounded(value: unknown, min: number, max: number, method: string, argument: string): number {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max) return value
-  throw invalidArgumentError({ method, argument, expectation: `a number from ${min} to ${max}`, value })
+function requireBounded(
+  value: unknown,
+  min: number,
+  max: number,
+  method: string,
+  argument: string,
+): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max)
+    return value
+  throw invalidArgumentError({
+    method,
+    argument,
+    expectation: `a number from ${min} to ${max}`,
+    value,
+  })
 }
 
 /** The control points of a cubic bezier: x in 0..1 as CSS requires, y in -2..3 (an overshoot, not a wild one). */
@@ -120,7 +132,12 @@ function requireSpring(value: unknown, method: string): KeyframeSpring {
 /** The easing fields of a patch as store updates: a curve sets its easing type and its config. */
 function easingUpdates(patch: KeyframePatch, method: string): Partial<Omit<Keyframe, 'id'>> {
   if (patch.bezier !== undefined && patch.spring !== undefined) {
-    throw invalidArgumentError({ method, argument: 'patch', expectation: 'bezier or spring, not both', value: patch })
+    throw invalidArgumentError({
+      method,
+      argument: 'patch',
+      expectation: 'bezier or spring, not both',
+      value: patch,
+    })
   }
   if (patch.bezier !== undefined) {
     const bezier = requireBezier(patch.bezier, method)
@@ -133,7 +150,9 @@ function easingUpdates(patch: KeyframePatch, method: string): Partial<Omit<Keyfr
   if (patch.easing !== undefined) {
     const easing = requireEasing(patch.easing, method)
     // A curve easing named without its curve keeps the curve the keyframe has; a plain easing drops it.
-    return easing === 'cubic-bezier' || easing === 'spring' ? { easing } : { easing, easingConfig: undefined }
+    return easing === 'cubic-bezier' || easing === 'spring'
+      ? { easing }
+      : { easing, easingConfig: undefined }
   }
   return {}
 }
@@ -232,7 +251,16 @@ function requireEasing(value: unknown, method: string): Easing {
 
 /** The properties measured in canvas pixels, whose bounds follow the project's frame. */
 const CANVAS_PIXEL_PROPERTIES: ReadonlySet<string> = new Set([
-  'x', 'y', 'width', 'height', 'anchorX', 'anchorY', 'cropLeft', 'cropRight', 'cropTop', 'cropBottom',
+  'x',
+  'y',
+  'width',
+  'height',
+  'anchorX',
+  'anchorY',
+  'cropLeft',
+  'cropRight',
+  'cropTop',
+  'cropBottom',
 ])
 
 /**
@@ -240,12 +268,18 @@ const CANVAS_PIXEL_PROPERTIES: ReadonlySet<string> = new Set([
  * so a zoom on a 1440x2560 clip could not be keyframed (19 Nov 2026). A canvas-pixel property may reach four times
  * the project's longer side either way, and never less than the graph's own bounds.
  */
-function projectRange(property: KeyframeProperty, range: ValueRange | undefined): ValueRange | undefined {
+function projectRange(
+  property: KeyframeProperty,
+  range: ValueRange | undefined,
+): ValueRange | undefined {
   if (!range || !CANVAS_PIXEL_PROPERTIES.has(property)) return range
   const metadata = useProjectStore.getState().currentProject?.metadata
   if (!metadata) return range
   const reach = 4 * Math.max(metadata.width, metadata.height)
-  return { min: range.min < 0 ? Math.min(range.min, -reach) : range.min, max: Math.max(range.max, reach) }
+  return {
+    min: range.min < 0 ? Math.min(range.min, -reach) : range.min,
+    max: Math.max(range.max, reach),
+  }
 }
 
 /**
@@ -262,7 +296,10 @@ function requireValue(value: unknown, property: KeyframeProperty, method: string
       value,
     })
   }
-  const range = projectRange(property, PROPERTY_VALUE_RANGES[property as AnimatableProperty] as ValueRange | undefined)
+  const range = projectRange(
+    property,
+    PROPERTY_VALUE_RANGES[property as AnimatableProperty] as ValueRange | undefined,
+  )
   if (range && (value < range.min || value > range.max)) {
     throw invalidArgumentError({
       method,

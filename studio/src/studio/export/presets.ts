@@ -1,6 +1,6 @@
 /**
  * Export presets a drone pilot understands: "Same as source", "YouTube 4K",
- * "Instagram Reel" and "Small file", each resolved to concrete numbers (resolution, frame rate,
+ * "Instagram Reel", "TikTok", "YouTube Shorts" and "Small file", each resolved to concrete numbers (resolution, frame rate,
  * codec, bitrate, bit depth) that the dialog shows and lets the user edit.
  * "Master ProRes" and 10-bit HEVC need the native encoder (task 3.3); they are
  * defined here behind the `nativeEncoder` capability, which only the desktop
@@ -21,6 +21,8 @@ export type PilotPresetId =
   | 'same-as-source'
   | 'youtube-4k'
   | 'instagram-reel'
+  | 'tiktok'
+  | 'youtube-shorts'
   | 'small-file'
   | 'master-prores'
   | 'master-hevc-10bit'
@@ -112,12 +114,35 @@ function youtube4kBitrate(fps: number): number {
  * exactly that frame (no scaling of its own) with the bits under the cap: 20 Mbps above 30 fps (peaks stay under
  * 25: 23.5 measured on a 44 s reel), 12 Mbps at or below. H.264 is what every Instagram client decodes.
  */
-function instagramReelBox(project: PresetFrame): { width: number; height: number } {
+function verticalBox(project: PresetFrame): { width: number; height: number } {
   return project.height >= project.width ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 }
 }
 
 function instagramReelBitrate(fps: number): number {
   return fps > 30 ? 20_000_000 : 12_000_000
+}
+
+/**
+ * TikTok. TikTok's own help pages publish no bitrate, so the numbers that are published are the Content Posting API's
+ * (developers.tiktok.com/doc/content-posting-api-media-transfer-guide, read 21 Nov 2026): MP4 recommended, H.264
+ * recommended (H.265 accepted), 23-60 fps, each side 360 to 4096 px, 4 GB at most. TikTok re-encodes every upload and
+ * shows 1080x1920, so the frame is that, in H.264 (the codec it recommends). The bitrate is our choice, not
+ * TikTok's: 16 Mbps above 30 fps, 10 Mbps at or below, which keeps FPV motion clean through the re-encode and stays
+ * far under the 4 GB cap. It differs from the other vertical presets at every frame rate, so the dialog can tell
+ * which preset the settings still stand for. AAC at 128 kbps.
+ */
+function tiktokBitrate(fps: number): number {
+  return fps > 30 ? 16_000_000 : 10_000_000
+}
+
+/**
+ * YouTube Shorts. YouTube's upload recommendations (support.google.com/youtube/answer/1722171, read 21 Nov 2026): MP4,
+ * H.264 High Profile, 4:2:0, variable bitrate, the frame rate the footage was recorded at, AAC-LC stereo at 48 kHz and
+ * 384 kbps; SDR 1080p at 8 Mbps up to 30 fps and 12 Mbps at 48-60 fps. Shorts take vertical video up to 3 minutes and
+ * at most 1080p (support.google.com/youtube/answer/10059070), so the frame is 1080x1920 at the published 1080p bitrates.
+ */
+function youtubeShortsBitrate(fps: number): number {
+  return fps > 30 ? 12_000_000 : 8_000_000
 }
 
 /**
@@ -253,7 +278,7 @@ const DEFINITIONS: PilotPresetDefinition[] = [
     id: 'instagram-reel',
     labelKey: 'export.settings.presetInstagramReel',
     resolve(context) {
-      const resolution = fitInBox(context.project, instagramReelBox(context.project))
+      const resolution = fitInBox(context.project, verticalBox(context.project))
       return build(context, {
         container: 'mp4',
         codec: 'h264',
@@ -262,6 +287,35 @@ const DEFINITIONS: PilotPresetDefinition[] = [
         bitDepth: 8,
         // Meta's Reel specification: AAC at 128 kbps.
         audioBitrate: '128k',
+      })
+    },
+  },
+  {
+    id: 'tiktok',
+    labelKey: 'export.settings.presetTiktok',
+    resolve(context) {
+      return build(context, {
+        container: 'mp4',
+        codec: 'h264',
+        resolution: fitInBox(context.project, verticalBox(context.project)),
+        bitrate: tiktokBitrate(context.project.fps),
+        bitDepth: 8,
+        audioBitrate: '128k',
+      })
+    },
+  },
+  {
+    id: 'youtube-shorts',
+    labelKey: 'export.settings.presetYoutubeShorts',
+    resolve(context) {
+      return build(context, {
+        container: 'mp4',
+        codec: 'h264',
+        resolution: fitInBox(context.project, verticalBox(context.project)),
+        bitrate: youtubeShortsBitrate(context.project.fps),
+        bitDepth: 8,
+        // YouTube's recommended stereo AAC-LC rate.
+        audioBitrate: '384k',
       })
     },
   },

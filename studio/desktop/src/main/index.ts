@@ -48,6 +48,7 @@ import { installMicrophoneIpc } from './microphone'
 import { ShadowSession, installShadowSessionIpc } from './shadow-session'
 import { installWorkspaceOwnerLock, observeWorkspaceAccess } from './workspace-lock'
 import { createMainTelemetry, installMainTelemetry } from './telemetry'
+import { createUpdateChecker, installUpdatesIpc, scheduleUpdateCheck } from './updates'
 
 /**
  * The product name, read before any `setName`. The packaged test variant
@@ -87,6 +88,16 @@ const telemetry = createMainTelemetry({
   fetch: (url, init) => net.fetch(url, init),
 })
 installMainTelemetry(app, ipcMain, telemetry)
+
+// "A new version is available" (`updates/`): one GET to GitHub's latest-release address, once a day
+// at most, switched off in Settings › Privacy. It is the one request the user did not ask for, by
+// Matteo's decision of 21 Nov 2026 (the app is unsigned, so it cannot update itself); off means none.
+const updates = createUpdateChecker({
+  userDataDir: app.getPath('userData'),
+  appVersion: app.getVersion(),
+  fetch: (url, init) => net.fetch(url, init),
+})
+installUpdatesIpc(ipcMain, updates, (url) => shell.openExternal(url))
 
 // Ask Chromium for the high-performance GPU (task 8.1). On a machine with an
 // integrated and a discrete GPU the default is the integrated one, which is the
@@ -186,6 +197,13 @@ function installAgentAccessPreload(target: Session): void {
     id: 'droneclean-agent-access',
     type: 'frame',
     filePath: path.join(__dirname, '../preload/agent-access.js'),
+    includeGlobs: [`${origin}/*`],
+  })
+  // `window.dronecleanUpdates`, the page's way to the new-version notice and its switch, on the same terms.
+  target.registerPreloadScript({
+    id: 'droneclean-updates',
+    type: 'frame',
+    filePath: path.join(__dirname, '../preload/updates.js'),
     includeGlobs: [`${origin}/*`],
   })
   // `window.dronecleanTelemetry`, the page's way to the opt-in reports' answer, on the same terms.
@@ -310,7 +328,9 @@ if (!app.requestSingleInstanceLock()) {
     app.on('activate', () => {
       showMainWindow()
     })
-    createWindow(STARTED_FOR_MCP)
+    const window = createWindow(STARTED_FOR_MCP)
+    // Only the installed app asks: not an agent's hidden launch, a development run, or the e2e's test app.
+    if (app.isPackaged && !STARTED_FOR_MCP && APP_NAME !== TEST_APP_NAME) scheduleUpdateCheck(window, updates)
   })
 }
 

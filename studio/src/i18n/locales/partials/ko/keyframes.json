@@ -70,6 +70,16 @@
         "easeInOut": "이즈 인/아웃",
         "easeOut": "이즈 아웃"
       },
+      "editLane": {
+        "property": "키프레임 속성",
+        "position": "위치",
+        "scale": "스케일",
+        "anchor": "앵커",
+        "previous": "이전 키프레임",
+        "next": "다음 키프레임",
+        "show": "키프레임 패널 표시",
+        "hide": "키프레임 패널 숨기기"
+      },
       "holdHint": "다음 키프레임까지 값을 유지합니다.",
       "unhold": "고정 해제",
       "legend": {

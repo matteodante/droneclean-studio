@@ -70,6 +70,16 @@
         "easeInOut": "Entrée/sortie progressive",
         "easeOut": "Sortie progressive"
       },
+      "editLane": {
+        "property": "Propriété de l’image clé",
+        "position": "Position",
+        "scale": "Échelle",
+        "anchor": "Ancrage",
+        "previous": "Image clé précédente",
+        "next": "Image clé suivante",
+        "show": "Afficher le panneau des images clés",
+        "hide": "Masquer le panneau des images clés"
+      },
       "holdHint": "La valeur est maintenue jusqu'à l'image clé suivante.",
       "unhold": "Ne plus maintenir",
       "legend": {

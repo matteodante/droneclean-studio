@@ -24,6 +24,8 @@ import {
 import { formatTimecode } from '@/shared/utils/time-utils'
 import { toast } from 'sonner'
 import { MonitorVolumeControl } from './monitor-volume-control'
+import { PreviewQualityMenu } from '@/studio/preview/PreviewQualityMenu'
+import { PrerenderProgress } from '@/studio/prerender/ui/PrerenderProgress'
 
 interface PlaybackControlsProps {
   totalFrames: number
@@ -341,7 +343,12 @@ export function PlaybackControls({ totalFrames, fps }: PlaybackControlsProps) {
         >
           <Zap className="w-3.5 h-3.5" />
         </Button>
+        {/* DroneClean: playback resolution (Full, 1/2, 1/4) */}
+        <PreviewQualityMenu buttonStyle={btnSize} />
       </div>
+
+      {/* DroneClean: the running pre-render, with Cancel */}
+      <PrerenderProgress buttonStyle={btnSize} />
     </>
   )
 }

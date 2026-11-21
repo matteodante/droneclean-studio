@@ -77,6 +77,10 @@
       "qualityMedium": "中",
       "qualityUltra": "ウルトラ",
       "quicktimeMov": "QuickTime MOV",
+      "rateControl": "レート制御",
+      "rateControlAuto": "自動（ソース対応）",
+      "rateControlCbr": "CBR（固定ビットレート）",
+      "rateControlVbr": "VBR（可変ビットレート）",
       "renderWholeProject": "プロジェクト全体を書き出す",
       "resolution": "解像度",
       "resolutionSameAsProject": "プロジェクトと同じ ({{width}}×{{height}})",
@@ -86,6 +90,12 @@
       "selectQuality": "品質を選択",
       "selectResolution": "解像度を選択",
       "sequence": "シーケンス",
+      "targetBitrate": "目標ビットレート",
+      "useSourceBitrate": "ソースを使用",
+      "smartCopy": "可能な場合はスマートコピー",
+      "smartCopyPath": "スマートコピー · 再エンコードなし",
+      "estimatedSize": "推定 {{size}}",
+      "sourceBitrate": "ソース {{bitrate}} Mbps",
       "subtitleMode": {
         "off": "オフ",
         "burn": "焼き込み",
@@ -99,11 +109,24 @@
       "subtitles": "字幕",
       "video": "動画",
       "smartCopyStatus": {
-        "shadow-pieces": "クリップの一部が DroneClean の影除去でクリーンされているため利用できません。"
+        "eligible": "利用可能: 元のメディアをバイト単位でそのままコピーします。",
+        "disabled": "無効です。タイムラインはレンダリングしてエンコードされます。",
+        "not-video": "動画の書き出しでのみ利用できます。",
+        "range": "イン/アウト範囲を書き出す場合は利用できません。",
+        "timeline-layout": "追加のレイヤーがない、完全なソースクリップ1つが必要です。",
+        "source-unavailable": "元のソースファイルまたはメタデータを利用できません。",
+        "trimmed-or-retimed": "ソースがトリミング、分割、リバース、またはリタイムされているため利用できません。",
+        "shadow-pieces": "クリップの一部が DroneClean の影除去でクリーンされているため利用できません。",
+        "visual-processing": "ビジュアル編集、キャプション、トランジション、キーフレームをレンダリングする必要があるため利用できません。",
+        "audio-processing": "オーディオまたはトラックのミックスが変更されているため利用できません。",
+        "project-mismatch": "プロジェクトの解像度またはフレームレートがソースと一致しません。",
+        "format-mismatch": "選択したフォーマットまたはコーデックがソースと一致しません。"
       },
       "presetSameAsSource": "ソースと同じ",
       "presetYoutube4k": "YouTube 4K",
       "presetInstagramReel": "Instagram リール",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
       "presetSmallFile": "小さいファイル（共有用）",
       "presetMasterProres": "マスター ProRes",
       "presetMasterHevc10": "マスター HEVC 10ビット",
@@ -120,6 +143,7 @@
       "checking": "書き出しの事前チェック中…",
       "title": "書き出し事前チェック",
       "workerPath": "ワーカーのパス",
+      "smartCopyPath": "スマートコピーの経路",
       "fallback": "メインスレッドへのフォールバック",
       "checks": {
         "empty-range": {
@@ -150,6 +174,10 @@
         "video-codec-supported": {
           "title": "動画コーデックに対応しています",
           "detail": "{{codec}} はこのブラウザーで {{container}} としてエンコードできます。"
+        },
+        "smart-copy-ready": {
+          "title": "スマートコピーの準備完了",
+          "detail": "元のメディアをレンダリングも再エンコードもせずにコピーします。"
         },
         "audio-codec-supported": {
           "title": "音声コーデックに対応しています",

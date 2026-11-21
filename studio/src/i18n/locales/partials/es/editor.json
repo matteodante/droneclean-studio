@@ -770,6 +770,8 @@
       "signInAgain": "Iniciar sesión de nuevo",
       "removeCleaning": "Quitar la limpieza",
       "noSource": "El archivo de este clip no está abierto, así que su sombra no se puede enviar. Vuelve a vincularlo primero.",
+      "cutNoKeyframe": "Este vídeo no tiene ningún fotograma clave desde el que empezar, así que no se puede seguir la sombra en él. Conviértelo primero a un MP4 estándar.",
+      "cutNoVideo": "Este archivo no tiene vídeo que el editor pueda leer, así que no se puede seguir la sombra en él.",
       "clickHint": "Haz clic en la sombra aquí",
       "reverseRefused": "Este clip tiene fotogramas de sombra limpiados, que no se pueden invertir. Quita primero la limpieza.",
       "missingPieces_one": "Falta {{count}} fragmento limpiado.",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "El primer uso descarga ≈{{size}}."
     },
     "colorPanel": {
+      "dockLabel": "Espacio de trabajo de etalonaje",
+      "dockTitle": "Color",
       "emptyState": "Selecciona un clip para etalonar",
       "adjustmentLayerLabel": "Etalonaje"
     },

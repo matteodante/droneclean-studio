@@ -1,0 +1,229 @@
+{
+  "export": {
+    "audioContainer": {
+      "aac": "AAC",
+      "mp3": "MP3",
+      "wav": "WAV"
+    },
+    "cancelled": {
+      "message": "L'esportazione è stata annullata. Nessun file è stato salvato."
+    },
+    "complete": {
+      "audioSuccess": "Il tuo audio è pronto per essere scaricato.",
+      "download": "Scarica",
+      "fileSizeLabel": "Dimensione",
+      "savedTo": "Salvato in {{path}}",
+      "timeTakenLabel": "Tempo",
+      "videoSuccess": "Il tuo video è pronto per essere scaricato."
+    },
+    "dialog": {
+      "descCancelled": "L'esportazione è stata annullata prima di terminare.",
+      "descComplete": "Il tuo file è pronto.",
+      "descError": "Qualcosa è andato storto durante l'esportazione.",
+      "descProgress": "Rendering del video in corso. Può richiedere qualche minuto.",
+      "descSettings": "Configura le opzioni di esportazione.",
+      "titleCancelled": "Esportazione annullata",
+      "titleComplete": "Esportazione completata",
+      "titleError": "Esportazione non riuscita",
+      "titleProgress": "Esportazione del video",
+      "titleSettings": "Esporta"
+    },
+    "errors": {
+      "verifyCodec": "Impossibile verificare il supporto del codec per le impostazioni correnti."
+    },
+    "progress": {
+      "cancelExport": "Annulla",
+      "elapsedLabel": "Trascorso",
+      "encoding": "Codifica…",
+      "finalizing": "Finalizzazione…",
+      "framesLabel": "Fotogrammi",
+      "keepTabOpen": "Tieni aperta questa scheda finché l'esportazione non è terminata.",
+      "preparing": "Preparazione…",
+      "rendering": "Rendering…"
+    },
+    "settings": {
+      "audio": "Audio",
+      "audioOnlyNote": "Esportazione solo audio: nessun video verrà incluso.",
+      "audioQualityHigh": "Alta",
+      "audioQualityLow": "Bassa",
+      "audioQualityMedium": "Media",
+      "audioQualityUltra": "Ultra",
+      "cannotEncode": "Nessun encoder supportato per {{width}}×{{height}} alla qualità selezionata.",
+      "codec": "Codec",
+      "codecSupportUnverified": "Impossibile verificare il supporto del codec. L'esportazione potrebbe comunque funzionare, ma la compatibilità non è garantita.",
+      "duration": "Durata",
+      "embedSubtitles": "Incorpora sottotitoli",
+      "embedSubtitlesDescription": "Includi le didascalie della trascrizione come traccia di sottotitoli nel file esportato.",
+      "embedSubtitlesMp4Note": "L'MP4 conserva i sottotitoli come traccia separata. Alcuni lettori potrebbero non mostrarli per impostazione predefinita.",
+      "embedSubtitlesUnsupported": "{{container}} non supporta i sottotitoli incorporati. Scegli MP4, MKV o WebM.",
+      "exportAudio": "Esporta audio",
+      "exportRange": "Intervallo di esportazione",
+      "exportType": "Tipo di esportazione",
+      "exportVideo": "Esporta video",
+      "format": "Formato",
+      "in": "In",
+      "inOutRangeHint": "Verrà esportato solo l'intervallo In/Out selezionato.",
+      "noTranscriptSegments": "Nessuna didascalia della trascrizione da incorporare.",
+      "out": "Out",
+      "presetBalanced": "Bilanciato",
+      "presetCustom": "Personalizzato",
+      "presetLabel": "Preset",
+      "presetMax": "Massimo",
+      "presetRecommended": "Consigliato",
+      "presetSmall": "File piccolo",
+      "quality": "Qualità",
+      "qualityHigh": "Alta",
+      "qualityLow": "Bassa",
+      "qualityMedium": "Media",
+      "qualityUltra": "Ultra",
+      "quicktimeMov": "QuickTime MOV",
+      "rateControl": "Controllo del bitrate",
+      "rateControlAuto": "Auto (in base all'originale)",
+      "rateControlCbr": "CBR (bitrate costante)",
+      "rateControlVbr": "VBR (bitrate variabile)",
+      "renderWholeProject": "Esegui il rendering dell'intero progetto",
+      "resolution": "Risoluzione",
+      "resolutionSameAsProject": "Come il progetto ({{width}}×{{height}})",
+      "resolutionScaled": "{{p}}p ({{width}}×{{height}})",
+      "selectCodec": "Seleziona codec",
+      "selectFormat": "Seleziona formato",
+      "selectQuality": "Seleziona qualità",
+      "selectResolution": "Seleziona risoluzione",
+      "sequence": "Sequenza",
+      "targetBitrate": "Bitrate di destinazione",
+      "useSourceBitrate": "Usa l'originale",
+      "smartCopy": "Copia intelligente quando possibile",
+      "smartCopyPath": "Copia intelligente · nessuna ricodifica",
+      "estimatedSize": "Stimati {{size}}",
+      "sourceBitrate": "Originale {{bitrate}} Mbps",
+      "smartCopyStatus": {
+        "eligible": "Disponibile: i media originali verranno copiati byte per byte.",
+        "disabled": "Disattivata. La timeline verrà sottoposta a rendering e codificata.",
+        "not-video": "Disponibile solo per le esportazioni video.",
+        "range": "Non disponibile quando si esporta un intervallo In/Out.",
+        "timeline-layout": "Richiede una sola clip sorgente intera, senza livelli aggiuntivi.",
+        "source-unavailable": "Il file sorgente originale o i suoi metadati non sono disponibili.",
+        "trimmed-or-retimed": "Non disponibile perché la sorgente è tagliata, divisa, invertita o con velocità modificata.",
+        "shadow-pieces": "Non disponibile perché una parte della clip è stata pulita dalla rimozione ombre di DroneClean.",
+        "visual-processing": "Non disponibile perché modifiche visive, didascalie, transizioni o fotogrammi chiave devono essere sottoposti a rendering.",
+        "audio-processing": "Non disponibile perché l'audio o il mix delle tracce è stato modificato.",
+        "project-mismatch": "La risoluzione o la frequenza fotogrammi del progetto non corrisponde alla sorgente.",
+        "format-mismatch": "Il formato o il codec selezionato non corrisponde alla sorgente."
+      },
+      "subtitleMode": {
+        "off": "Disattivati",
+        "burn": "Impressi nel video",
+        "sidecar": "File .srt separato",
+        "embedded": "Traccia incorporata",
+        "offDescription": "Nessuna didascalia nel video esportato.",
+        "burnDescription": "Le didascalie sono disegnate nel video: visibili in ogni lettore.",
+        "sidecarDescription": "Video pulito più un file di sottotitoli .srt separato.",
+        "embeddedDescription": "Una traccia di sottotitoli attivabile e disattivabile (WebM/MKV)."
+      },
+      "subtitles": "Sottotitoli",
+      "video": "Video",
+      "presetSameAsSource": "Come l'originale",
+      "presetYoutube4k": "YouTube 4K",
+      "presetInstagramReel": "Instagram Reel",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
+      "presetSmallFile": "File piccolo (condivisione)",
+      "presetMasterProres": "Master ProRes",
+      "presetMasterHevc10": "Master HEVC 10 bit",
+      "presetNumbers": "{{width}}x{{height}} · {{fps}} fps · {{codec}} · {{bitrate}} Mbps · {{bitDepth}} bit",
+      "webLimits": "Questa versione web esporta solo H.265 a 8 bit: niente ProRes e niente 10 bit."
+    },
+    "videoContainer": {
+      "mp4": "Ampiamente supportato, ottimo per la condivisione",
+      "mov": "Ecosistema Apple, il migliore in Final Cut e QuickTime",
+      "webm": "Contenitore aperto e moderno per la riproduzione sul web",
+      "mkv": "Contenitore flessibile con ottimo supporto ai sottotitoli"
+    },
+    "preflight": {
+      "checking": "Controllo preliminare dell'esportazione…",
+      "title": "Controllo preliminare dell'esportazione",
+      "workerPath": "Percorso worker",
+      "smartCopyPath": "Percorso copia intelligente",
+      "fallback": "Alternativa sul thread principale",
+      "checks": {
+        "empty-range": {
+          "title": "Niente da esportare",
+          "detail": "L'intervallo di esportazione selezionato non contiene fotogrammi.",
+          "fix": "Aggiungi contenuti alla timeline o scegli un intervallo In/Out non vuoto."
+        },
+        "export-range-ready": {
+          "title": "Intervallo di esportazione pronto",
+          "detail": "Verranno esportati {{frames}} fotogrammi ({{seconds}} s)."
+        },
+        "video-codec-unavailable": {
+          "title": "Il formato selezionato non può essere codificato",
+          "detail": "Questo browser non può codificare le impostazioni di esportazione selezionate.",
+          "detailWithError": "{{error}}",
+          "fix": "Scegli un altro formato/codec o prova un browser Chromium recente."
+        },
+        "audio-export-ready": {
+          "title": "Esportazione audio pronta",
+          "detail": "L'audio {{container}} userà {{codec}}.",
+          "detailDefaultCodec": "L'audio {{container}} userà il codec audio predefinito."
+        },
+        "video-codec-fallback": {
+          "title": "Verrà usato un codec alternativo",
+          "detail": "Il codec selezionato non è disponibile qui. DroneClean Studio esporterà invece {{codec}} in {{container}}.",
+          "fix": "Mantieni questa alternativa o scegli manualmente un altro codec supportato."
+        },
+        "video-codec-supported": {
+          "title": "Codec video supportato",
+          "detail": "{{codec}} può essere codificato come {{container}} in questo browser."
+        },
+        "smart-copy-ready": {
+          "title": "Copia intelligente pronta",
+          "detail": "I media originali verranno copiati senza rendering né ricodifica."
+        },
+        "audio-codec-supported": {
+          "title": "Codec audio supportato",
+          "detail": "L'audio {{codec}} può essere codificato in {{container}} in questo browser."
+        },
+        "audio-codec-unavailable": {
+          "title": "Codec audio non disponibile",
+          "detail": "Questo browser non può codificare l'audio {{codec}} per {{container}}.",
+          "fix": "Scegli WebM o MKV per usare l'audio Opus, oppure aggiorna a un browser supportato."
+        },
+        "worker-unavailable-fallback": {
+          "title": "Esportazione con worker non disponibile",
+          "detail": "Questo browser o questa sessione non può avviare i worker di esportazione, quindi il rendering verrà eseguito sul thread principale.",
+          "fix": "Tieni la scheda in primo piano ed evita attività pesanti durante l'esportazione."
+        },
+        "worker-animated-image-fallback": {
+          "title": "Le immagini animate richiedono l'esportazione sul thread principale",
+          "detail": "Gli elementi GIF/WebP non possono ancora essere renderizzati nel worker di esportazione. DroneClean Studio passerà automaticamente all'alternativa.",
+          "fix": "Per un'esportazione più veloce con il worker, sostituisci le immagini animate con clip video prima di esportare."
+        },
+        "worker-audio-context-fallback": {
+          "title": "Il mix audio richiede l'alternativa sul thread principale",
+          "detail": "OfflineAudioContext non è disponibile nel worker di esportazione, quindi il rendering audio verrà eseguito sul thread principale."
+        },
+        "missing-media-blocks-export": {
+          "title": "Media mancanti: esportazione bloccata",
+          "detail": "{{count}} file multimediale referenziato è mancante o richiede un'autorizzazione.",
+          "detail_one": "{{count}} file multimediale referenziato è mancante o richiede un'autorizzazione.",
+          "detail_other": "{{count}} file multimediali referenziati sono mancanti o richiedono un'autorizzazione.",
+          "fix": "Ricollega i media mancanti dalla libreria multimediale prima di esportare."
+        },
+        "large-file-risk": {
+          "title": "Previsto un file di esportazione grande",
+          "detail": "Questa esportazione è stimata intorno a {{size}}, prima della variazione dovuta al contenitore.",
+          "fix": "Usa Bilanciato o Piccolo, abbassa la risoluzione o esporta un intervallo più breve se lo spazio su disco è poco."
+        },
+        "long-export-risk": {
+          "title": "L'esportazione lunga potrebbe richiedere del tempo",
+          "detail": "Questa esportazione dura circa {{minutes}} minuti.",
+          "fix": "Se vuoi un rendering di prova rapido, esporta prima un intervallo In/Out più breve."
+        },
+        "worker-export-ready": {
+          "title": "Percorso di esportazione con worker pronto",
+          "detail": "Il worker di esportazione può eseguire il rendering di questa composizione senza alcuna alternativa nota sul thread principale."
+        }
+      }
+    }
+  }
+}

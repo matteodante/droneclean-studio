@@ -770,6 +770,8 @@
       "signInAgain": "Sign in again",
       "removeCleaning": "Remove the cleaning",
       "noSource": "This clip's file is not open, so its shadow cannot be sent. Relink it first.",
+      "cutNoKeyframe": "This video has no keyframe to start from, so the shadow cannot be followed in it. Convert it to a standard MP4 first.",
+      "cutNoVideo": "This file has no video the editor can read, so the shadow cannot be followed in it.",
       "clickHint": "Click the shadow here",
       "reverseRefused": "This clip has cleaned shadow frames, which cannot be reversed. Remove the cleaning first.",
       "missingPieces_one": "{{count}} cleaned piece is missing.",

@@ -1,0 +1,56 @@
+{
+  "export": {
+    "renderQueue": {
+      "title": "Coda di rendering",
+      "dialogTitle": "Esportazioni",
+      "tabQueue": "Coda di rendering",
+      "tabExports": "Esportazioni salvate",
+      "description": "Le esportazioni in coda vengono elaborate una alla volta e salvate nella cartella delle esportazioni della tua area di lavoro.",
+      "addToQueue": "Aggiungi alla coda",
+      "addCurrentRange": "Intervallo corrente",
+      "segmentsHeading": "Dividi in segmenti",
+      "perMarker": "Un segmento per marcatore",
+      "splitChunks": "Dividi in blocchi da {{seconds}} s",
+      "partLabel": "Segmento {{n}}",
+      "addedToast_one": "Aggiunto {{count}} lavoro alla coda di rendering",
+      "addedToast_other": "Aggiunti {{count}} lavori alla coda di rendering",
+      "noMarkers": "Aggiungi marcatori alla timeline per dividere per marcatore.",
+      "nothingToRender": "Niente da elaborare in questo intervallo.",
+      "buildFailed": "Impossibile aggiungere alla coda di rendering.",
+      "empty": "Ancora nessun lavoro di rendering. Aggiungine uno dalla finestra Esporta.",
+      "exportsEmpty": "Ancora nessun file esportato.",
+      "exportsLocation": "I file si trovano nella cartella locale di questo progetto ({{folder}}).",
+      "exportsLocationGeneric": "I file si trovano nella cartella locale di questo progetto nella tua area di lavoro.",
+      "pause": "Pausa",
+      "resume": "Riprendi",
+      "paused": "Coda in pausa — riprendi per continuare il rendering.",
+      "clearFinished": "Cancella completati",
+      "clearAll": "Cancella tutto",
+      "refresh": "Aggiorna",
+      "wholeProject": "Intero progetto",
+      "savedTo": "Salvato in {{path}}",
+      "remove": "Rimuovi",
+      "cancel": "Annulla",
+      "retry": "Riprova",
+      "moveUp": "Sposta su",
+      "moveDown": "Sposta giù",
+      "download": "Scarica",
+      "delete": "Elimina",
+      "deleted": "Eliminato {{name}}",
+      "missingFile": "File non trovato — potrebbe essere stato spostato o eliminato.",
+      "downloadFailed": "Download non riuscito.",
+      "deleteFailed": "Eliminazione non riuscita.",
+      "status": {
+        "queued": "In coda",
+        "rendering": "Rendering in corso",
+        "completed": "Fatto",
+        "failed": "Non riuscito",
+        "cancelled": "Annullato"
+      }
+    }
+  },
+  "toolbar": {
+    "renderQueue": "Coda di rendering",
+    "renderQueueAria": "Apri la coda di rendering"
+  }
+}

@@ -14,7 +14,14 @@ import {
 import { requireClip } from '../context'
 import { invalidArgumentError, studioError } from '../errors'
 import { transaction } from '../transaction'
-import type { ClipId, SmoothEditOptions, SmoothEditResult } from '../types'
+import { isShotBars, smoothEditTimeline } from '@/studio/smooth-edit/timeline'
+import type {
+  ClipId,
+  SmoothEditOptions,
+  SmoothEditResult,
+  SmoothEditTimelineOptions,
+  SmoothEditTimelineResult,
+} from '../types'
 
 const METHOD = 'clips.applySmoothEdit'
 
@@ -26,7 +33,12 @@ function requireOption(
 ): number {
   const value = options[name]
   if (value === undefined) return SMOOTH_EDIT_DEFAULTS[name]
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < range.min || value > range.max) {
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < range.min ||
+    value > range.max
+  ) {
     throw invalidArgumentError({
       method: METHOD,
       argument: `options.${name}`,
@@ -47,7 +59,10 @@ function requireOption(
  */
 export function applySmoothEdit(id: ClipId, options?: SmoothEditOptions): SmoothEditResult {
   const item = requireClip(id, METHOD, 'id')
-  if (options !== undefined && (options === null || typeof options !== 'object' || Array.isArray(options))) {
+  if (
+    options !== undefined &&
+    (options === null || typeof options !== 'object' || Array.isArray(options))
+  ) {
     throw invalidArgumentError({
       method: METHOD,
       argument: 'options',
@@ -106,4 +121,56 @@ export function applySmoothEdit(id: ClipId, options?: SmoothEditOptions): Smooth
   })
   const { keys, averageSpeed, durationInFrames, motionBlur, zoom: zoomed } = result
   return { speedCurve: keys, averageSpeed, durationInFrames, motionBlur, zoom: zoomed }
+}
+
+const TIMELINE_METHOD = 'clips.smoothEditTimeline'
+
+/**
+ * The smooth edit of the whole timeline, cut to a song: validates the options, finds the beats, then lays
+ * the clips out as one undo step (`smoothEditTimeline`, the same call the timeline's dialog makes).
+ * @throws INVALID_ARGUMENT when `options` is not an object, `bars` is not 1, 2 or 4, or `crossfade` is not a boolean
+ */
+export function applySmoothEditTimeline(
+  options?: SmoothEditTimelineOptions,
+): Promise<SmoothEditTimelineResult> {
+  if (options !== undefined && (options === null || typeof options !== 'object' || Array.isArray(options))) {
+    return Promise.reject(
+      invalidArgumentError({
+        method: TIMELINE_METHOD,
+        argument: 'options',
+        expectation: 'an object with songId, bars and crossfade, all optional',
+        value: options,
+      }),
+    )
+  }
+  const given = (options ?? {}) as Record<string, unknown>
+  try {
+    if (given.bars !== undefined && !isShotBars(given.bars)) {
+      throw invalidArgumentError({
+        method: TIMELINE_METHOD,
+        argument: 'options.bars',
+        expectation: '1, 2 or 4',
+        value: given.bars,
+      })
+    }
+    if (given.crossfade !== undefined && typeof given.crossfade !== 'boolean') {
+      throw invalidArgumentError({
+        method: TIMELINE_METHOD,
+        argument: 'options.crossfade',
+        expectation: 'a boolean',
+        value: given.crossfade,
+      })
+    }
+    if (given.songId !== undefined && typeof given.songId !== 'string') {
+      throw invalidArgumentError({
+        method: TIMELINE_METHOD,
+        argument: 'options.songId',
+        expectation: 'a clip id string',
+        value: given.songId,
+      })
+    }
+  } catch (error) {
+    return Promise.reject(error)
+  }
+  return smoothEditTimeline(options)
 }

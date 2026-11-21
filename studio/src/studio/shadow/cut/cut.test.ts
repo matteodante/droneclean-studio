@@ -21,7 +21,7 @@ const FRAME_SECONDS = 1 / 24
 const FIXTURE = readFileSync(new URL('../../../../golden/media/hevc-main10.mp4', import.meta.url))
 
 /** The kit's tiny clip repeated on its keyframe, so a window can start on a keyframe after 0. */
-async function clipWithKeyframes(copies: number): Promise<Blob> {
+async function clipWithKeyframes(copies: number, offsetSeconds = 0): Promise<Blob> {
   const input = new Input({ source: new BlobSource(new Blob([FIXTURE])), formats: ALL_FORMATS })
   try {
     const track = await input.getPrimaryVideoTrack()
@@ -38,7 +38,7 @@ async function clipWithKeyframes(copies: number): Promise<Blob> {
     await output.start()
     for (let copy = 0; copy < copies; copy++) {
       for (const packet of packets) {
-        await source.add(packet.clone({ timestamp: packet.timestamp + copy * secondsPerCopy }), {
+        await source.add(packet.clone({ timestamp: packet.timestamp + offsetSeconds + copy * secondsPerCopy }), {
           decoderConfig: decoderConfig ?? undefined,
         })
       }
@@ -148,6 +148,19 @@ describe('cutShadowPiece', () => {
     expect(types).toContain('stss')
     expect(types).not.toContain('edts')
     expect(types).not.toContain('elst')
+  })
+
+  it('cuts a range that starts at frame 0 of a file whose first frame is at one frame', async () => {
+    const source = await clipWithKeyframes(2, FRAME_SECONDS)
+    const window = await planShadowCut(source, { startFrame: 0, endFrame: 5 }, RATE)
+    const piece = await cutShadowPiece(source, window)
+
+    expect(window.startFrame).toBe(1)
+    expect(window.endFrame - window.startFrame).toBe(12)
+    const piecePackets = await packetsOf(piece)
+    expect(piecePackets).toHaveLength(12)
+    expect(piecePackets[0]?.type).toBe('key')
+    expect(Math.min(...piecePackets.map((packet) => packet.timestamp))).toBe(0)
   })
 
   it('refuses a window that does not start on a keyframe', async () => {

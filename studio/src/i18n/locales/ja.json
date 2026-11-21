@@ -27,6 +27,7 @@
       "unset": "未設定",
       "suggested": "候補: {{profile}}?",
       "apply": "適用",
+      "uncheckedDrone": "D-Log M は Avata 2 の映像に合わせて調整されています。このドローンでは色を確認していません。",
       "askTitle": "これらのDJIクリップはD-Log Mで撮影しましたか？",
       "askBody": "ファイルには記録されていません。「はい」でD-Log Mのカラープロファイルを設定します。クリップごとに変更できます。",
       "askYes": "はい、D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "エディターでエラーが起きたとき、エラーとコード内の発生箇所を、バージョンと OS とともに Sentry（EU）へ送信し、修正に役立てます。",
       "usageStats": "匿名の利用統計を送信",
       "usageStatsDescription": "いくつかの操作（アプリの起動、プロジェクト作成、書き出し完了、AI エージェントの接続、影の除去）を、このインストールのランダムな ID で PostHog（EU）に数えます。オフにすると ID は消去されます。",
+      "updateCheck": "新しいバージョンを確認",
+      "updateCheckDescription": "アプリの起動時（1日1回まで）に GitHub へ最新バージョンの番号を問い合わせ、新しいものがあれば知らせます。GitHub には IP アドレスが見えますが、あなたや作業に関する情報は送信されません。オフにすると、リクエストは一切行われません。",
+      "updateNoticeTitle": "DroneClean Studio {{version}} を入手できます",
+      "updateNoticeDownload": "ダウンロード",
+      "updateNoticeLater": "後で",
       "never": "送信しないもの：映像、フレーム、ファイル名とフォルダー名、プロジェクト名、アカウント。IP アドレスは保存されません。"
     }
   },
@@ -241,5 +247,36 @@
       "allow": "許可する",
       "decline": "許可しない"
     }
+  },
+  "docs": {
+    "title": "ドキュメント",
+    "openStudio": "DroneClean Studio を開く",
+    "home": "ホーム",
+    "searchPlaceholder": "ドキュメントを検索",
+    "searchLabel": "ドキュメントを検索",
+    "overview": "ドキュメントの概要",
+    "noMatches": "「{{query}}」に一致するページはありません。",
+    "documentation": "DroneClean Studio ドキュメント",
+    "userGuide": "DroneClean Studio ユーザーガイド",
+    "homeIntro": "セットアップ、ワークスペース、メディアの読み込み、タイムラインでの編集、書き出しから始めましょう。特定の操作、ショートカット、トラブルシューティングが必要なときは、リファレンスのページをご覧ください。",
+    "startEditing": "編集を始める",
+    "fixProblem": "問題を解決する",
+    "groups": {
+      "start": "はじめに",
+      "coreEditing": "基本の編集",
+      "creativeTools": "クリエイティブツール",
+      "output": "出力",
+      "reference": "リファレンス"
+    },
+    "groupBlurbs": {
+      "start": "ブラウザー、ワークスペース、プロジェクト、エディターのレイアウトを設定します。",
+      "coreEditing": "メディアを読み込み、タイムラインでカットし、プレビューして、クリップのプロパティを調整します。",
+      "creativeTools": "テキスト、シェイプとマスク、オーディオ、エフェクト、カラー、トランジション、キーフレーム、アニメーション、シーン、ローカル AI。",
+      "output": "ブラウザーからファイルを書き出し、待機中のレンダリングを管理します。"
+    },
+    "related": "関連ページ",
+    "notFoundTitle": "ドキュメントのページが見つかりません",
+    "notFoundText": "この URL は、公開されている DroneClean Studio のガイドに該当しません。",
+    "backToDocs": "ドキュメントに戻る"
   }
 }

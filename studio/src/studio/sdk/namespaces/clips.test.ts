@@ -25,6 +25,8 @@ import type { ClipType, ClipsApi, StabilizationPatch } from '../types'
 import { createClipsApi } from './clips'
 import { useLooksStore } from '@/studio/looks/store'
 import { NoLensProfileError, NoMotionDataError } from '@/studio/stabilization/client'
+import { analyzeMediaBeats } from '@/studio/beats/analyze'
+import { useMarkersStore } from '@/features/timeline/stores/markers-store'
 
 /** The engine the stabilization methods open clips on: a fake that answers as the real one does. */
 const fakeEngine = vi.hoisted(() => ({
@@ -50,6 +52,9 @@ vi.mock('@/studio/looks/workspace', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/studio/looks/workspace')>()),
   readLooksIndex: fakeLooksIndex.read,
 }))
+
+vi.mock('@/studio/beats/analyze', () => ({ analyzeMediaBeats: vi.fn() }))
+const analyzeBeats = vi.mocked(analyzeMediaBeats)
 
 /** Run an async call that must be rejected with a `StudioError`. */
 async function rejectedAsync(run: () => Promise<unknown>): Promise<StudioError> {
@@ -1883,7 +1888,10 @@ describe('studio.clips', () => {
       expect(result.speedCurve.map((key) => key.speed)).toEqual([4, 0.45, 0.45, 4])
       expect(result.speedCurve[result.speedCurve.length - 1]!.frame).toBe(duration)
       expect(studio.clips.getSpeedCurve('curved')!.keys).toEqual(result.speedCurve)
-      expect(studio.clips.getMotionBlur('curved')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+      expect(studio.clips.getMotionBlur('curved')).toEqual({
+        shutterDegrees: 180,
+        smoothSlowMotion: 'optical-flow',
+      })
       expect(result.zoom).toEqual({ firstFrame: 0, lastFrame: duration - 1, scale: 1.2 })
       expect(undoDepth()).toBe(depth + 1)
       expect(lastCommandType()).toBe('CLIPS_APPLY_SMOOTH_EDIT')
@@ -1980,6 +1988,116 @@ describe('studio.clips', () => {
       expect(error.argument).toBe('options.zoom')
       // Without a zoom the same clip takes the curve and the blur.
       expect(studio.clips.applySmoothEdit('c3', { zoom: 0 }).zoom).toBeNull()
+    })
+  })
+
+  describe('smoothEditTimeline', () => {
+    /** A 20 s song at 30 fps with a beat every half second from 1 s, and three clips with room to spare. */
+    function seedSongAndShots(): void {
+      useItemsStore.getState().setTracks([
+        makeTimelineTrack({ id: 'track-a1', name: 'A1', kind: 'audio', order: 0 }),
+        makeTimelineTrack({ id: 'track-v1', name: 'V1', kind: 'video', order: 1 }),
+      ])
+      useItemsStore.getState().setItems([
+        makeTimelineAudioItem({
+          id: 'song',
+          from: 0,
+          durationInFrames: 600,
+          sourceStart: 0,
+          sourceEnd: 600,
+          sourceDuration: 600,
+        }),
+        ...['s1', 's2', 's3'].map((id, index) =>
+          makeTimelineVideoItem({
+            id,
+            trackId: 'track-v1',
+            from: index * 200,
+            durationInFrames: 200,
+            sourceStart: 100,
+            sourceEnd: 300,
+            sourceDuration: 800,
+            sourceFps: 30,
+            speed: 1,
+            sourceWidth: 1920,
+            sourceHeight: 1080,
+          }),
+        ),
+      ])
+    }
+
+    beforeEach(() => {
+      useTimelineSettingsStore.getState().setFps(30)
+      useMarkersStore.getState().setMarkers([])
+      useTransitionsStore.getState().setTransitions([])
+      analyzeBeats.mockReset()
+      analyzeBeats.mockResolvedValue(Array.from({ length: 38 }, (_, index) => 1 + index * 0.5))
+      seedSongAndShots()
+    })
+
+    it('marks the beats, cuts the clips to the bars with the look and the crossfades, in one undo step', async () => {
+      const depth = undoDepth()
+
+      const result = await studio.clips.smoothEditTimeline({ bars: 1, crossfade: true })
+
+      expect(result.songId).toBe('song')
+      expect(result.firstDownbeat).toBe(30)
+      expect(result.shots).toEqual([
+        { clipId: 's1', from: 30, durationInFrames: 60 },
+        { clipId: 's2', from: 90, durationInFrames: 60 },
+        { clipId: 's3', from: 150, durationInFrames: 60 },
+      ])
+      expect(result.crossfades).toBe(2)
+      expect(undoDepth()).toBe(depth + 1)
+      expect(studio.clips.getMotionBlur('s2')?.smoothSlowMotion).toBe('optical-flow')
+    })
+
+    it('takes the longest song when none is named and answers NOT_FOUND for a clip that is not there', async () => {
+      const error = await rejectedAsync(() => studio.clips.smoothEditTimeline({ songId: 'nope' }))
+
+      expect(error.code).toBe('NOT_FOUND')
+      expect(analyzeBeats).not.toHaveBeenCalled()
+    })
+
+    it('answers UNSUPPORTED when the clip named is not an audio clip', async () => {
+      const error = await rejectedAsync(() => studio.clips.smoothEditTimeline({ songId: 's1' }))
+
+      expect(error.code).toBe('UNSUPPORTED')
+      expect(error.argument).toBe('songId')
+    })
+
+    it('answers INVALID_ARGUMENT for options out of range, leaving the project as it was', async () => {
+      const depth = undoDepth()
+      for (const options of [{ bars: 3 }, { crossfade: 'yes' }, { songId: 7 }, 'fast']) {
+        const error = await rejectedAsync(() => studio.clips.smoothEditTimeline(options as never))
+        expect(error.code).toBe('INVALID_ARGUMENT')
+      }
+      expect(undoDepth()).toBe(depth)
+    })
+
+    it('answers CONFLICT, with the hint to add a song, when the timeline has no audio clip', async () => {
+      useItemsStore.getState().setItems(useItemsStore.getState().items.filter((item) => item.type === 'video'))
+
+      const error = await rejectedAsync(() => studio.clips.smoothEditTimeline())
+
+      expect(error.code).toBe('CONFLICT')
+      expect(error.hint).toBe('Add a song to the timeline first.')
+    })
+
+    it('answers CONFLICT when the song has no beats', async () => {
+      analyzeBeats.mockResolvedValue([])
+
+      const error = await rejectedAsync(() => studio.clips.smoothEditTimeline())
+
+      expect(error.code).toBe('CONFLICT')
+      expect(useItemsStore.getState().itemById['s1']!.speedCurve).toBeUndefined()
+    })
+
+    it('answers MEDIA_UNAVAILABLE when the song cannot be decoded', async () => {
+      analyzeBeats.mockRejectedValue(new Error('decode failed'))
+
+      const error = await rejectedAsync(() => studio.clips.smoothEditTimeline())
+
+      expect(error.code).toBe('MEDIA_UNAVAILABLE')
     })
   })
 
@@ -2313,10 +2431,16 @@ describe('studio.clips', () => {
   describe('getMotionBlur', () => {
     it('sets each smooth slow motion mode with the blur and reads it back', () => {
       studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'blend' })
-      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({
+        shutterDegrees: 180,
+        smoothSlowMotion: 'blend',
+      })
 
       studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
-      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({
+        shutterDegrees: 180,
+        smoothSlowMotion: 'optical-flow',
+      })
 
       studio.clips.setMotionBlur('c1', { shutterDegrees: 180 })
       expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180 })
@@ -2324,7 +2448,10 @@ describe('studio.clips', () => {
 
     it('still takes the deprecated blendSlowMotion: true is the blend, false is off, and reads back the new field', () => {
       studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: true })
-      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'blend' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({
+        shutterDegrees: 180,
+        smoothSlowMotion: 'blend',
+      })
 
       studio.clips.setMotionBlur('c1', { shutterDegrees: 270, blendSlowMotion: false })
       expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 270 })
@@ -2335,7 +2462,11 @@ describe('studio.clips', () => {
       for (const blendSlowMotion of [true, false]) {
         const error = (() => {
           try {
-            studio.clips.setMotionBlur('c1', { shutterDegrees: 180, smoothSlowMotion: 'blend', blendSlowMotion })
+            studio.clips.setMotionBlur('c1', {
+              shutterDegrees: 180,
+              smoothSlowMotion: 'blend',
+              blendSlowMotion,
+            })
           } catch (caught) {
             return caught
           }
@@ -2345,7 +2476,9 @@ describe('studio.clips', () => {
         expect((error as Error).message).toContain('not both')
       }
       // Read from the store: this test is about setMotionBlur's refusals alone
-      expect((useItemsStore.getState().itemById['c1'] as { motionBlur?: unknown }).motionBlur).toEqual({
+      expect(
+        (useItemsStore.getState().itemById['c1'] as { motionBlur?: unknown }).motionBlur,
+      ).toEqual({
         shutterDegrees: 90,
       })
     })
@@ -2353,7 +2486,10 @@ describe('studio.clips', () => {
     it('refuses a deprecated blendSlowMotion that is not a boolean', () => {
       const error = (() => {
         try {
-          studio.clips.setMotionBlur('c1', { shutterDegrees: 180, blendSlowMotion: 'yes' as unknown as boolean })
+          studio.clips.setMotionBlur('c1', {
+            shutterDegrees: 180,
+            blendSlowMotion: 'yes' as unknown as boolean,
+          })
         } catch (caught) {
           return caught
         }
@@ -2478,25 +2614,40 @@ describe('studio.clips', () => {
         flowDetail: 'normal',
         flowEdges: 'mix',
       })
-      expect(studio.clips.getMotionBlur('c1')).toEqual({ shutterDegrees: 180, smoothSlowMotion: 'optical-flow' })
+      expect(studio.clips.getMotionBlur('c1')).toEqual({
+        shutterDegrees: 180,
+        smoothSlowMotion: 'optical-flow',
+      })
     })
 
     it.each([
-      [{ shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowDetail: 'ultra' }, '"flowDetail" "normal" or "high"'],
-      [{ shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowEdges: true }, '"flowEdges" "mix" or "nearest"'],
-      [{ shutterDegrees: 180, smoothSlowMotion: 'blend', flowDetail: 'high' }, 'only with smoothSlowMotion: "optical-flow"'],
+      [
+        { shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowDetail: 'ultra' },
+        '"flowDetail" "normal" or "high"',
+      ],
+      [
+        { shutterDegrees: 180, smoothSlowMotion: 'optical-flow', flowEdges: true },
+        '"flowEdges" "mix" or "nearest"',
+      ],
+      [
+        { shutterDegrees: 180, smoothSlowMotion: 'blend', flowDetail: 'high' },
+        'only with smoothSlowMotion: "optical-flow"',
+      ],
       [{ shutterDegrees: 180, flowEdges: 'nearest' }, 'only with smoothSlowMotion: "optical-flow"'],
-    ])('refuses the optical-flow settings %j with INVALID_ARGUMENT, naming the rule', (settings, rule) => {
-      const depth = undoDepth()
-      const error = rejected(() =>
-        studio.clips.setMotionBlur('c1', settings as unknown as { shutterDegrees: 180 }),
-      )
-      expect(error.code).toBe('INVALID_ARGUMENT')
-      expect(error.argument).toBe('settings')
-      expect(error.message).toContain(rule)
-      expect(studio.clips.getMotionBlur('c1')).toBeNull()
-      expect(undoDepth()).toBe(depth)
-    })
+    ])(
+      'refuses the optical-flow settings %j with INVALID_ARGUMENT, naming the rule',
+      (settings, rule) => {
+        const depth = undoDepth()
+        const error = rejected(() =>
+          studio.clips.setMotionBlur('c1', settings as unknown as { shutterDegrees: 180 }),
+        )
+        expect(error.code).toBe('INVALID_ARGUMENT')
+        expect(error.argument).toBe('settings')
+        expect(error.message).toContain(rule)
+        expect(studio.clips.getMotionBlur('c1')).toBeNull()
+        expect(undoDepth()).toBe(depth)
+      },
+    )
 
     it('throws NOT_FOUND for an unknown clip id', () => {
       const error = rejected(() => studio.clips.setMotionBlur('c9', null))

@@ -272,6 +272,12 @@ Transport, frame stepping, and timeline jumps. Shortcuts are recorded in the Key
 - SDK: `none`
 - Code: `src/features/settings/components/hotkey-editor.tsx`
 
+### Render preview (In to Out, or the whole timeline)
+- Where: Editor › Keyboard Shortcuts › Playback
+- Does: Enter renders the in/out range, or the whole timeline, ahead for smooth playback.
+- SDK: `studio.preview.prerender`
+- Code: `src/studio/prerender/use-prerender-shortcut.ts`
+
 ## Editing
 
 Clip edits, delete flows, and precise canvas nudging. Shortcuts are recorded in the Keyboard Shortcuts editor.

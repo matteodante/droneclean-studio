@@ -156,6 +156,15 @@ export default defineConfig({
             return 'core-logger'
           }
 
+          // A translated user guide (src/features/docs/pages/<code>/) is one chunk per
+          // language, so switching to it costs one request and the English docs stay small.
+          const docsLanguage = /\/src\/features\/docs\/pages\/([^/]+)\/[^/]+\.ts$/.exec(
+            normalizedId,
+          )
+          if (docsLanguage) {
+            return `docs-${docsLanguage[1]}`
+          }
+
           if (
             isAppShellComponent ||
             (normalizedId.includes('/src/routes/') && !normalizedId.includes('.lazy.')) ||

@@ -6,6 +6,7 @@ import type { ItemEffect } from '@/types/effects'
 import type { TimelineItem, TimelineTrack } from '@/types/timeline'
 import { MarkShadowOverlay } from '@/studio/shadow/ui/MarkShadowOverlay'
 import { StagedClipStatus } from '@/studio/preview/StagedClipStatus'
+import { usePrerenderPreview } from '@/studio/prerender/use-prerender-preview'
 import { GizmoOverlay } from './gizmo-overlay'
 import { MaskEditorContainer } from './mask-editor-container'
 import { CornerPinContainer } from './corner-pin-container'
@@ -371,6 +372,14 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
     [domTextScrubOverlayPlan, inputProps],
   )
 
+  // DroneClean: the pre-render's host, and whether playback is on a pre-rendered frame now
+  const previewReadsPrerenderedFrame = usePrerenderPreview({
+    resolvedUrls,
+    renderSize,
+    renderText: !domTextScrubOverlayPlan.enabled,
+    project,
+  })
+
   usePreviewSourceWarm({
     resolvedUrlCount: resolvedUrls.size,
     playbackVideoSourceSpans,
@@ -559,12 +568,14 @@ const VideoPreviewBase = memo(function VideoPreviewBase({
   // Waiting for the timeline-wide effect scan adds a reactive round trip that
   // makes the first neutral-EV drag look stuck until another parameter changes.
   // A frame a cleaned shadow piece answers belongs here too: the Player plays
-  // one file per clip and the piece is another one.
+  // one file per clip and the piece is another one. So does a frame playing
+  // from the pre-render cache: the cache holds pictures, not files.
   const forceFastScrubOverlay =
     showGpuEffectsOverlay ||
     isPowerWindowEditing ||
     isSpatialEffectEditing ||
-    previewReadsCleanedPiece
+    previewReadsCleanedPiece ||
+    previewReadsPrerenderedFrame
   const previousForceFastScrubOverlayRef = useRef(forceFastScrubOverlay)
 
   // The split comparison is the only render-time branch that needs playback

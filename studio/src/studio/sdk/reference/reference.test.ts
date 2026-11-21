@@ -44,6 +44,7 @@ const NAMESPACES = [
   'workspace',
   'looks',
   'shadow',
+  'preview',
 ] as const
 
 describe('the generated SDK reference', () => {

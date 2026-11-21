@@ -117,6 +117,10 @@ export const HOTKEY_EDITOR_SECTIONS: readonly HotkeyEditorSection[] = [
         labelKey: "projects.settings.hotkeys.items.nextSnapPoint",
         keys: ["NEXT_SNAP_POINT"],
       },
+      {
+        labelKey: "preview.previewRender.prerender.shortcut",
+        keys: ["RENDER_PREVIEW"],
+      },
     ],
   },
   {

@@ -102,6 +102,18 @@ scrub one media file, and the **Program monitor** is the timeline's own output.
 - SDK: `none`
 - Code: `src/features/preview/components/playback-controls.tsx`
 
+### Playback resolution
+- Where: Editor › Preview › transport, beside the proxy switch
+- Does: Sets the size the preview renders at: Full, 1/2 or 1/4; a lower one draws fewer pixels per rendered frame. Kept for the app; exports are unaffected.
+- SDK: `studio.preview.setQuality`
+- Code: `src/studio/preview/PreviewQualityMenu.tsx`
+
+### Rendering preview
+- Where: Editor › Preview › transport, while a pre-render runs
+- Does: Shows how far the pre-render is; its X cancels it and keeps the frames already rendered.
+- SDK: `studio.preview.cancelPrerender`
+- Code: `src/studio/prerender/ui/PrerenderProgress.tsx`
+
 ### Zoom: Auto
 - Where: Editor › Preview › bottom-right
 - Does: Sets the preview scale; Auto fits the frame to the panel, the menu offers fixed percentages.

@@ -27,6 +27,7 @@
       "unset": "Non défini",
       "suggested": "Suggéré : {{profile}} ?",
       "apply": "Appliquer",
+      "uncheckedDrone": "D-Log M a été calé sur des images de l'Avata 2 ; sa couleur n'a pas été vérifiée sur ce drone.",
       "askTitle": "Ces clips DJI ont-ils été filmés en D-Log M ?",
       "askBody": "Le fichier ne le dit pas. Oui leur applique le profil colorimétrique D-Log M ; vous pouvez le changer sur chaque clip.",
       "askYes": "Oui, D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "Quand l'éditeur rencontre une erreur, il envoie l'erreur et l'endroit du code où elle s'est produite, avec la version et le système, à Sentry (UE), pour qu'elle soit corrigée.",
       "usageStats": "Envoyer des statistiques d'utilisation anonymes",
       "usageStatsDescription": "Compte quelques moments (ouvrir l'app, créer un projet, terminer un export, connecter un agent IA, retirer une ombre) sous un identifiant aléatoire de cette installation, à PostHog (UE). Le désactiver oublie l'identifiant.",
+      "updateCheck": "Rechercher les nouvelles versions",
+      "updateCheckDescription": "Au démarrage de l'app (au plus une fois par jour), demande à GitHub le numéro de la dernière version et vous prévient s'il en existe une plus récente. GitHub voit votre adresse IP ; rien d'autre sur vous ou votre travail n'est envoyé. Désactivée, aucune requête n'est faite.",
+      "updateNoticeTitle": "DroneClean Studio {{version}} est disponible",
+      "updateNoticeDownload": "Télécharger",
+      "updateNoticeLater": "Plus tard",
       "never": "Jamais envoyés : vos vidéos, images, noms de fichiers et de dossiers, noms de projets ou votre compte. Votre adresse IP n'est pas conservée."
     }
   },
@@ -241,5 +247,36 @@
       "allow": "Autoriser",
       "decline": "Ne pas autoriser"
     }
+  },
+  "docs": {
+    "title": "Documentation",
+    "openStudio": "Ouvrir DroneClean Studio",
+    "home": "Accueil",
+    "searchPlaceholder": "Rechercher dans la documentation",
+    "searchLabel": "Rechercher dans la documentation",
+    "overview": "Aperçu de la documentation",
+    "noMatches": "Aucune page ne correspond à « {{query}} ».",
+    "documentation": "Documentation de DroneClean Studio",
+    "userGuide": "Guide d'utilisation de DroneClean Studio",
+    "homeIntro": "Commencez par la configuration, les espaces de travail, l'importation des médias, le montage sur la timeline et l'exportation. Utilisez les pages de référence quand vous avez besoin d'une commande précise, d'un raccourci ou d'une solution à un problème.",
+    "startEditing": "Commencer le montage",
+    "fixProblem": "Résoudre un problème",
+    "groups": {
+      "start": "Démarrage",
+      "coreEditing": "Montage de base",
+      "creativeTools": "Outils créatifs",
+      "output": "Sortie",
+      "reference": "Référence"
+    },
+    "groupBlurbs": {
+      "start": "Configurez le navigateur, l'espace de travail, les projets et la disposition de l'éditeur.",
+      "coreEditing": "Importez des médias, coupez sur la timeline, prévisualisez et réglez les propriétés des clips.",
+      "creativeTools": "Texte, formes et masques, audio, effets, couleur, transitions, images clés, animation, scènes et IA locale.",
+      "output": "Exportez des fichiers depuis le navigateur et gérez les rendus en file d'attente."
+    },
+    "related": "Voir aussi",
+    "notFoundTitle": "Page de documentation introuvable",
+    "notFoundText": "Cette adresse ne correspond à aucun guide publié de DroneClean Studio.",
+    "backToDocs": "Retour à la documentation"
   }
 }

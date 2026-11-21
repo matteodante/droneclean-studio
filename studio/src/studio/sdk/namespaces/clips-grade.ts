@@ -9,10 +9,7 @@ import { updateClipsTogether } from '@/studio/presets/batch-update'
 import { useLooksStore } from '@/studio/looks/store'
 import { DEFAULT_LOOK_INTENSITY } from '@/studio/looks/types'
 import { NoLensProfileError, NoMotionDataError } from '@/studio/stabilization/client'
-import {
-  type SmoothingMethod,
-  type StabilizationSettings,
-} from '@/studio/stabilization/settings'
+import { type SmoothingMethod, type StabilizationSettings } from '@/studio/stabilization/settings'
 import {
   applyChange,
   FRAMING_SLIDER_RANGE,

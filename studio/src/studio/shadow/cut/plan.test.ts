@@ -15,13 +15,15 @@ import { describe, expect, it } from 'vite-plus/test'
 import { planShadowCut } from './plan'
 
 const RATE = { num: 24, den: 1 }
+const FRAME_SECONDS = 1 / 24
 const FIXTURE = readFileSync(new URL('../../../../golden/media/hevc-main10.mp4', import.meta.url))
 
 /**
  * The kit's tiny clip again and again, each copy starting on the clip's keyframe: a small file
  * whose keyframes are 12 frames apart, so a range can start and end between two of them.
+ * `offsetSeconds` moves every frame later, the way a file whose first timestamp is above 0 does.
  */
-async function clipWithKeyframes(copies: number): Promise<Blob> {
+async function clipWithKeyframes(copies: number, offsetSeconds = 0): Promise<Blob> {
   const input = new Input({ source: new BlobSource(new Blob([FIXTURE])), formats: ALL_FORMATS })
   try {
     const track = await input.getPrimaryVideoTrack()
@@ -38,7 +40,7 @@ async function clipWithKeyframes(copies: number): Promise<Blob> {
     await output.start()
     for (let copy = 0; copy < copies; copy++) {
       for (const packet of packets) {
-        await source.add(packet.clone({ timestamp: packet.timestamp + copy * secondsPerCopy }), {
+        await source.add(packet.clone({ timestamp: packet.timestamp + offsetSeconds + copy * secondsPerCopy }), {
           decoderConfig: decoderConfig ?? undefined,
         })
       }
@@ -95,6 +97,19 @@ describe('planShadowCut', () => {
       endFrame: 48,
       startSeconds: 1.5,
       endSeconds: 2,
+    })
+  })
+
+  it('starts a range that begins before the first keyframe on the first keyframe', async () => {
+    // A file whose first frame sits at one frame (what composition offsets and edit lists leave),
+    // so "the last keyframe at or before 0 s" is nothing.
+    const clip = await clipWithKeyframes(4, FRAME_SECONDS)
+
+    await expect(planShadowCut(clip, { startFrame: 0, endFrame: 5 }, RATE)).resolves.toEqual({
+      startFrame: 1,
+      endFrame: 13,
+      startSeconds: FRAME_SECONDS,
+      endSeconds: 13 * FRAME_SECONDS,
     })
   })
 

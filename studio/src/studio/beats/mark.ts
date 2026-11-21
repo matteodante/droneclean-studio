@@ -49,15 +49,18 @@ export function beatFramesOnClip(
 }
 
 /**
- * Analyse the audio of a video or audio clip and add one marker per beat, as
- * one undo step. Resolves with the frames marked, in order; a frame that
- * already has a marker keeps it and is still listed.
+ * Analyse the audio of a video or audio clip and answer the project frames of its beats, in order,
+ * without writing anything. `markBeats` and the smooth edit of the whole timeline both start here;
+ * the smooth edit adds the markers itself, inside its own undo step.
  * @throws StudioError NOT_FOUND when `clipId` is not a clip of the active context
  * @throws StudioError UNSUPPORTED when the clip has no audio source (a title, an image, a shape)
  * @throws StudioError MEDIA_UNAVAILABLE when the clip's audio cannot be loaded or decoded
  */
-export async function markBeats(clipId: string, options: MarkBeatsOptions = {}): Promise<number[]> {
-  const method = 'markers.addBeats'
+export async function findBeatFrames(
+  clipId: string,
+  options: MarkBeatsOptions = {},
+  method = 'markers.addBeats',
+): Promise<number[]> {
   const item = requireClip(clipId, method, 'clipId')
   if ((item.type !== 'video' && item.type !== 'audio') || !item.mediaId) {
     throw studioError({
@@ -94,13 +97,33 @@ export async function markBeats(clipId: string, options: MarkBeatsOptions = {}):
       message: `clip ${clipId} was removed while its audio was analysed`,
     })
   }
-  const frames = beatFramesOnClip(current, times, fps)
+  return beatFramesOnClip(current, times, fps)
+}
+
+/**
+ * Add one marker for each of `frames` that has none yet, with no undo entry of its own: the caller
+ * owns the transaction. Answers the frames that got a marker.
+ */
+export function addBeatMarkers(frames: readonly number[]): number[] {
   const taken = new Set(useMarkersStore.getState().markers.map((marker) => marker.frame))
   const fresh = frames.filter((frame) => !taken.has(frame))
-  if (fresh.length > 0) {
-    transaction('MARKERS_ADD_BEATS', () => {
-      for (const frame of fresh) addMarker(frame)
-    })
+  for (const frame of fresh) addMarker(frame)
+  return fresh
+}
+
+/**
+ * Analyse the audio of a video or audio clip and add one marker per beat, as
+ * one undo step. Resolves with the frames marked, in order; a frame that
+ * already has a marker keeps it and is still listed.
+ * @throws StudioError NOT_FOUND when `clipId` is not a clip of the active context
+ * @throws StudioError UNSUPPORTED when the clip has no audio source (a title, an image, a shape)
+ * @throws StudioError MEDIA_UNAVAILABLE when the clip's audio cannot be loaded or decoded
+ */
+export async function markBeats(clipId: string, options: MarkBeatsOptions = {}): Promise<number[]> {
+  const frames = await findBeatFrames(clipId, options)
+  const taken = new Set(useMarkersStore.getState().markers.map((marker) => marker.frame))
+  if (frames.some((frame) => !taken.has(frame))) {
+    transaction('MARKERS_ADD_BEATS', () => addBeatMarkers(frames))
   }
   return frames
 }

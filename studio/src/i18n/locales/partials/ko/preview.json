@@ -68,7 +68,11 @@
       "loadingMedia": "미디어를 불러오는 중…",
       "videoPreview": "동영상 미리보기",
       "emptyTitle": "타임라인에 아직 항목이 없습니다",
-      "emptyDescription": "미디어를 가져오고 클립을 타임라인에 드래그한 다음 Space를 눌러 미리 봅니다."
+      "emptyDescription": "미디어를 가져오고 클립을 타임라인에 드래그한 다음 Space를 눌러 미리 봅니다.",
+      "gradeComparisonSplit": "분할 색 보정 비교",
+      "gradeComparisonBefore": "이전",
+      "gradeComparisonAfter": "이후",
+      "gradeComparisonWipe": "분할 비교 조정"
     },
     "zoom": {
       "ariaLabel": "확대/축소: {{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "드롭한 비디오를 검사할 수 없습니다.",
       "unableToInspectFile": "드롭한 파일을 검사할 수 없습니다.",
       "unableToImportFile": "드롭한 파일을 가져올 수 없습니다."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "재생 해상도",
+        "tooltip": "재생 해상도: {{value}}",
+        "full": "전체",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "미리보기 렌더링",
+        "renderInOut": "인 지점부터 아웃 지점까지 렌더링",
+        "renderTimeline": "타임라인 전체 렌더링",
+        "clear": "렌더링된 미리보기 삭제",
+        "shortcut": "미리보기 렌더링(인 지점부터 아웃 지점까지, 또는 타임라인 전체)",
+        "rendering": "미리보기 렌더링 중 {{percent}}%",
+        "cancel": "미리보기 렌더링 취소",
+        "barLabel": "렌더링된 미리보기",
+        "done": "미리보기를 렌더링했습니다: 타임라인 {{seconds}}초 분량을 {{took}}초 만에.",
+        "alreadyDone": "이 범위는 이미 렌더링되었습니다.",
+        "cancelled": "미리보기 렌더링을 취소했습니다. 이미 렌더링된 부분은 남습니다.",
+        "changed": "미리보기 렌더링이 중지되었습니다: 렌더링 중에 프로젝트가 바뀌었습니다. 아직 유효한 프레임은 남습니다.",
+        "full": "미리보기 렌더링이 중지되었습니다: 미리보기 캐시가 가득 찼습니다(1GB). 이미 렌더링된 부분은 남습니다.",
+        "unsupported": "이 컴퓨터는 이 크기의 렌더링된 미리보기 프레임을 저장할 수 없습니다. 미리보기는 실시간으로 유지됩니다.",
+        "error": "미리보기 렌더링 실패: {{message}}",
+        "empty": "렌더링할 것이 없습니다: 타임라인이 비어 있습니다.",
+        "busy": "미리보기 렌더링이 이미 진행 중입니다.",
+        "noPreview": "미리보기를 렌더링하려면 편집기에서 프로젝트를 여세요."
+      }
     }
   }
 }

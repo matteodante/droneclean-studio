@@ -27,6 +27,7 @@ import { pieceExpired, pieceRedownloadDeps, redownloadShadowPiece } from '../pie
 import { SignInRequiredError, type JobQuote, type ServiceConfig } from '../api/types'
 import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { isFeatureShown } from '@/studio/feature-switches'
+import type { ShadowCutErrorCode } from '../cut/errors'
 import { clipFollowCredits } from '../pricing'
 import { shadowAvailability } from './availability'
 import { CleanShadowPanel } from './CleanShadowPanel'
@@ -220,6 +221,17 @@ function PassResults({
   )
 }
 
+/** A failure as the pilot reads it: a file that cannot be cut in the pilot's language, anything else as it came. */
+function errorText(
+  t: (key: 'editor.shadowSection.cutNoVideo' | 'editor.shadowSection.cutNoKeyframe') => string,
+  message: string,
+  code: ShadowCutErrorCode | null,
+): string {
+  if (code === 'no-keyframe') return t('editor.shadowSection.cutNoKeyframe')
+  if (code === 'no-video') return t('editor.shadowSection.cutNoVideo')
+  return message
+}
+
 /** What the section has to say while a flow runs or once it has: sign-in, progress, results. */
 function ShadowStatus({
   session,
@@ -231,6 +243,7 @@ function ShadowStatus({
     stage: ShadowStage
     progress: number
     error: string | null
+    errorCode: ShadowCutErrorCode | null
     needsSignIn: boolean
     pass: { ranges: { startFrame: number; endFrame: number }[]; refundedCredits: number } | null
     quote: JobQuote | null
@@ -266,7 +279,7 @@ function ShadowStatus({
       </div>
       {session.error !== null && (
         <p className="text-destructive" data-testid="shadow-error">
-          {session.error}
+          {errorText(t, session.error, session.errorCode)}
         </p>
       )}
       {session.needsSignIn && (

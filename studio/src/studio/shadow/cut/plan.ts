@@ -1,4 +1,5 @@
-import { ALL_FORMATS, EncodedPacketSink, Input } from 'mediabunny'
+import { ALL_FORMATS, EncodedPacketSink, Input, type EncodedPacket } from 'mediabunny'
+import { ShadowCutError } from './errors'
 import { inputSourceOf } from './input-source'
 import type { ShadowCutRange, ShadowCutWindow, ShadowSource, SourceRate } from './interface'
 
@@ -37,9 +38,39 @@ function requireRate(sourceRate: SourceRate): void {
 async function trackEndSeconds(sink: EncodedPacketSink): Promise<number> {
   const last = await sink.getPacket(Infinity)
   if (!last) {
-    throw new Error('shadow cut: the video track has no packets')
+    throw new ShadowCutError('no-video')
   }
   return last.timestamp + last.duration
+}
+
+/**
+ * The keyframe the window starts on and the time it ends at.
+ *
+ * A range that begins before the file's first keyframe (its first frame, when the file's first
+ * timestamp is above 0 or its leading frames are not key frames) starts on that first keyframe:
+ * `getKeyPacket` finds nothing before it, and nothing earlier can be decoded anyway.
+ */
+async function windowKeys(
+  sink: EncodedPacketSink,
+  range: ShadowCutRange,
+  sourceRate: SourceRate,
+): Promise<{ start: EncodedPacket; endSeconds: number }> {
+  const start =
+    (await sink.getKeyPacket(frameSeconds(range.startFrame, sourceRate), {
+      verifyKeyPackets: true,
+    })) ?? (await sink.getFirstKeyPacket({ verifyKeyPackets: true }))
+  if (!start) {
+    throw new ShadowCutError('no-keyframe')
+  }
+
+  // The range's last frame sits in the GOP that starts at `lastFrameKey`; the window ends at the
+  // keyframe after that GOP, which is the range's end itself when the range ends on a keyframe.
+  const lastFrameKey =
+    (await sink.getKeyPacket(frameSeconds(range.endFrame - 1, sourceRate), {
+      verifyKeyPackets: true,
+    })) ?? start
+  const nextKey = await sink.getNextKeyPacket(lastFrameKey, { verifyKeyPackets: true })
+  return { start, endSeconds: nextKey ? nextKey.timestamp : await trackEndSeconds(sink) }
 }
 
 /**
@@ -53,8 +84,10 @@ async function trackEndSeconds(sink: EncodedPacketSink): Promise<number> {
  * source frames (one rounding of `timestamp · num / den`) and as the packets' own times, so `cut`
  * can read exactly the frames this window names.
  *
- * Throws when the source has no video track, when no keyframe is at or before the range's first
- * frame, and when the track has no packets.
+ * A range that starts before the file's first keyframe starts on that keyframe, so the window may
+ * begin after the range's first frame; the frames before it cannot be decoded and do not exist.
+ *
+ * Throws a `ShadowCutError` when the source has no video track or packets, or no keyframe at all.
  */
 export async function planShadowCut(
   file: ShadowSource,
@@ -68,26 +101,11 @@ export async function planShadowCut(
   try {
     const track = await input.getPrimaryVideoTrack()
     if (!track) {
-      throw new Error('shadow cut: the file has no video track')
+      throw new ShadowCutError('no-video')
     }
     const sink = new EncodedPacketSink(track)
 
-    const start = await sink.getKeyPacket(frameSeconds(range.startFrame, sourceRate), {
-      verifyKeyPackets: true,
-    })
-    if (!start) {
-      throw new Error(`shadow cut: no keyframe at or before source frame ${range.startFrame}`)
-    }
-
-    // The range's last frame sits in the GOP that starts at `lastFrameKey`; the window ends at the
-    // keyframe after that GOP, which is the range's end itself when the range ends on a keyframe.
-    const lastFrameKey = await sink.getKeyPacket(frameSeconds(range.endFrame - 1, sourceRate), {
-      verifyKeyPackets: true,
-    })
-    const nextKey = lastFrameKey
-      ? await sink.getNextKeyPacket(lastFrameKey, { verifyKeyPackets: true })
-      : null
-    const endSeconds = nextKey ? nextKey.timestamp : await trackEndSeconds(sink)
+    const { start, endSeconds } = await windowKeys(sink, range, sourceRate)
 
     return {
       startFrame: sourceFrame(start.timestamp, sourceRate),

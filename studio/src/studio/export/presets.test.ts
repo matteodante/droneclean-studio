@@ -40,6 +40,8 @@ describe('web presets', () => {
       'same-as-source',
       'youtube-4k',
       'instagram-reel',
+      'tiktok',
+      'youtube-shorts',
       'small-file',
     ])
   })
@@ -68,7 +70,7 @@ describe('web presets', () => {
     const ctx = context({ capabilities: desktop })
     expect(resolvePilotPreset('master-prores', ctx)?.nativeFormat).toBe('prores-422-hq')
     expect(resolvePilotPreset('master-hevc-10bit', ctx)?.nativeFormat).toBe('hevc-main10')
-    for (const id of ['same-as-source', 'youtube-4k', 'instagram-reel', 'small-file'] as const) {
+    for (const id of ['same-as-source', 'youtube-4k', 'instagram-reel', 'tiktok', 'youtube-shorts', 'small-file'] as const) {
       expect(resolvePilotPreset(id, ctx)?.nativeFormat).toBeUndefined()
     }
   })
@@ -76,7 +78,7 @@ describe('web presets', () => {
   it('offers only the masters whose format the native encoder can write', () => {
     const only = (nativeFormats: Array<'hevc-main10' | 'prores-422-hq'>) =>
       getPilotPresets(context({ capabilities: { nativeEncoder: true, nativeFormats } })).map((p) => p.id)
-    const web = ['same-as-source', 'youtube-4k', 'instagram-reel', 'small-file']
+    const web = ['same-as-source', 'youtube-4k', 'instagram-reel', 'tiktok', 'youtube-shorts', 'small-file']
     expect(only(['hevc-main10'])).toEqual([...web, 'master-hevc-10bit'])
     expect(only(['prores-422-hq'])).toEqual([...web, 'master-prores'])
     expect(only([])).toEqual(web)
@@ -102,11 +104,11 @@ describe('web presets', () => {
     expect(prores?.settings.videoBitrate).toBe(500_000_000)
   })
 
-  it('every web preset is 8-bit, H.265 but for the Instagram Reel, which Instagram reliably ingests as H.264', () => {
+  it('every web preset is 8-bit, H.265 but for the vertical ones (Reel, TikTok, Shorts), which are H.264', () => {
     for (const { id } of getPilotPresets(context())) {
       const { resolved } = exported(id, context())
       expect(resolved.numbers.bitDepth).toBe(8)
-      expect(resolved.settings.codec).toBe(id === 'instagram-reel' ? 'h264' : 'h265')
+      expect(resolved.settings.codec).toBe(['instagram-reel', 'tiktok', 'youtube-shorts'].includes(id) ? 'h264' : 'h265')
     }
   })
 
@@ -114,6 +116,8 @@ describe('web presets', () => {
     expect(getPilotPresets(context({ source: undefined })).map((p) => p.id)).toEqual([
       'youtube-4k',
       'instagram-reel',
+      'tiktok',
+      'youtube-shorts',
       'small-file',
     ])
     expect(resolvePilotPreset('same-as-source', context({ source: undefined }))).toBeNull()
@@ -149,6 +153,46 @@ describe('Instagram Reel', () => {
   it('scales a 4K vertical project to 1080x1920 and turns the frame for a landscape one', () => {
     expect(exported('instagram-reel', vertical(2160, 3840, 30)).client.resolution).toEqual({ width: 1080, height: 1920 })
     expect(exported('instagram-reel', context()).client.resolution).toEqual({ width: 1920, height: 1080 })
+  })
+})
+
+describe('TikTok and YouTube Shorts', () => {
+  const vertical = (width: number, height: number, fps: number) =>
+    context({ project: { width, height, fps }, source: undefined })
+
+  it('are 1080x1920 H.264 MP4, TikTok at 16 Mbps (60 fps) or 10 (30 fps), Shorts at the published 12 or 8', () => {
+    for (const [id, fast, slow] of [
+      ['tiktok', 16_000_000, 10_000_000],
+      ['youtube-shorts', 12_000_000, 8_000_000],
+    ] as const) {
+      const at60 = exported(id, vertical(2160, 3840, 60))
+      expect(at60.client.resolution).toEqual({ width: 1080, height: 1920 })
+      expect(at60.client.codec).toBe('avc')
+      expect(at60.client.container).toBe('mp4')
+      expect(at60.resolved.numbers).toMatchObject({ fps: 60, bitrate: fast, bitDepth: 8 })
+      expect(exported(id, vertical(1080, 1920, 30)).resolved.numbers.bitrate).toBe(slow)
+    }
+  })
+
+  it('keep the project frame rate, up to 60, and turn the frame for a landscape project', () => {
+    expect(exported('tiktok', vertical(1080, 1920, 59.94)).resolved.numbers.fps).toBe(59.94)
+    expect(exported('youtube-shorts', context()).client.resolution).toEqual({ width: 1920, height: 1080 })
+  })
+
+  it('state their audio: 128 kbps AAC for TikTok, YouTube\'s 384 kbps stereo for Shorts', () => {
+    expect(resolvePilotPreset('tiktok', context())?.settings.audioBitrate).toBe('128k')
+    expect(resolvePilotPreset('youtube-shorts', context())?.settings.audioBitrate).toBe('384k')
+  })
+
+  it('stay distinguishable from the Reel and from each other, so the dialog marks the right one', () => {
+    for (const fps of [30, 60]) {
+      const ctx = vertical(1080, 1920, fps)
+      for (const id of ['instagram-reel', 'tiktok', 'youtube-shorts'] as const) {
+        const { resolved } = exported(id, ctx)
+        const settings = { ...resolved.settings } as ExportSettings
+        expect(findActivePilotPresetId('mp4', settings, ctx)).toBe(id)
+      }
+    }
   })
 })
 
@@ -261,12 +305,14 @@ describe('Custom detection', () => {
 })
 
 describe('audio bitrate of the presets', () => {
-  it('the Instagram Reel states AAC at 128 kbps (Meta) and every other preset states none', () => {
+  it('the Reel and TikTok state AAC at 128 kbps, Shorts 384 kbps (YouTube), every other preset none', () => {
+    const stated: Record<string, string> = { 'instagram-reel': '128k', tiktok: '128k', 'youtube-shorts': '384k' }
+    const read: Record<string, number> = { 'instagram-reel': 128_000, tiktok: 128_000, 'youtube-shorts': 384_000 }
     for (const { id } of getPilotPresets(context())) {
       const { resolved, client } = exported(id, context())
-      expect(resolved.settings.audioBitrate).toBe(id === 'instagram-reel' ? '128k' : undefined)
-      // ...and the renderer reads it: 128 kbps for the Reel, the usual 192 kbps otherwise.
-      expect(client.audioBitrate).toBe(id === 'instagram-reel' ? 128_000 : 192_000)
+      expect(resolved.settings.audioBitrate).toBe(stated[id])
+      // ...and the renderer reads it; the usual 192 kbps otherwise.
+      expect(client.audioBitrate).toBe(read[id] ?? 192_000)
       // The key is present either way, so the dialog's merge clears an earlier preset's 128k.
       expect(Object.keys(resolved.settings)).toContain('audioBitrate')
     }

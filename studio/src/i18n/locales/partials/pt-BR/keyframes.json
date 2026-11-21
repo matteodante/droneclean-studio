@@ -70,6 +70,16 @@
         "easeInOut": "Entrada/saída suave",
         "easeOut": "Saída suave"
       },
+      "editLane": {
+        "property": "Propriedade do quadro-chave",
+        "position": "Posição",
+        "scale": "Escala",
+        "anchor": "Âncora",
+        "previous": "Quadro-chave anterior",
+        "next": "Próximo quadro-chave",
+        "show": "Mostrar o painel de quadros-chave",
+        "hide": "Ocultar o painel de quadros-chave"
+      },
       "holdHint": "O valor é mantido até o próximo quadro-chave.",
       "unhold": "Não manter",
       "legend": {

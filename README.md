@@ -5,6 +5,19 @@
 <h1 align="center">DroneClean Studio</h1>
 
 <p align="center">
+  <strong>English</strong> &nbsp;·&nbsp;
+  <a href="README.it.md">Italiano</a> &nbsp;·&nbsp;
+  <a href="README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="README.fr.md">Français</a> &nbsp;·&nbsp;
+  <a href="README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="README.pt-BR.md">Português (Brasil)</a> &nbsp;·&nbsp;
+  <a href="README.tr.md">Türkçe</a> &nbsp;·&nbsp;
+  <a href="README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="README.ko.md">한국어</a> &nbsp;·&nbsp;
+  <a href="README.zh.md">简体中文</a>
+</p>
+
+<p align="center">
   <strong>A free, local-first video editor for FPV and drone pilots.</strong><br>
   Gyro stabilization, D-Log M colour, smooth speed ramps with optical-flow slow motion, and an MCP server for AI agents.
 </p>
@@ -117,7 +130,7 @@ and FFmpeg).
 | `studio/web/` | The static server of the web editor. |
 | `gyroflow/` | A fork of [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` builds its engine for the editor. |
 
-This repository is published by the release process: each release is one commit, tagged `v0.1.8` for this one.
+This repository is published by the release process: each release is one commit, tagged `v0.1.9` for this one.
 
 ## Contributing and security
 

@@ -26,6 +26,7 @@ import { createFakeCloud, type FakeCloudOptions } from '../api/__fixtures__/fake
 import { createDroneCleanClient } from '../api/client'
 import { createMemorySession } from '../api/session'
 import type { Job } from '../api/types'
+import { ShadowCutError } from '../cut/errors'
 import type { ShadowCutter, ShadowCutRange, SourceRate } from '../cut/interface'
 import type { ShadowPendingClean, ShadowRemoval } from '../model'
 import {
@@ -492,6 +493,27 @@ describe('the shadow session', () => {
     // The pass and its price survive: the press can be tried again.
     expect(useShadowSessionStore.getState().pass?.jobId).toBe(TRACK_JOB_ID)
     expect(useShadowSessionStore.getState().quote).toEqual(QUOTE)
+  })
+
+  it('tells a file with no keyframe in plain words, and sends and spends nothing', async () => {
+    const { server, plan, cut } = setup()
+    plan.mockRejectedValueOnce(new ShadowCutError('no-keyframe'))
+
+    await useShadowSessionStore.getState().track(clip({ sourceStart: 3330, sourceEnd: 3930 }))
+
+    const state = useShadowSessionStore.getState()
+    expect(state.stage).toBe('idle')
+    expect(state.errorCode).toBe('no-keyframe')
+    expect(state.error).not.toMatch(/shadow cut/)
+    expect(state.pass).toBeNull()
+    expect(cut).not.toHaveBeenCalled()
+    expect(server.to('/v1/uploads')).toHaveLength(0)
+    expect(server.to('/v1/jobs')).toHaveLength(0)
+
+    // The next press starts clean: the code goes with the failure.
+    await useShadowSessionStore.getState().track(clip({ sourceStart: 3330, sourceEnd: 3930 }))
+    expect(useShadowSessionStore.getState().errorCode).toBeNull()
+    expect(useShadowSessionStore.getState().pass).not.toBeNull()
   })
 
   it('stops a pass the balance cannot cover before anything is cut or uploaded, with the API’s words', async () => {

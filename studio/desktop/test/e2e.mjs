@@ -158,6 +158,14 @@ async function launch() {
     observations[`exit${Object.keys(observations).filter((key) => key.startsWith('exit')).length + 1}`] = { code, signal }
   })
   await page.waitForURL(/^droneclean:\/\/app\//, { timeout: 60000 })
+  // The interface follows the machine's language (Italian joined in 0.1.9, and the test Mac is Italian); these checks
+  // find buttons by their English names, so the app runs in English: set once per profile, then reloaded before
+  // anything is drawn. Later launches of the same profile start in English.
+  if ((await page.evaluate(() => localStorage.getItem('freecut-language'))) !== 'en') {
+    await page.evaluate(() => localStorage.setItem('freecut-language', 'en'))
+    await page.reload()
+    await page.waitForURL(/^droneclean:\/\/app\//, { timeout: 60000 })
+  }
   try {
     await page.waitForFunction(() => (document.getElementById('root')?.childElementCount ?? 0) > 0, null, {
       timeout: 120000,

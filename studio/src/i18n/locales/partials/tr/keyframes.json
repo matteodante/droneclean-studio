@@ -70,6 +70,16 @@
         "easeInOut": "Yavaş Giriş/Çıkış",
         "easeOut": "Yavaş Çıkış"
       },
+      "editLane": {
+        "property": "Anahtar kare özelliği",
+        "position": "Konum",
+        "scale": "Ölçek",
+        "anchor": "Çapa",
+        "previous": "Önceki anahtar kare",
+        "next": "Sonraki anahtar kare",
+        "show": "Anahtar kare panelini göster",
+        "hide": "Anahtar kare panelini gizle"
+      },
       "holdHint": "Değer bir sonraki anahtar kareye kadar korunur.",
       "unhold": "Tutmayı bırak",
       "legend": {

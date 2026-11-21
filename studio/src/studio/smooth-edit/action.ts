@@ -28,6 +28,8 @@ import { canHoldMotionBlur, DEFAULT_SHUTTER_DEGREES } from '@/studio/motion-blur
 import type { MotionBlurSettings } from '@/studio/motion-blur/types'
 import { applySpeedCurve, canHoldSpeedCurve } from '@/studio/speed/actions'
 import { averageSpeed, type SpeedKey } from '@/studio/speed/curve'
+import { normalizeSpeedCurve } from '@/studio/speed/normalize'
+import { toRate } from '@/studio/time'
 import { SMOOTH_EDIT_DEFAULTS, SMOOTH_EDIT_MIN_FRAMES, smoothEditCurve } from './curve'
 
 /** What the recipe takes; every field is optional and defaults to {@link SMOOTH_EDIT_DEFAULTS}. */
@@ -66,6 +68,33 @@ export function canHoldSmoothEdit(item: TimelineItem): boolean {
     canHoldSpeedCurve(item) &&
     canHoldMotionBlur(item) &&
     Math.round(item.durationInFrames) >= SMOOTH_EDIT_MIN_FRAMES
+  )
+}
+
+/**
+ * The length, in frames, the recipe leaves a clip with: what `applySpeedCurve` computes for a clip of
+ * `startFrames` frames that plays `sourceSpanFrames` source frames. Answered without touching a store, so
+ * the smooth edit of a whole timeline can pick the footage that ends a shot on its beat; a test holds it
+ * equal to the real action.
+ */
+export function smoothEditLength(
+  startFrames: number,
+  sourceSpanFrames: number,
+  sourceFps: number,
+  projectFps: number,
+  options: SmoothEditInput = {},
+): number {
+  const peak = options.peak ?? SMOOTH_EDIT_DEFAULTS.peak
+  const slow = options.slow ?? SMOOTH_EDIT_DEFAULTS.slow
+  const shape = normalizeSpeedCurve(smoothEditCurve(startFrames, peak, slow), startFrames)
+  if (shape === undefined) return Math.round(startFrames)
+  const source = toRate(sourceFps)
+  const project = toRate(projectFps)
+  return Math.max(
+    1,
+    Math.round(
+      (sourceSpanFrames * source.den * project.num) / (averageSpeed(shape) * source.num * project.den),
+    ),
   )
 }
 

@@ -23,6 +23,7 @@ import { createMarkersApi } from './namespaces/markers'
 import { createMediaApi } from './namespaces/media'
 import { createSubclipsApi } from './namespaces/subclips'
 import { createPlaybackApi } from './namespaces/playback'
+import { createPreviewApi } from './namespaces/preview'
 import { createProjectApi } from './namespaces/project'
 import { createSelectionApi } from './namespaces/selection'
 import { createTitlesApi } from './namespaces/titles'
@@ -39,7 +40,7 @@ import type { SdkReference, Studio } from './types'
 const SDK_REFERENCE = sdkReferenceJson as SdkReference
 
 /**
- * Create the editor SDK: the seventeen namespaces over the editor's stores, the
+ * Create the editor SDK: the eighteen namespaces over the editor's stores, the
  * format version, the transaction helper and the generated reference.
  * @example const studio = createStudio(); studio.clips.list()
  */
@@ -63,6 +64,7 @@ export function createStudio(): Studio {
     workspace: createWorkspaceApi(),
     looks: createLooksApi(),
     shadow: createShadowApi(),
+    preview: createPreviewApi(),
     transaction(label, fn) {
       return transaction(label, () => fn(studio))
     },

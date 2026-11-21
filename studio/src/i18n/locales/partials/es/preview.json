@@ -68,7 +68,11 @@
       "loadingMedia": "Cargando medios…",
       "videoPreview": "Previsualización de vídeo",
       "emptyTitle": "Aún no hay nada en la línea de tiempo",
-      "emptyDescription": "Importa medios, arrastra un clip a la línea de tiempo y pulsa Espacio para previsualizar."
+      "emptyDescription": "Importa medios, arrastra un clip a la línea de tiempo y pulsa Espacio para previsualizar.",
+      "gradeComparisonSplit": "Comparación de etalonaje dividida",
+      "gradeComparisonBefore": "Antes",
+      "gradeComparisonAfter": "Después",
+      "gradeComparisonWipe": "Ajustar la comparación dividida"
     },
     "zoom": {
       "ariaLabel": "Nivel de zoom: {{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "No se pudo inspeccionar el video soltado.",
       "unableToInspectFile": "No se pudo inspeccionar el archivo soltado.",
       "unableToImportFile": "No se pudo importar el archivo soltado."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Resolución de reproducción",
+        "tooltip": "Resolución de reproducción: {{value}}",
+        "full": "Completa",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Renderizar vista previa",
+        "renderInOut": "Renderizar de entrada a salida",
+        "renderTimeline": "Renderizar toda la línea de tiempo",
+        "clear": "Eliminar la vista previa renderizada",
+        "shortcut": "Renderizar vista previa (de entrada a salida, o toda la línea de tiempo)",
+        "rendering": "Renderizando vista previa {{percent}} %",
+        "cancel": "Cancelar el renderizado de la vista previa",
+        "barLabel": "Vista previa renderizada",
+        "done": "Vista previa renderizada: {{seconds}} s de línea de tiempo en {{took}} s.",
+        "alreadyDone": "Este intervalo ya está renderizado.",
+        "cancelled": "Renderizado de la vista previa cancelado. La parte ya renderizada se conserva.",
+        "changed": "Renderizado de la vista previa detenido: el proyecto cambió mientras se renderizaba. Los fotogramas aún válidos se conservan.",
+        "full": "Renderizado de la vista previa detenido: la caché de la vista previa está llena (1 GB). La parte ya renderizada se conserva.",
+        "unsupported": "Este equipo no puede guardar fotogramas renderizados a este tamaño. La vista previa sigue en directo.",
+        "error": "El renderizado de la vista previa falló: {{message}}",
+        "empty": "Nada que renderizar: la línea de tiempo está vacía.",
+        "busy": "Ya hay un renderizado de la vista previa en curso.",
+        "noPreview": "Abre el proyecto en el editor para renderizar su vista previa."
+      }
     }
   }
 }

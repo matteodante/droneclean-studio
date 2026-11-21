@@ -70,6 +70,16 @@
         "easeInOut": "Ease In/Out",
         "easeOut": "Ease Out"
       },
+      "editLane": {
+        "property": "Keyframe-Eigenschaft",
+        "position": "Position",
+        "scale": "Skalierung",
+        "anchor": "Anker",
+        "previous": "Vorheriger Keyframe",
+        "next": "Nächster Keyframe",
+        "show": "Keyframe-Bereich anzeigen",
+        "hide": "Keyframe-Bereich ausblenden"
+      },
       "holdHint": "Der Wert wird bis zum nächsten Keyframe gehalten.",
       "unhold": "Halten aufheben",
       "legend": {

@@ -41,7 +41,10 @@ function checkAddInput(input: LookAddInput | undefined): LookAddInput {
   }
   const file = typeof fileName === 'string' ? fileName.trim() : ''
   if (!/^.+\.cube$/i.test(file)) {
-    throw invalid('fileName', `"fileName" must be a file name ending in .cube (got ${JSON.stringify(fileName)})`)
+    throw invalid(
+      'fileName',
+      `"fileName" must be a file name ending in .cube (got ${JSON.stringify(fileName)})`,
+    )
   }
   if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) {
     throw invalid('name', '"name" must be a non-empty string when given')
@@ -125,7 +128,8 @@ export function createLooksApi(): LooksApi {
       const { text, fileName, name } = checkAddInput(input)
       const entry = await useLooksStore.getState().add({ text, fileName })
       if (!entry) throw addFailure(useLooksStore.getState().error)
-      if (name !== undefined && name !== entry.name) await useLooksStore.getState().rename(entry.id, name)
+      if (name !== undefined && name !== entry.name)
+        await useLooksStore.getState().rename(entry.id, name)
       const stored = useLooksStore.getState().looks.find((look) => look.id === entry.id) ?? entry
       return info(stored)
     },

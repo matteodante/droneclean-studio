@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * The SDK's entry point (design §4.8): one object with the seventeen namespaces
+ * The SDK's entry point (design §4.8): one object with the eighteen namespaces
  * of `types.ts`, the format version, the transaction helper and the reference.
  *
  * The methods each namespace must have are read from `types.ts` itself, the
@@ -35,6 +35,7 @@ const NAMESPACES = [
   'workspace',
   'looks',
   'shadow',
+  'preview',
 ] as const
 
 /** The interface `types.ts` declares for one namespace (`project` -> `ProjectApi`). */
@@ -66,7 +67,7 @@ function resetStores(): void {
 describe('createStudio', () => {
   beforeEach(resetStores)
 
-  it('carries the seventeen namespaces with exactly the methods types.ts declares', () => {
+  it('carries the eighteen namespaces with exactly the methods types.ts declares', () => {
     const studio = createStudio()
 
     expect(Object.keys(studio).sort()).toEqual(

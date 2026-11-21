@@ -8,6 +8,7 @@ import {
   Output,
 } from 'mediabunny'
 import type { EncodedPacket, InputVideoTrack } from 'mediabunny'
+import { ShadowCutError } from './errors'
 import { inputSourceOf } from './input-source'
 import type { ShadowCutWindow, ShadowCutter, ShadowSource } from './interface'
 import { planShadowCut } from './plan'
@@ -40,9 +41,7 @@ async function windowKeyframe(
     verifyKeyPackets: true,
   })
   if (!first) {
-    throw new Error(
-      `shadow cut: no keyframe at or before ${window.startSeconds} s, the window's start`,
-    )
+    throw new ShadowCutError('no-keyframe')
   }
   if (Math.abs(first.timestamp - window.startSeconds) > START_TOLERANCE_SECONDS) {
     throw new Error(
@@ -74,7 +73,7 @@ async function startOutput(
 ): Promise<StartedOutput> {
   const codec = await track.getCodec()
   if (!codec) {
-    throw new Error('shadow cut: the video track has no codec')
+    throw new ShadowCutError('no-video')
   }
   const frames = window.endFrame - window.startFrame
   const frameSeconds = (window.endSeconds - window.startSeconds) / frames
@@ -158,7 +157,7 @@ export async function cutShadowPiece(file: ShadowSource, window: ShadowCutWindow
   try {
     const track = await input.getPrimaryVideoTrack()
     if (!track) {
-      throw new Error('shadow cut: the file has no video track')
+      throw new ShadowCutError('no-video')
     }
     const first = await windowKeyframe(track, window)
     const started = await startOutput(track, window)

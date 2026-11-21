@@ -27,6 +27,7 @@
       "unset": "설정 안 됨",
       "suggested": "추천: {{profile}}?",
       "apply": "적용",
+      "uncheckedDrone": "D-Log M은 Avata 2 영상에 맞춰 조정되었으며, 이 드론에서는 색을 확인하지 않았습니다.",
       "askTitle": "이 DJI 클립을 D-Log M으로 촬영했나요?",
       "askBody": "파일에는 표시되지 않습니다. 예를 누르면 D-Log M 색상 프로필이 설정되며, 클립마다 바꿀 수 있습니다.",
       "askYes": "예, D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "편집기에서 오류가 나면 오류와 코드상의 발생 위치를 버전, 운영체제와 함께 Sentry(EU)로 보내 고칠 수 있게 합니다.",
       "usageStats": "익명 사용 통계 보내기",
       "usageStatsDescription": "몇 가지 순간(앱 열기, 프로젝트 만들기, 내보내기 완료, AI 에이전트 연결, 그림자 제거)을 이 설치의 무작위 ID로 PostHog(EU)에 셉니다. 끄면 ID를 잊습니다.",
+      "updateCheck": "새 버전 확인",
+      "updateCheckDescription": "앱을 시작할 때(하루 최대 한 번) GitHub에 최신 버전 번호를 물어보고, 더 새로운 버전이 있으면 알려 줍니다. GitHub에는 IP 주소가 보이며, 사용자나 작업에 관한 다른 정보는 보내지 않습니다. 끄면 요청을 전혀 보내지 않습니다.",
+      "updateNoticeTitle": "DroneClean Studio {{version}} 버전을 사용할 수 있습니다",
+      "updateNoticeDownload": "다운로드",
+      "updateNoticeLater": "나중에",
       "never": "보내지 않는 것: 영상, 프레임, 파일·폴더 이름, 프로젝트 이름, 계정. IP 주소는 저장되지 않습니다."
     }
   },
@@ -241,5 +247,36 @@
       "allow": "허용",
       "decline": "허용 안 함"
     }
+  },
+  "docs": {
+    "title": "문서",
+    "openStudio": "DroneClean Studio 열기",
+    "home": "홈",
+    "searchPlaceholder": "문서 검색",
+    "searchLabel": "문서 검색",
+    "overview": "문서 개요",
+    "noMatches": "“{{query}}”와 일치하는 페이지가 없습니다.",
+    "documentation": "DroneClean Studio 문서",
+    "userGuide": "DroneClean Studio 사용 설명서",
+    "homeIntro": "설정, 작업 공간, 미디어 가져오기, 타임라인 편집, 내보내기부터 시작하세요. 특정 컨트롤이나 단축키, 문제 해결 방법이 필요할 때는 참조 페이지를 이용하세요.",
+    "startEditing": "편집 시작",
+    "fixProblem": "문제 해결",
+    "groups": {
+      "start": "시작하기",
+      "coreEditing": "기본 편집",
+      "creativeTools": "크리에이티브 도구",
+      "output": "출력",
+      "reference": "참조"
+    },
+    "groupBlurbs": {
+      "start": "브라우저, 작업 공간, 프로젝트, 편집기 레이아웃을 설정합니다.",
+      "coreEditing": "미디어를 가져오고, 타임라인에서 자르고, 미리 보고, 클립 속성을 조정합니다.",
+      "creativeTools": "텍스트, 도형과 마스크, 오디오, 효과, 색상, 전환, 키프레임, 애니메이션, 장면, 로컬 AI.",
+      "output": "브라우저에서 파일을 내보내고 대기 중인 렌더링을 관리합니다."
+    },
+    "related": "관련 문서",
+    "notFoundTitle": "문서 페이지를 찾을 수 없습니다",
+    "notFoundText": "이 주소는 게시된 DroneClean Studio 가이드와 일치하지 않습니다.",
+    "backToDocs": "문서로 돌아가기"
   }
 }

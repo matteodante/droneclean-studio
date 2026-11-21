@@ -104,6 +104,35 @@
       "unableToInspectVideo": "Unable to inspect dropped video.",
       "unableToInspectFile": "Unable to inspect dropped file.",
       "unableToImportFile": "Unable to import dropped file."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Playback resolution",
+        "tooltip": "Playback resolution: {{value}}",
+        "full": "Full",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Render preview",
+        "renderInOut": "Render In to Out",
+        "renderTimeline": "Render the whole timeline",
+        "clear": "Delete rendered preview",
+        "shortcut": "Render preview (In to Out, or the whole timeline)",
+        "rendering": "Rendering preview {{percent}}%",
+        "cancel": "Cancel the preview render",
+        "barLabel": "Rendered preview",
+        "done": "Preview rendered: {{seconds}} s of timeline in {{took}} s.",
+        "alreadyDone": "This range is already rendered.",
+        "cancelled": "Preview render cancelled. The part already rendered stays.",
+        "changed": "Preview render stopped: the project changed while it ran. The frames still valid stay.",
+        "full": "Preview render stopped: the preview cache is full (1 GB). The part already rendered stays.",
+        "unsupported": "This computer can't store rendered preview frames at this size. The preview stays live.",
+        "error": "Preview render failed: {{message}}",
+        "empty": "Nothing to render: the timeline is empty.",
+        "busy": "A preview render is already running.",
+        "noPreview": "Open the project in the editor to render its preview."
+      }
     }
   }
 }

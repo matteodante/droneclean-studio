@@ -15,6 +15,7 @@ export interface AppLanguage {
 
 export const SUPPORTED_LANGUAGES: readonly AppLanguage[] = [
   { code: 'en', nativeName: 'English', englishName: 'English', dir: 'ltr' },
+  { code: 'it', nativeName: 'Italiano', englishName: 'Italian', dir: 'ltr' },
   { code: 'es', nativeName: 'Español', englishName: 'Spanish', dir: 'ltr' },
   { code: 'fr', nativeName: 'Français', englishName: 'French', dir: 'ltr' },
   { code: 'de', nativeName: 'Deutsch', englishName: 'German', dir: 'ltr' },

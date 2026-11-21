@@ -70,6 +70,16 @@
         "easeInOut": "缓入缓出",
         "easeOut": "缓出"
       },
+      "editLane": {
+        "property": "关键帧属性",
+        "position": "位置",
+        "scale": "缩放",
+        "anchor": "锚点",
+        "previous": "上一个关键帧",
+        "next": "下一个关键帧",
+        "show": "显示关键帧面板",
+        "hide": "隐藏关键帧面板"
+      },
       "holdHint": "保持该值直到下一个关键帧。",
       "unhold": "取消保持",
       "legend": {

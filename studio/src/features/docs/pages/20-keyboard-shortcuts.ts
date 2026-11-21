@@ -108,6 +108,7 @@ const page = {
           rows: [
             ['Mark In / Out', '`I` / `O`'],
             ['Clear In/Out', '`Alt+X`'],
+            ['Render preview (In to Out, or the whole timeline)', '`Enter`'],
             ['Insert / Overwrite edit', '`,` / `.`'],
             ['Save', '`Ctrl+S`'],
             ['Export', '`Ctrl+Shift+E`'],

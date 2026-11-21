@@ -77,6 +77,10 @@
       "qualityMedium": "보통",
       "qualityUltra": "최고",
       "quicktimeMov": "QuickTime MOV",
+      "rateControl": "비트레이트 제어",
+      "rateControlAuto": "자동 (원본 기준)",
+      "rateControlCbr": "CBR (고정 비트레이트)",
+      "rateControlVbr": "VBR (가변 비트레이트)",
       "renderWholeProject": "프로젝트 전체 렌더링",
       "resolution": "해상도",
       "resolutionSameAsProject": "프로젝트와 동일 ({{width}}×{{height}})",
@@ -86,6 +90,12 @@
       "selectQuality": "품질 선택",
       "selectResolution": "해상도 선택",
       "sequence": "시퀀스",
+      "targetBitrate": "목표 비트레이트",
+      "useSourceBitrate": "원본 사용",
+      "smartCopy": "가능하면 스마트 복사",
+      "smartCopyPath": "스마트 복사 · 재인코딩 없음",
+      "estimatedSize": "예상 {{size}}",
+      "sourceBitrate": "원본 {{bitrate}} Mbps",
       "subtitleMode": {
         "off": "끄기",
         "burn": "굽기",
@@ -99,11 +109,24 @@
       "subtitles": "자막",
       "video": "동영상",
       "smartCopyStatus": {
-        "shadow-pieces": "클립의 일부가 DroneClean 그림자 제거로 정리되어 사용할 수 없습니다."
+        "eligible": "사용 가능: 원본 미디어가 바이트 단위로 그대로 복사됩니다.",
+        "disabled": "사용 안 함. 타임라인이 렌더링되고 인코딩됩니다.",
+        "not-video": "비디오 내보내기에서만 사용할 수 있습니다.",
+        "range": "인/아웃 구간을 내보낼 때는 사용할 수 없습니다.",
+        "timeline-layout": "추가 레이어가 없는 전체 원본 클립 하나가 필요합니다.",
+        "source-unavailable": "원본 소스 파일 또는 메타데이터를 사용할 수 없습니다.",
+        "trimmed-or-retimed": "원본이 잘리거나 분할, 반전 또는 속도 변경되어 사용할 수 없습니다.",
+        "shadow-pieces": "클립의 일부가 DroneClean 그림자 제거로 정리되어 사용할 수 없습니다.",
+        "visual-processing": "시각 편집, 자막, 트랜지션 또는 키프레임을 렌더링해야 하므로 사용할 수 없습니다.",
+        "audio-processing": "오디오 또는 트랙 믹스가 변경되어 사용할 수 없습니다.",
+        "project-mismatch": "프로젝트 해상도 또는 프레임 속도가 원본과 일치하지 않습니다.",
+        "format-mismatch": "선택한 포맷 또는 코덱이 원본과 일치하지 않습니다."
       },
       "presetSameAsSource": "원본과 동일",
       "presetYoutube4k": "YouTube 4K",
       "presetInstagramReel": "Instagram 릴스",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
       "presetSmallFile": "작은 파일(공유용)",
       "presetMasterProres": "마스터 ProRes",
       "presetMasterHevc10": "마스터 HEVC 10비트",
@@ -120,6 +143,7 @@
       "checking": "내보내기 사전 점검 중…",
       "title": "내보내기 사전 점검",
       "workerPath": "워커 경로",
+      "smartCopyPath": "스마트 복사 경로",
       "fallback": "메인 스레드 폴백",
       "checks": {
         "empty-range": {
@@ -150,6 +174,10 @@
         "video-codec-supported": {
           "title": "비디오 코덱 지원됨",
           "detail": "{{codec}}은(는) 이 브라우저에서 {{container}}로 인코딩할 수 있습니다."
+        },
+        "smart-copy-ready": {
+          "title": "스마트 복사 준비 완료",
+          "detail": "원본 미디어가 렌더링이나 재인코딩 없이 복사됩니다."
         },
         "audio-codec-supported": {
           "title": "오디오 코덱 지원됨",

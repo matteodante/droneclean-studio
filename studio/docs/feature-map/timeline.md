@@ -122,6 +122,12 @@ timeline's own toolbar; the project toolbar is in `menus-and-shortcuts.md`.
 - SDK: `studio.markers.clearRange`
 - Code: `src/features/timeline/components/timeline-header.tsx`
 
+### Render preview
+- Where: Editor › Timeline › tool strip, after the in/out buttons
+- Does: Renders the in/out range (or the whole timeline) ahead at the playback resolution, so it plays back at full frame rate; Delete rendered preview frees the frames.
+- SDK: `studio.preview.prerender`
+- Code: `src/studio/prerender/ui/PrerenderMenu.tsx`
+
 ### Add Marker
 - Where: Editor › Timeline › tool strip
 - Does: Adds a marker at the playhead; the marker appears on the ruler.
@@ -139,6 +145,12 @@ timeline's own toolbar; the project toolbar is in `menus-and-shortcuts.md`.
 - Does: Deletes every marker on the timeline.
 - SDK: `studio.markers.clear`
 - Code: `src/features/timeline/components/timeline-header.tsx`
+
+### Smooth edit…
+- Where: Editor › Timeline › tool strip › sparkle button
+- Does: Opens a dialog that cuts the video clips to a song's beats, one bar or more a shot, with the smooth-edit look and short crossfades, as one undo step.
+- SDK: `studio.clips.smoothEditTimeline`
+- Code: `src/studio/smooth-edit/dialog.tsx`
 
 ### Record voiceover
 - Where: Editor › Timeline › tool strip
@@ -273,6 +285,12 @@ timeline's own toolbar; the project toolbar is in `menus-and-shortcuts.md`.
 - Does: The end of the in/out range; drag it to change the range.
 - SDK: `studio.markers.setOut`
 - Code: `src/features/timeline/components/timeline-in-out-markers.tsx`
+
+### Rendered preview bar
+- Where: Editor › Timeline › bottom of the ruler
+- Does: A green line over the frames that play from the pre-render; a part an edit made stale disappears at once.
+- SDK: `studio.preview.prerendered`
+- Code: `src/studio/prerender/ui/PrerenderBar.tsx`
 
 ## Tracks
 

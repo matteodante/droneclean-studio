@@ -56,6 +56,7 @@ import {
   type Upload,
 } from '../api/types'
 import { mediabunnyShadowCutter } from '../cut/cut'
+import { ShadowCutError, type ShadowCutErrorCode } from '../cut/errors'
 import type { ShadowCutter, ShadowCutRange, ShadowCutWindow, ShadowSource } from '../cut/interface'
 import {
   FULL_JOB_OPTIONS,
@@ -180,6 +181,8 @@ interface ShadowSessionState {
   config: ServiceConfig | null
   /** The last failure, ready to show: the API's or the network's own message. */
   error: string | null
+  /** Why the file could not be cut, when that was the failure: the panel says it in the pilot's language. */
+  errorCode: ShadowCutErrorCode | null
   /** Whether the last failure was the API refusing the session: the panel offers a new sign-in. */
   needsSignIn: boolean
   /** The job running on the server, so Cancel can stop it (a full job's credits come back). */
@@ -204,6 +207,7 @@ export const SHADOW_SESSION_IDLE: ShadowSessionState = {
   quote: null,
   config: null,
   error: null,
+  errorCode: null,
   needsSignIn: false,
   activeJobId: null,
   projectNotSaved: false,
@@ -732,6 +736,14 @@ function passAnswersMark(pass: ShadowTrackPass | null, mark: ShadowMark | undefi
   return pass !== null && mark !== undefined && sameMark(pass.mark, mark)
 }
 
+/** What a failure shows: its message, and the code of a file the cutter cannot cut, so the panel can translate it. */
+function errorFields(error: unknown): Pick<ShadowSessionState, 'error' | 'errorCode'> {
+  return {
+    error: messageOf(error),
+    errorCode: error instanceof ShadowCutError ? error.code : null,
+  }
+}
+
 /** The patch a failed flow shows, or null when its run was abandoned (nothing to show then). */
 function failurePatch(
   error: unknown,
@@ -744,7 +756,7 @@ function failurePatch(
     progress: 0,
     activeJobId: null,
     signIn: null,
-    error: messageOf(error),
+    ...errorFields(error),
     needsSignIn: isSignInRequired(error),
   }
 }
@@ -963,7 +975,7 @@ export async function resumePendingCleans(): Promise<void> {
             releaseClean(key, error)
             // The session is the whole window's: a token the API refused is asked for again there.
             if (isSignInRequired(error)) {
-              useShadowSessionStore.setState({ needsSignIn: true, error: messageOf(error) })
+              useShadowSessionStore.setState({ needsSignIn: true, ...errorFields(error) })
             }
           },
         ),
@@ -1065,6 +1077,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
       run,
       stage: 'idle',
       error: null,
+      errorCode: null,
       needsSignIn: false,
       progress: 0,
       activeJobId: null,
@@ -1134,7 +1147,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
       const run = beginRun({ pass: null, quote: null, config: null })
       const start = trackStart(item, mark, mediaOf(item))
       if ('error' in start) {
-        set({ error: start.error })
+        set({ error: start.error, errorCode: null })
         return
       }
       try {
@@ -1158,7 +1171,9 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
       const start = cleanStartOf(get(), item, deps.now())
       if ('error' in start) {
         set(
-          start.passGone ? { error: start.error, pass: null, quote: null } : { error: start.error },
+          start.passGone
+            ? { error: start.error, errorCode: null, pass: null, quote: null }
+            : { error: start.error, errorCode: null },
         )
         return
       }
@@ -1210,6 +1225,7 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
         signIn: null,
         marking: false,
         error: null,
+        errorCode: null,
         needsSignIn: false,
         activeJobId: null,
       })
@@ -1252,9 +1268,9 @@ export const useShadowSessionStore = create<ShadowSessionStore>()((set, get) => 
           segments: proposal.segments,
           options: FULL_JOB_OPTIONS,
         })
-        if (current()) set({ quote, error: null, needsSignIn: false })
+        if (current()) set({ quote, error: null, errorCode: null, needsSignIn: false })
       } catch (error) {
-        if (current()) set({ error: messageOf(error), needsSignIn: isSignInRequired(error) })
+        if (current()) set({ ...errorFields(error), needsSignIn: isSignInRequired(error) })
       }
     },
   }

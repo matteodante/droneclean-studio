@@ -770,6 +770,8 @@
       "signInAgain": "Entrar novamente",
       "removeCleaning": "Remover a limpeza",
       "noSource": "O arquivo deste clipe não está aberto, então a sombra não pode ser enviada. Religue-o primeiro.",
+      "cutNoKeyframe": "Este vídeo não tem nenhum quadro-chave para começar, então a sombra não pode ser seguida nele. Converta-o primeiro para um MP4 padrão.",
+      "cutNoVideo": "Este arquivo não tem vídeo que o editor consiga ler, então a sombra não pode ser seguida nele.",
       "clickHint": "Clique na sombra aqui",
       "reverseRefused": "Este clipe tem quadros de sombra limpos, que não podem ser invertidos. Remova primeiro a limpeza.",
       "missingPieces_one": "{{count}} trecho limpo está faltando.",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "O primeiro uso baixa ≈{{size}}."
     },
     "colorPanel": {
+      "dockLabel": "Espaço de trabalho de correção de cor",
+      "dockTitle": "Cor",
       "emptyState": "Selecione um clipe para corrigir as cores",
       "adjustmentLayerLabel": "Correção de cor"
     },

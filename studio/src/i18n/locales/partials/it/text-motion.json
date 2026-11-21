@@ -1,0 +1,48 @@
+{
+  "textMotion": {
+    "sectionTitle": "Animazione del testo",
+    "hint": "Anima il testo per carattere, parola o riga. Ingresso e Uscita avvengono ai bordi della clip; Ciclo scorre in continuo tra i due.",
+    "slots": {
+      "in": "Ingresso",
+      "out": "Uscita",
+      "loop": "Ciclo"
+    },
+    "duration": "Durata",
+    "stagger": "Sfasamento",
+    "intensity": "Intensità",
+    "order": "Ordine",
+    "orders": {
+      "forward": "Avanti",
+      "backward": "Indietro",
+      "center": "Dal centro",
+      "random": "Casuale"
+    },
+    "removePreset": "Rimuovi {{name}}",
+    "presets": {
+      "typewriter": "Macchina da scrivere",
+      "fade-up": "Dissolvenza verso l'alto",
+      "rise": "Sollevamento",
+      "cascade": "Cascata",
+      "pop": "Pop",
+      "blur-in": "Sfocatura in ingresso",
+      "slide-mask": "Rivelazione a scorrimento",
+      "wave-in": "Onda in ingresso",
+      "fade-down": "Dissolvenza verso il basso",
+      "sink": "Affondamento",
+      "pop-out": "Pop in uscita",
+      "blur-out": "Sfocatura in uscita",
+      "typewriter-erase": "Cancellazione",
+      "pulse": "Pulsazione",
+      "wave": "Onda",
+      "shimmer": "Scintillio",
+      "swing": "Oscillazione"
+    },
+    "unit": "Si applica a",
+    "units": {
+      "character": "Carattere",
+      "word": "Parola",
+      "line": "Riga",
+      "whole-clip": "Intera clip"
+    }
+  }
+}

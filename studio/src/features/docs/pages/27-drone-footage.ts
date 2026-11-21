@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Drone footage: stabilize, grade, speed, share',
   description:
-    'Gyro stabilization and framing, the D-Log M profile, looks and the sky, speed ramps with easing, motion blur and smooth slow motion, beat markers, the Instagram Reel export and agent access.',
+    'Gyro stabilization and framing, the D-Log M profile, looks and the sky, speed ramps with easing, motion blur and smooth slow motion, beat markers, the smooth edit in one click, the Instagram Reel export and agent access.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -35,7 +35,7 @@ const page = {
         {
           kind: 'steps',
           items: [
-            'Set the **Colour profile** of log clips (D-Log M for the Avata 2, D-Log): the flat picture becomes Rec.709 before anything else. DJI files do not say which profile they were shot in, so the first DJI import of a project asks once; **Yes, D-Log M** sets it on those clips.',
+            'Set the **Colour profile** of log clips (D-Log M, D-Log): the flat picture becomes Rec.709 before anything else. DJI files do not say which profile they were shot in, so the first DJI import of a project asks once; **Yes, D-Log M** sets it on those clips. The profile was fitted on Avata 2 footage. DJI lists a D-Log M LUT for the Mini 4 Pro and the Air 3 too, and the panel names those drones, but their colour has not been checked here, so it says so.',
             'Pick a **Look** (a `.cube` file of the workspace’s looks library; **Manage looks… › Add .cube** adds one) and its **Intensity**.',
             'Finish in **Effects**: Color Wheels for contrast, highlights and mid detail; **Sky** gives a white overcast sky a graduated blue (horizon, angle, softness, and a protection that keeps it on the bright, pale pixels); a Secondary Qualifier and a Power Window do the same by hand; Glow, Vignette and Sharpen finish the picture.',
           ],
@@ -54,7 +54,10 @@ const page = {
           kind: 'table',
           headers: ['Control', 'What it does'],
           rows: [
-            ['Speed', 'One constant speed; the clip keeps its source range and its length follows.'],
+            [
+              'Speed',
+              'One constant speed; the clip keeps its source range and its length follows.',
+            ],
             [
               'Curve…',
               'A speed curve with keys: ramp in, ramp out, or both, each segment Linear, Smooth, Ease in or Ease out. The panel shows the frames a second the clip really has at its slowest point.',
@@ -63,7 +66,10 @@ const page = {
               'Smooth ramp + zoom',
               'The drone-reel recipe in one click, in the speed panel: fast, about 0.45x in the middle, fast again, with smooth segments, smooth slow motion, motion blur and an eased zoom-in.',
             ],
-            ['Motion blur', 'Above 1x, blends the source frames each output frame covers, with a shutter of 90° to 360°.'],
+            [
+              'Motion blur',
+              'Above 1x, blends the source frames each output frame covers, with a shutter of 90° to 360°.',
+            ],
             [
               'Smooth slow motion',
               'Below 1x, or for a 30 fps file in a 60 fps project, makes the frames in between instead of showing one frame twice: Frame blending mixes the two source frames, Optical flow builds the frame from the motion between them (sharper, without double images).',
@@ -83,11 +89,41 @@ const page = {
       ],
     },
     {
+      title: 'Smooth edit in one click',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Put your video clips and a song on the timeline, then click **Smooth edit…** (the sparkle button in the timeline toolbar). The editor finds the song’s beats, lays the video clips end to end from the song’s first beat, each cut to the number of bars you choose, and gives each the smooth-edit look: a fast, slow, fast speed ramp with optical-flow slow motion, motion blur and an eased zoom-in. It is the edit of the drone reels in one step.',
+        },
+        {
+          kind: 'steps',
+          items: [
+            'Add the song and the clips to the timeline. If there is no audio clip, the dialog says **Add a song to the timeline first**.',
+            'Click **Smooth edit…**, pick the song if there is more than one, the **shot length** (1, 2 or 4 bars; a bar is four beats) and whether to add a **short crossfade** at each cut.',
+            'The dialog says how many clips will change. Click **Apply**.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'Each clip keeps the in-point it has, so trim the start of a clip first to choose where its shot begins. The fast parts spend footage faster than it plays, so a one-bar shot uses about one and a half bars of the clip. A clip with too little footage after its in-point is skipped, and clips that would end after the song stay as they are, after the last shot. A stabilized clip keeps its stabilization. Nothing is deleted, and **Ctrl/Cmd+Z** undoes the whole edit in one step.',
+        },
+        {
+          kind: 'note',
+          tone: 'tip',
+          text: 'An AI agent can do the same with one call, `studio.clips.smoothEditTimeline({ bars, crossfade })`, and still choose the best part of each clip itself before it.',
+        },
+      ],
+    },
+    {
       title: 'Export for Instagram',
       blocks: [
         {
           kind: 'paragraph',
           text: 'The **Instagram Reel** preset follows Meta’s Reel specification: H.264 MP4 at the project’s frame rate, 1080x1920 (the frame Instagram shows), 20 Mbps at 60 fps or 12 Mbps at 30 fps, under Meta’s 25 Mbps maximum, with AAC sound at 128 kbps, the index at the start of the file and no edit list. Instagram re-encodes every upload; giving it its own frame and size avoids a second scaling.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'The **TikTok** and **YouTube Shorts** presets are the same vertical 1080x1920 H.264 MP4 at the project’s frame rate (up to 60 fps). **YouTube Shorts** uses YouTube’s published 1080p rates: 12 Mbps at 60 fps or 8 Mbps at 30 fps, with AAC stereo at 384 kbps. TikTok publishes no bitrate, so **TikTok** uses 16 Mbps at 60 fps or 10 Mbps at 30 fps, our choice, with AAC at 128 kbps. Both platforms re-encode every upload.',
         },
       ],
     },

@@ -68,7 +68,11 @@
       "loadingMedia": "Medya yükleniyor",
       "videoPreview": "Video önizlemesi",
       "emptyTitle": "Zaman çizelgesinde henüz bir şey yok",
-      "emptyDescription": "Medya içe aktarın, bir klibi zaman çizelgesine sürükleyin, ardından önizlemek için Boşluk tuşuna basın."
+      "emptyDescription": "Medya içe aktarın, bir klibi zaman çizelgesine sürükleyin, ardından önizlemek için Boşluk tuşuna basın.",
+      "gradeComparisonSplit": "Bölünmüş renk düzenleme karşılaştırması",
+      "gradeComparisonBefore": "Önce",
+      "gradeComparisonAfter": "Sonra",
+      "gradeComparisonWipe": "Bölünmüş karşılaştırmayı ayarla"
     },
     "zoom": {
       "ariaLabel": "Önizleme yakınlaştırması",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "Bırakılan video incelenemedi.",
       "unableToInspectFile": "Bırakılan dosya incelenemedi.",
       "unableToImportFile": "Bırakılan dosya içe aktarılamadı."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Oynatma çözünürlüğü",
+        "tooltip": "Oynatma çözünürlüğü: {{value}}",
+        "full": "Tam",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Önizlemeyi işle",
+        "renderInOut": "Girişten çıkışa işle",
+        "renderTimeline": "Tüm zaman çizelgesini işle",
+        "clear": "İşlenmiş önizlemeyi sil",
+        "shortcut": "Önizlemeyi işle (girişten çıkışa veya tüm zaman çizelgesi)",
+        "rendering": "Önizleme işleniyor %{{percent}}",
+        "cancel": "Önizleme işlemeyi iptal et",
+        "barLabel": "İşlenmiş önizleme",
+        "done": "Önizleme işlendi: {{took}} sn'de {{seconds}} sn'lik zaman çizelgesi.",
+        "alreadyDone": "Bu aralık zaten işlenmiş.",
+        "cancelled": "Önizleme işleme iptal edildi. İşlenmiş kısım korunur.",
+        "changed": "Önizleme işleme durdu: proje işleme sırasında değişti. Hâlâ geçerli kareler korunur.",
+        "full": "Önizleme işleme durdu: önizleme önbelleği dolu (1 GB). İşlenmiş kısım korunur.",
+        "unsupported": "Bu bilgisayar bu boyutta işlenmiş önizleme karelerini saklayamıyor. Önizleme canlı kalır.",
+        "error": "Önizleme işleme başarısız: {{message}}",
+        "empty": "İşlenecek bir şey yok: zaman çizelgesi boş.",
+        "busy": "Zaten bir önizleme işleniyor.",
+        "noPreview": "Önizlemesini işlemek için projeyi düzenleyicide açın."
+      }
     }
   }
 }

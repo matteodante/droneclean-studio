@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { WorkspaceGate } from '@/features/workspace-gate/workspace-gate'
 import { router } from './app/router'
 import { TelemetryNotice } from '@/studio/telemetry/consent-notice'
+import { UpdateNotice } from '@/studio/updates/update-notice'
 
 const LazyToaster = lazy(async () => {
   const { Toaster } = await import('@/components/ui/sonner')
@@ -71,6 +72,7 @@ export function App() {
         </WorkspaceGate>
         <GlobalTooltip />
         <TelemetryNotice />
+        <UpdateNotice />
         {showToaster && (
           <Suspense fallback={null}>
             <LazyToaster />

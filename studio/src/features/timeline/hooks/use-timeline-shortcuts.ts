@@ -6,6 +6,7 @@ import { useInOutShortcuts } from './shortcuts/use-in-out-shortcuts'
 import { useUIShortcuts } from './shortcuts/use-ui-shortcuts'
 import { useClipboardShortcuts } from './shortcuts/use-clipboard-shortcuts'
 import { useSourceMonitorShortcuts } from './shortcuts/use-source-monitor-shortcuts'
+import { usePrerenderShortcut } from '@/studio/prerender/use-prerender-shortcut'
 
 export interface TimelineShortcutCallbacks {
   onPlay?: () => void
@@ -40,4 +41,6 @@ export function useTimelineShortcuts(callbacks: TimelineShortcutCallbacks = {}) 
   useUIShortcuts(callbacks)
   useClipboardShortcuts()
   useSourceMonitorShortcuts()
+  // DroneClean: Render preview (Enter)
+  usePrerenderShortcut()
 }

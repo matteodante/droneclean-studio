@@ -27,6 +27,7 @@
       "unset": "Ayarlanmadı",
       "suggested": "Öneri: {{profile}}?",
       "apply": "Uygula",
+      "uncheckedDrone": "D-Log M, Avata 2 görüntülerine göre ayarlandı; rengi bu dronda doğrulanmadı.",
       "askTitle": "Bu DJI klipleri D-Log M ile mi çekildi?",
       "askBody": "Dosya bunu belirtmiyor. Evet, onlara D-Log M renk profilini uygular; her klipte değiştirebilirsiniz.",
       "askYes": "Evet, D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "Editör bir hatayla karşılaştığında, hatayı ve koddaki yerini sürüm ve işletim sistemiyle birlikte düzeltilebilmesi için Sentry'ye (AB) gönderir.",
       "usageStats": "Anonim kullanım istatistikleri gönder",
       "usageStatsDescription": "Birkaç anı (uygulamayı açma, proje oluşturma, dışa aktarmayı bitirme, yapay zekâ ajanı bağlama, gölge kaldırma) bu kurulumun rastgele kimliğiyle PostHog'a (AB) sayar. Kapatmak kimliği unutur.",
+      "updateCheck": "Yeni sürümleri denetle",
+      "updateCheckDescription": "Uygulama açılırken (günde en fazla bir kez) GitHub'dan en son sürümün numarasını ister ve daha yeni bir sürüm varsa size haber verir. GitHub IP adresinizi görür; sizinle veya çalışmanızla ilgili başka hiçbir şey gönderilmez. Kapalıyken hiçbir istek yapılmaz.",
+      "updateNoticeTitle": "DroneClean Studio {{version}} kullanıma hazır",
+      "updateNoticeDownload": "İndir",
+      "updateNoticeLater": "Sonra",
       "never": "Asla gönderilmez: görüntüleriniz, kareler, dosya ve klasör adları, proje adları veya hesabınız. IP adresiniz saklanmaz."
     }
   },
@@ -241,5 +247,36 @@
       "allow": "İzin ver",
       "decline": "İzin verme"
     }
+  },
+  "docs": {
+    "title": "Belgeler",
+    "openStudio": "DroneClean Studio'yu aç",
+    "home": "Ana sayfa",
+    "searchPlaceholder": "Belgelerde ara",
+    "searchLabel": "Belgelerde ara",
+    "overview": "Belgelere genel bakış",
+    "noMatches": "“{{query}}” ile eşleşen sayfa yok.",
+    "documentation": "DroneClean Studio belgeleri",
+    "userGuide": "DroneClean Studio Kullanım Kılavuzu",
+    "homeIntro": "Kurulumdan, çalışma alanlarından, medya içe aktarmadan, zaman çizelgesinde kurgudan ve dışa aktarmadan başlayın. Belirli bir denetime, kısayola ya da sorun giderme adımına ihtiyaç duyduğunuzda başvuru sayfalarını kullanın.",
+    "startEditing": "Kurguya başla",
+    "fixProblem": "Sorunu çöz",
+    "groups": {
+      "start": "Başlangıç",
+      "coreEditing": "Temel kurgu",
+      "creativeTools": "Yaratıcı araçlar",
+      "output": "Çıktı",
+      "reference": "Başvuru"
+    },
+    "groupBlurbs": {
+      "start": "Tarayıcıyı, çalışma alanını, projeleri ve editör düzenini ayarlayın.",
+      "coreEditing": "Medya içe aktarın, zaman çizelgesinde kesin, önizleyin ve klip özelliklerini ayarlayın.",
+      "creativeTools": "Metin, şekiller ve maskeler, ses, efektler, renk, geçişler, anahtar kareler, animasyon, sahneler ve yerel yapay zekâ.",
+      "output": "Dosyaları tarayıcıdan dışa aktarın ve kuyruktaki işleri yönetin."
+    },
+    "related": "İlgili",
+    "notFoundTitle": "Belge sayfası bulunamadı",
+    "notFoundText": "Bu adres, yayımlanmış hiçbir DroneClean Studio kılavuzuyla eşleşmiyor.",
+    "backToDocs": "Belgelere dön"
   }
 }

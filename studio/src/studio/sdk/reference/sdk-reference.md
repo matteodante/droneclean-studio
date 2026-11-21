@@ -13,7 +13,7 @@ failed call leaves the project exactly as it was. The same content is committed 
 | `studio.media` | 5 |
 | `studio.subclips` | 5 |
 | `studio.tracks` | 5 |
-| `studio.clips` | 25 |
+| `studio.clips` | 26 |
 | `studio.titles` | 3 |
 | `studio.effects` | 5 |
 | `studio.keyframes` | 6 |
@@ -26,6 +26,7 @@ failed call leaves the project exactly as it was. The same content is committed 
 | `studio.workspace` | 1 |
 | `studio.looks` | 4 |
 | `studio.shadow` | 5 |
+| `studio.preview` | 6 |
 
 ## studio.project
 
@@ -776,6 +777,23 @@ Example:
 
 ```ts
 studio.clips.applySmoothEdit('c1', { peak: 4, slow: 0.45, zoom: 0.2 })
+```
+
+### `studio.clips.smoothEditTimeline()`
+
+```ts
+smoothEditTimeline(options?: SmoothEditTimelineOptions): Promise<SmoothEditTimelineResult>
+```
+
+The smooth edit of the whole timeline, cut to a song, in one call: the song's beats are marked (a marker each, if it has none yet); the video clips are laid end to end from the song's first beat in the order they play, each cut to `bars` bars (four beats a bar, each clip keeping the in-point it has, at normal speed before the look); each gets the `applySmoothEdit` look with its default numbers (fast-slow-fast speed ramp with optical-flow slow motion, motion blur, eased zoom); and a quarter-second crossfade is added at each cut when `crossfade` is true. A clip's stabilization stays. Clips with too little footage, clips that cannot take the look and clips that would end after the song are left as they are, after the last shot. Nothing is deleted. Finding the beats takes a few seconds for a three-minute song, so the call is async. One undo step.
+
+- Maps to: `smoothEditTimeline (src/studio/smooth-edit/timeline.ts) with MARKERS_ADD_BEATS and SMOOTH_EDIT`
+- Throws: NOT_FOUND, UNSUPPORTED, INVALID_ARGUMENT, CONFLICT, MEDIA_UNAVAILABLE
+
+Example:
+
+```ts
+const result = await studio.clips.smoothEditTimeline({ bars: 1, crossfade: true })
 ```
 
 ### `studio.clips.speedAt()`
@@ -1615,7 +1633,7 @@ studio.export.setSettings({ quality: 'high' })
 presets(): ExportPresetInfo[]
 ```
 
-The export dialog's presets resolved for the open project (Instagram Reel, YouTube 4K, Small file, and Same as source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters need the native encoder and are not offered here. Not an undo step.
+The export dialog's presets resolved for the open project (Instagram Reel, TikTok, YouTube Shorts, YouTube 4K, Small file, and Same as source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters need the native encoder and are not offered here. Not an undo step.
 
 - Maps to: `getPilotPresets / resolvePilotPreset (src/studio/export/presets.ts)`
 - Throws: UNSUPPORTED
@@ -2031,6 +2049,112 @@ Example:
 
 ```ts
 await studio.shadow.clean('c1', 12)
+```
+
+## studio.preview
+
+`studio.preview`: the program monitor's playback resolution and the pre-render, as After Effects renders a work area: the frames of a range are rendered ahead through the preview's own pipeline at the current quality, encoded into memory, and played back from there at full frame rate. Any edit that changes a frame makes it stale at once and the preview renders it live again; an export never reads the cache. Implemented by `createPreviewApi(): PreviewApi` in `namespaces/preview.ts`. None of it is an undo step.
+
+### `studio.preview.quality()`
+
+```ts
+quality(): PreviewQualityLevel
+```
+
+The playback resolution: 1 (Full), 0.5 (1/2) or 0.25 (1/4) of the size the preview renders at. Not an undo step.
+
+- Maps to: `usePlaybackStore.previewQuality (shared/state/playback/store.ts)`
+- Throws: nothing
+
+Example:
+
+```ts
+studio.preview.quality()
+```
+
+### `studio.preview.setQuality()`
+
+```ts
+setQuality(quality: PreviewQualityLevel): void
+```
+
+Set the playback resolution (kept for the app, as the menu does). A lower one renders fewer pixels: the composite, the effects and a pre-render get cheaper; frames pre-rendered at another resolution become stale. Not an undo step.
+
+- Maps to: `usePlaybackStore.setPreviewQuality`
+- Throws: INVALID_ARGUMENT
+
+Example:
+
+```ts
+studio.preview.setQuality(0.5)
+```
+
+### `studio.preview.prerender()`
+
+```ts
+prerender(range?: PrerenderRangeInput): Promise<PrerenderResult>
+```
+
+Render a range of the timeline ahead so it plays back smoothly: the timeline's In/Out by default, else the whole timeline. Pauses playback, renders only the frames the cache does not hold yet, and resolves when it ends with how it ended (a cancelled or stopped render keeps the frames it finished). The ruler shows the rendered frames in green. Not an undo step.
+
+- Maps to: `runPrerender (src/studio/prerender/job.ts)`
+- Throws: INVALID_ARGUMENT, CONFLICT, UNSUPPORTED
+
+Example:
+
+```ts
+await studio.preview.prerender({ startFrame: 0, endFrame: 300 })
+```
+
+### `studio.preview.prerendered()`
+
+```ts
+prerendered(): PrerenderStatus
+```
+
+What the pre-render cache holds now: the ranges that play from it, its size, the render running and how the last one ended. Not an undo step.
+
+- Maps to: `usePrerenderStore (src/studio/prerender/store.ts)`
+- Throws: nothing
+
+Example:
+
+```ts
+studio.preview.prerendered().ranges
+```
+
+### `studio.preview.cancelPrerender()`
+
+```ts
+cancelPrerender(): void
+```
+
+Stop the running pre-render after the frame it is drawing; the frames it finished stay. Does nothing when none runs. Not an undo step.
+
+- Maps to: `cancelPrerender (src/studio/prerender/job.ts)`
+- Throws: nothing
+
+Example:
+
+```ts
+studio.preview.cancelPrerender()
+```
+
+### `studio.preview.clearPrerender()`
+
+```ts
+clearPrerender(): void
+```
+
+Delete every pre-rendered frame; the preview renders live again. Not an undo step.
+
+- Maps to: `prerenderCache.clear (src/studio/prerender/cache.ts)`
+- Throws: nothing
+
+Example:
+
+```ts
+studio.preview.clearPrerender()
 ```
 
 ## Types
@@ -2601,6 +2725,40 @@ export interface SmoothEditResult {
         lastFrame: Frame;
         scale: number;
     } | null;
+}
+```
+
+### `SmoothEditTimelineOptions`
+
+Options of `clips.smoothEditTimeline`; every field is optional.
+
+```ts
+export interface SmoothEditTimelineOptions {
+    songId?: ClipId;
+    bars?: 1 | 2 | 4;
+    crossfade?: boolean;
+}
+```
+
+### `SmoothEditTimelineResult`
+
+What `clips.smoothEditTimeline` laid out.
+
+```ts
+export interface SmoothEditTimelineResult {
+    songId: ClipId;
+    bars: number;
+    beats: number;
+    firstDownbeat: Frame;
+    shots: Array<{
+        clipId: ClipId;
+        from: Frame;
+        durationInFrames: Frame;
+    }>;
+    crossfades: number;
+    tooShort: ClipId[];
+    unsupported: ClipId[];
+    afterSong: ClipId[];
 }
 ```
 
@@ -3181,6 +3339,70 @@ export interface PlaybackInfo {
 }
 ```
 
+### `PreviewQualityLevel`
+
+The preview's playback resolution: 1 full, 0.5 half, 0.25 quarter of its render size.
+
+```ts
+export type PreviewQualityLevel = 1 | 0.5 | 0.25;
+```
+
+### `PrerenderRangeInput`
+
+The bounds of a pre-render; each defaults to the timeline's In/Out, else to the whole timeline.
+
+```ts
+export interface PrerenderRangeInput {
+    startFrame?: Frame;
+    endFrame?: Frame;
+}
+```
+
+### `FrameRangeInfo`
+
+A range of timeline frames, `endFrame` exclusive.
+
+```ts
+export interface FrameRangeInfo {
+    startFrame: Frame;
+    endFrame: Frame;
+}
+```
+
+### `PrerenderResult`
+
+How a pre-render ended.
+
+```ts
+export interface PrerenderResult {
+    status: 'done' | 'cancelled' | 'stopped';
+    reason?: 'changed' | 'full' | 'unsupported' | 'error';
+    detail?: string;
+    startFrame: Frame;
+    endFrame: Frame;
+    renderedFrames: number;
+    seconds: number;
+}
+```
+
+### `PrerenderStatus`
+
+What the pre-render cache holds and does now.
+
+```ts
+export interface PrerenderStatus {
+    ranges: FrameRangeInfo[];
+    bytes: number;
+    running: {
+        startFrame: Frame;
+        endFrame: Frame;
+        done: number;
+        total: number;
+    } | null;
+    last: PrerenderResult | null;
+}
+```
+
 ### `ExportCodec`
 
 Video codec of an export (`ExportSettings['codec']`).
@@ -3534,6 +3756,7 @@ export interface Studio {
     readonly workspace: WorkspaceApi;
     readonly looks: LooksApi;
     readonly shadow: ShadowApi;
+    readonly preview: PreviewApi;
     transaction<T>(label: string, fn: (studio: Studio) => T): TransactionResult<T>;
     reference(): SdkReference;
 }

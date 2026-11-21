@@ -1,0 +1,282 @@
+{
+  "appShell": {
+    "newVersionAvailable": "È disponibile una nuova versione. Salva il tuo lavoro e ricarica.",
+    "saveAndReload": "Salva e ricarica",
+    "reloadWithoutSaving": "Ricarica senza salvare",
+    "dockPanel": "Aggancia pannello"
+  },
+  "common": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "discard": "Scarta",
+    "close": "Chiudi",
+    "reset": "Ripristina",
+    "done": "Fatto",
+    "loading": "Caricamento...",
+    "saving": "Salvataggio...",
+    "deleting": "Eliminazione...",
+    "clearing": "Pulizia...",
+    "queueing": "Accodamento...",
+    "partial": "Parziale",
+    "untitledProject": "Progetto senza titolo"
+  },
+  "presets": {
+    "profile": {
+      "label": "Profilo colore",
+      "unset": "Non impostato",
+      "suggested": "Suggerito: {{profile}}?",
+      "apply": "Applica",
+      "uncheckedDrone": "D-Log M è stato calibrato su riprese dell'Avata 2; il colore non è stato verificato su questo drone.",
+      "askTitle": "Queste clip DJI sono state girate in D-Log M?",
+      "askBody": "Il file non lo indica. Con Sì imposti su di esse il profilo colore D-Log M; puoi cambiarlo su qualsiasi clip.",
+      "askYes": "Sì, D-Log M",
+      "askNo": "No, normale"
+    },
+    "looks": {
+      "title": "Look",
+      "unset": "Nessuno",
+      "intensity": "Intensità",
+      "manage": "Gestisci look…",
+      "add": "Aggiungi .cube",
+      "rename": "Rinomina",
+      "remove": "Rimuovi",
+      "rowOrder": "Prova l'altro ordine delle righe",
+      "blueFirst": "blu per primo",
+      "missing": "Look non presente nella libreria",
+      "empty": "Ancora nessun look. Trascina qui un file .cube, oppure usa Aggiungi .cube.",
+      "removeConfirm": "Rimuovere “{{name}}” dalla libreria?",
+      "removeUsed": "Clip che usano questo look: {{count}}. Rimuoverlo comunque?",
+      "error": {
+        "range": "Questo look si aspetta valori in ingresso da {{min}} a {{max}}, non da 0 a 1.",
+        "tooLarge": "Questo look ha {{size}} punti per lato; un look può averne al massimo {{max}}.",
+        "noGrid": "Questo file contiene solo una curva 1D, non un look 3D.",
+        "invalid": "Questo file non è un look .cube valido: {{detail}}",
+        "read": "Impossibile leggere il file .cube.",
+        "store": "Impossibile salvare la libreria dei look nella cartella di lavoro.",
+        "unavailable": "Questo browser non può aprire un selettore di file; trascina invece il file .cube nella libreria."
+      }
+    },
+    "mixed": "Misto"
+  },
+  "language": {
+    "label": "Lingua",
+    "description": "Scegli la lingua usata in tutta l'app.",
+    "ariaLabel": "Lingua dell'interfaccia"
+  },
+  "toolbar": {
+    "ariaLabel": "Barra degli strumenti dell'editor",
+    "workspaces": {
+      "motion": "Motion",
+      "label": "Aree di lavoro",
+      "edit": "Montaggio",
+      "color": "Colore",
+      "animate": "Animazione"
+    },
+    "backToProjects": "Torna ai progetti",
+    "backToProjectsAria": "Torna ai progetti",
+    "specs": "{{width}}x{{height}} | {{fps}}fps",
+    "specsDetailed": "{{width}}x{{height}} | {{fps}}fps | {{duration}} | {{clips}} clip | {{media}} media | {{missing}} mancanti",
+    "whatsNew": "Novità",
+    "whatsNewAria": "Novità",
+    "settings": "Impostazioni",
+    "keyboardShortcuts": "Scorciatoie da tastiera",
+    "keyboardShortcutsAria": "Scorciatoie da tastiera",
+    "viewOnGitHub": "Vedi su GitHub",
+    "joinDiscord": "Unisciti a Discord",
+    "debugPanel": "Pannello di debug",
+    "debugPanelAria": "Pannello di debug",
+    "save": "Salva",
+    "saveAria": "Salva progetto",
+    "export": "Esporta",
+    "exportVideo": "Esporta video",
+    "downloadProjectZip": "Scarica progetto (.zip)"
+  },
+  "unsavedChanges": {
+    "title": "Modifiche non salvate",
+    "descriptionWithName": "Hai modifiche non salvate in <strong>{{name}}</strong>. Vuoi salvare prima di uscire?",
+    "description": "Hai modifiche non salvate. Vuoi salvare prima di uscire?",
+    "discard": "Scarta",
+    "saveAndExit": "Salva ed esci",
+    "saving": "Salvataggio..."
+  },
+  "settings": {
+    "title": "Impostazioni dell'editor",
+    "sections": {
+      "general": "Generali",
+      "timeline": "Timeline",
+      "ai": "IA",
+      "storage": "Archiviazione"
+    },
+    "general": {
+      "autoSave": "Salvataggio automatico",
+      "interval": "Intervallo",
+      "intervalMinutes": "{{count}} min",
+      "undoHistoryDepth": "Profondità della cronologia di annullamento",
+      "uiSounds": "Suoni dell'interfaccia",
+      "uiSoundVolume": "Volume dei suoni",
+      "uiSoundVoice": "Tema sonoro",
+      "uiSoundPreview": "Anteprima"
+    },
+    "ai": {
+      "captionSampleInterval": "Intervallo di campionamento dei sottotitoli",
+      "captionSampleIntervalDescription": "Ogni quanto Analizza con IA campiona un fotogramma per generare la descrizione.",
+      "seconds": "Secondi",
+      "frames": "Fotogrammi",
+      "unitSec": "sec",
+      "unitFrames": "fotogrammi",
+      "enterIntervalAboveZero": "Inserisci un intervallo maggiore di zero.",
+      "captionEstimate": "~{{sceneCount}} {{scenes}} per una clip di 1 min a {{fps}}fps",
+      "scene_one": "scena",
+      "scene_other": "scene",
+      "captionIntervalHint": "{{estimate}}. Intervalli più piccoli producono scene più dettagliate ma richiedono più tempo.",
+      "defaultCaptionStyle": "Stile predefinito dei sottotitoli",
+      "defaultCaptionStyleDescription": "Stile applicato ai sottotitoli generati dalle trascrizioni o dalla descrizione con IA."
+    },
+    "timeline": {
+      "snapByDefault": "Aggancio attivo per impostazione predefinita",
+      "snapByDefaultDescription": "Imposta lo stato iniziale dell'aggancio quando si apre un progetto.",
+      "showWaveforms": "Mostra forme d'onda",
+      "showFilmstrips": "Mostra filmstrip",
+      "enableFilmstripExtraction": "Estrai filmstrip",
+      "enableFilmstripExtractionDescription": "Genera strisce di miniature video durante l'importazione e la visualizzazione della timeline."
+    },
+    "storage": {
+      "generateMissingProxies": "Genera proxy mancanti",
+      "generateMissingProxiesDescription": "Accoda la generazione dei proxy per i video di questo progetto che non ne hanno ancora uno",
+      "queued": "In coda",
+      "generateWithCount": "Genera ({{count}})",
+      "upToDate": "Aggiornato",
+      "clearProjectCache": "Svuota cache del progetto",
+      "clearProjectCacheDescription": "Forme d'onda, filmstrip, fotogrammi GIF, audio decodificato",
+      "clear": "Svuota",
+      "cleared": "Svuotata",
+      "regenerateThumbnails": "Rigenera miniature",
+      "regenerateThumbnailsDescription": "Ricrea le miniature della libreria multimediale per questo progetto",
+      "regenerate": "Rigenera",
+      "deleteProxies": "Elimina proxy",
+      "deleteProxiesDescription": "Rimuovi i video proxy generati per questo progetto",
+      "deleted": "Eliminati",
+      "localAi": "IA locale",
+      "localAiDescription": "Scarica dalla memoria i runtime residenti o svuota i modelli scaricati nella cache.",
+      "clearCacheConfirmTitle": "Svuotare la cache del progetto?",
+      "clearCacheConfirmDescription": "Verranno eliminati le forme d'onda, i filmstrip, i fotogrammi GIF e l'audio decodificato in cache per il progetto corrente ({{count}} elementi multimediali). Verranno rigenerati automaticamente quando servono. I dati del progetto, i file multimediali, le miniature e i proxy non saranno toccati.",
+      "clearCache": "Svuota cache"
+    },
+    "toasts": {
+      "projectCacheCleared": "Cache del progetto svuotata",
+      "projectCachePartiallyCleared": "Cache del progetto svuotata in parte",
+      "projectCacheNotCleared": "Cache del progetto non svuotata",
+      "thumbnailsRegenerated": "Miniature rigenerate",
+      "thumbnailsPartiallyRegenerated": "Miniature rigenerate in parte",
+      "thumbnailsNotRegenerated": "Miniature non rigenerate",
+      "proxiesDeleted": "Proxy eliminati",
+      "proxiesPartiallyDeleted": "Proxy eliminati in parte",
+      "proxiesNotDeleted": "Proxy non eliminati",
+      "failedToClearCache": "Impossibile svuotare la cache del progetto",
+      "failedToRegenerateThumbnails": "Impossibile rigenerare le miniature",
+      "failedToDeleteProxies": "Impossibile eliminare i proxy",
+      "itemsUpdated_one": "{{count}} elemento aggiornato.",
+      "itemsUpdated_other": "{{count}} elementi aggiornati.",
+      "itemsUpdatedFailed_one": "{{count}} elemento aggiornato. Non riusciti: {{failed}}",
+      "itemsUpdatedFailed_other": "{{count}} elementi aggiornati. Non riusciti: {{failed}}"
+    },
+    "feedback": {
+      "couldntClearCache": "Impossibile svuotare la cache del progetto.",
+      "couldntRegenerateThumbnails": "Impossibile rigenerare le miniature.",
+      "couldntDeleteProxies": "Impossibile eliminare i proxy.",
+      "noMediaNeededUpdating": "Nessun media del progetto richiedeva un aggiornamento.",
+      "completedForItems_one": "{{action}}: completato per {{count}} elemento.",
+      "completedForItems_other": "{{action}}: completato per {{count}} elementi.",
+      "couldntProcessItems_one": "{{action}}: impossibile elaborare {{count}} elemento{{detail}}",
+      "couldntProcessItems_other": "{{action}}: impossibile elaborare {{count}} elementi{{detail}}",
+      "partialOutcome": "{{action}}: {{succeeded}}/{{total}} completati. Richiede attenzione: {{failed}}.",
+      "moreItems": "{{items}}, +{{count}} altri",
+      "actionClearCache": "Svuota cache",
+      "actionRegenerateThumbnails": "Rigenera miniature",
+      "actionDeleteProxies": "Elimina proxy"
+    },
+    "agentAccess": {
+      "title": "Accesso degli agenti",
+      "description": "Permette a un agente IA in esecuzione su questo Mac di leggere il progetto aperto, modificarlo e avviare esportazioni. Nulla lascia il tuo Mac; è attivo per impostazione predefinita e solo il tuo utente può raggiungerlo.",
+      "enable": "Consenti agenti IA",
+      "socketPath": "Socket",
+      "socketDescription": "L'app resta in ascolto qui finché l'interruttore è attivo; solo il tuo utente può leggerlo.",
+      "copy": "Copia",
+      "copied": "Copiato",
+      "conflict": "Un'altra finestra di DroneClean Studio sta già servendo l'accesso degli agenti.",
+      "error": "Impossibile avviare l'accesso degli agenti.",
+      "stateFailed": "Impossibile leggere lo stato dell'accesso degli agenti.",
+      "snippetsTitle": "Collega un client",
+      "snippets": {
+        "claudeCodeTitle": "Claude Code",
+        "codexTitle": "Codex",
+        "genericTitle": "Generico (stdio)",
+        "claudeCode": "Esegui questo una volta in un terminale.",
+        "codex": "Aggiungi questo a ~/.codex/config.toml.",
+        "generic": "La voce mcpServers di un client stdio, come il claude_desktop_config.json di Claude Desktop."
+      },
+      "lastCalls": "Ultime chiamate",
+      "noCalls": "Ancora nessuna chiamata.",
+      "logFailed": "Impossibile leggere il registro.",
+      "duration": "{{ms}} ms",
+      "undoSteps": "Annulla × {{count}}"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "intro": "DroneClean Studio non invia nulla su di te o sul tuo lavoro, a meno che tu non lo attivi qui.",
+      "crashReports": "Invia segnalazioni di arresto anomalo",
+      "crashReportsDescription": "Quando l'editor incontra un errore, invia l'errore e il punto del codice in cui è avvenuto, con la versione e il sistema operativo, a Sentry (UE), così può essere corretto.",
+      "usageStats": "Invia statistiche d'uso anonime",
+      "usageStatsDescription": "Conta alcuni momenti (apertura dell'app, creazione di un progetto, fine di un'esportazione, collegamento di un agente IA, rimozione di un'ombra) sotto un ID casuale di questa installazione, a PostHog (UE). Disattivandolo, l'ID viene dimenticato.",
+      "updateCheck": "Controlla le nuove versioni",
+      "updateCheckDescription": "All'avvio dell'app (al massimo una volta al giorno) chiede a GitHub il numero dell'ultima versione e ti avvisa se ne esiste una più recente. GitHub vede il tuo indirizzo IP; non viene inviato nient'altro su di te o sul tuo lavoro. Se la disattivi, non parte nessuna richiesta.",
+      "updateNoticeTitle": "DroneClean Studio {{version}} è disponibile",
+      "updateNoticeDownload": "Scarica",
+      "updateNoticeLater": "Più tardi",
+      "never": "Mai inviati: i tuoi filmati, i fotogrammi, i nomi di file e cartelle, i nomi dei progetti o il tuo account. Il tuo indirizzo IP non viene memorizzato."
+    }
+  },
+  "telemetry": {
+    "notice": {
+      "title": "Aiuta a migliorare DroneClean Studio",
+      "both": "Inviare segnalazioni di arresto anomalo e statistiche d'uso anonime? Le segnalazioni dicono cosa è andato storto; le statistiche contano quali funzioni vengono usate. Nulla viene inviato senza il tuo consenso.",
+      "crashOnly": "Inviare le segnalazioni di arresto anomalo quando qualcosa va storto? Dicono cosa non ha funzionato e in quale punto del codice dell'editor. Nulla viene inviato senza il tuo consenso.",
+      "usageOnly": "Inviare statistiche d'uso anonime? Contano quali funzioni vengono usate. Nulla viene inviato senza il tuo consenso.",
+      "later": "Mai i tuoi filmati, i nomi dei file, le cartelle o i progetti. Puoi cambiare questa scelta in qualsiasi momento in Impostazioni › Privacy.",
+      "allow": "Consenti",
+      "decline": "Non consentire"
+    }
+  },
+  "docs": {
+    "title": "Guida",
+    "openStudio": "Apri DroneClean Studio",
+    "home": "Home",
+    "searchPlaceholder": "Cerca nella guida",
+    "searchLabel": "Cerca nella documentazione",
+    "overview": "Panoramica della guida",
+    "noMatches": "Nessuna pagina corrisponde a “{{query}}”.",
+    "documentation": "Documentazione di DroneClean Studio",
+    "userGuide": "Guida utente di DroneClean Studio",
+    "homeIntro": "Parti dall'impostazione iniziale, dagli spazi di lavoro, dall'importazione dei media, dal montaggio sulla timeline e dall'esportazione. Usa le pagine di riferimento quando ti serve un comando preciso, una scorciatoia o come risolvere un problema.",
+    "startEditing": "Inizia a montare",
+    "fixProblem": "Risolvi un problema",
+    "groups": {
+      "start": "Primi passi",
+      "coreEditing": "Montaggio di base",
+      "creativeTools": "Strumenti creativi",
+      "output": "Esportazione",
+      "reference": "Riferimento"
+    },
+    "groupBlurbs": {
+      "start": "Imposta il browser, lo spazio di lavoro, i progetti e il layout dell'editor.",
+      "coreEditing": "Importa i media, taglia sulla timeline, guarda l'anteprima e regola le proprietà delle clip.",
+      "creativeTools": "Testo, forme e maschere, audio, effetti, colore, transizioni, keyframe, animazione, scene e IA locale.",
+      "output": "Esporta i file dal browser e gestisci i rendering in coda."
+    },
+    "related": "Correlate",
+    "notFoundTitle": "Pagina della guida non trovata",
+    "notFoundText": "Questo indirizzo non corrisponde a nessuna pagina pubblicata della guida di DroneClean Studio.",
+    "backToDocs": "Torna alla guida"
+  }
+}

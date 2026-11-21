@@ -2,7 +2,7 @@
 // name none.
 
 import { describe, expect, it } from 'vite-plus/test'
-import { droneModelFromTags } from './drone-model'
+import { dlogMUncheckedFor, droneDisplayName, droneModelFromTags, knownDjiDrone } from './drone-model'
 
 describe('droneModelFromTags', () => {
   it('reads the model from the MP4 `©too` tag', () => {
@@ -26,5 +26,34 @@ describe('droneModelFromTags', () => {
     expect(droneModelFromTags({})).toBeUndefined()
     expect(droneModelFromTags(null)).toBeUndefined()
     expect(droneModelFromTags(undefined)).toBeUndefined()
+  })
+})
+
+describe('knownDjiDrone', () => {
+  it('recognises the Avata 2, Mini 4 Pro and Air 3 by name, spaced or not, and the Mini 4 Pro by its FC8482 code', () => {
+    expect(knownDjiDrone('DJI Avata2')).toBe('avata-2')
+    expect(knownDjiDrone('DJI Avata 2')).toBe('avata-2')
+    expect(knownDjiDrone('DJI Mini4Pro')).toBe('mini-4-pro')
+    expect(knownDjiDrone('DJI Mini 4 Pro')).toBe('mini-4-pro')
+    expect(knownDjiDrone('DJI FC8482')).toBe('mini-4-pro')
+    expect(knownDjiDrone('DJI Air3')).toBe('air-3')
+    expect(knownDjiDrone('DJI Air 3')).toBe('air-3')
+  })
+
+  it('does not take the Air 3S, other drones or nothing for one of them', () => {
+    expect(knownDjiDrone('DJI Air3S')).toBeNull()
+    expect(knownDjiDrone('DJI Mini 3 Pro')).toBeNull()
+    expect(knownDjiDrone('DJI Mavic 3 Pro')).toBeNull()
+    expect(knownDjiDrone(null)).toBeNull()
+    expect(knownDjiDrone(undefined)).toBeNull()
+  })
+
+  it('writes the names a person uses and flags only the drones D-Log M was not checked on', () => {
+    expect(droneDisplayName('DJI Avata2')).toBe('DJI Avata 2')
+    expect(droneDisplayName('DJI Mavic 3 Pro')).toBe('DJI Mavic 3 Pro')
+    expect(dlogMUncheckedFor('DJI Mini4Pro')).toBe(true)
+    expect(dlogMUncheckedFor('DJI Air3')).toBe(true)
+    expect(dlogMUncheckedFor('DJI Avata2')).toBe(false)
+    expect(dlogMUncheckedFor('DJI Mavic 3 Pro')).toBe(false)
   })
 })

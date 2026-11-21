@@ -58,7 +58,7 @@ describe('lazy locale loading', () => {
     const enFiles = filesForLang('en')
     expect(enFiles.size).toBeGreaterThan(0)
 
-    const langs = ['es', 'fr', 'de', 'pt-BR', 'tr', 'ja', 'ko', 'zh']
+    const langs = ['es', 'fr', 'de', 'it', 'pt-BR', 'tr', 'ja', 'ko', 'zh']
     for (const lang of langs) {
       const langFiles = filesForLang(lang)
       expect(langFiles, `${lang} should have the same partial files as en`).toEqual(enFiles)

@@ -32,6 +32,7 @@ import type { TimelineItem, VideoItem } from '@/types/timeline'
 import { LooksSection } from '@/studio/looks/LooksSection'
 import { suggestColorProfile, type SuggestedProfile } from './suggest'
 import { updateClipsTogether } from './batch-update'
+import { dlogMUncheckedFor, droneDisplayName } from './drone-model'
 
 interface ColorPresetSectionProps {
   /** The selected items; the section works on every video clip among them, in one step. */
@@ -62,20 +63,27 @@ function SuggestionRow({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-muted-foreground" data-testid="color-preset-suggestion">
-        {drone !== null ? `${drone} · ` : ''}
-        {t('presets.profile.suggested', { profile: PROFILE_LABELS[profile] })}
-      </span>
-      <Button
-        variant="secondary"
-        size="sm"
-        className="h-7 px-2"
-        onClick={onApply}
-        data-testid="color-preset-apply"
-      >
-        {t('presets.profile.apply')}
-      </Button>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground" data-testid="color-preset-suggestion">
+          {drone !== null ? `${droneDisplayName(drone)} · ` : ''}
+          {t('presets.profile.suggested', { profile: PROFILE_LABELS[profile] })}
+        </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="h-7 px-2"
+          onClick={onApply}
+          data-testid="color-preset-apply"
+        >
+          {t('presets.profile.apply')}
+        </Button>
+      </div>
+      {profile === 'dlog-m' && dlogMUncheckedFor(drone) && (
+        <p className="text-muted-foreground" data-testid="color-preset-unchecked">
+          {t('presets.profile.uncheckedDrone')}
+        </p>
+      )}
     </div>
   )
 }

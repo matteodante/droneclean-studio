@@ -1,0 +1,28 @@
+{
+  "transcript": {
+    "sourceAnalyzed": "Sorgente analizzata per intero",
+    "detectedRange": "Voce rilevata da {{start}} a {{end}}. Le parti silenziose o con sola musica sono omesse.",
+    "title": "Trascrizione",
+    "tabLabel": "Trascrizione",
+    "emptySelection": "Seleziona una clip video o audio per modificarne la trascrizione.",
+    "searchPlaceholder": "Cerca nella trascrizione",
+    "nextMatch": "Risultato successivo",
+    "previousMatch": "Risultato precedente",
+    "clearSearch": "Cancella ricerca",
+    "noTranscript": "Questa clip non ha ancora una trascrizione.",
+    "transcriptionFailed": "Generazione della trascrizione non riuscita.",
+    "tryAgain": "Riprova",
+    "largeTurboFallback": "Large Turbo ha esaurito la memoria. Riprovo con Whisper Small…",
+    "generate": "Genera trascrizione",
+    "transcribing": "Trascrizione in corso…",
+    "loading": "Caricamento della trascrizione…",
+    "wordsSelected_one": "{{count}} parola selezionata",
+    "wordsSelected_other": "{{count}} parole selezionate",
+    "selectHint": "Clicca una parola per andarci; trascina per selezionare.",
+    "deleteSelection": "Elimina",
+    "toastRemoved": "Rimosse {{count}} clip",
+    "toastNothingRemoved": "Non è stato rimosso nulla",
+    "toastRemoveFailed": "Impossibile rimuovere le parole selezionate",
+    "toastTranscribeFailed": "Trascrizione non riuscita"
+  }
+}

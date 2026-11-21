@@ -1,0 +1,38 @@
+{
+  "recording": {
+    "rec": "REC",
+    "record": "Registra voce fuori campo",
+    "recordTooltip": "Registra una voce fuori campo sincronizzata con la testina",
+    "pause": "Metti in pausa la registrazione",
+    "resume": "Riprendi la registrazione",
+    "stop": "Ferma e salva",
+    "stopTooltip": "Ferma e aggiungi la registrazione alla timeline",
+    "cancel": "Annulla registrazione",
+    "cancelTooltip": "Scarta questa registrazione",
+    "saving": "Salvataggio…",
+    "chooseDevice": "Impostazioni del microfono",
+    "microphone": "Microfono",
+    "systemDefault": "Predefinito di sistema",
+    "settings": "Impostazioni di registrazione",
+    "noiseSuppression": "Riduzione del rumore",
+    "autoGain": "Guadagno automatico",
+    "muteWhileRecording": "Silenzia la timeline durante la registrazione",
+    "syncOffset": "Scostamento di sincronia",
+    "syncOffsetEarlier": "Anticipa la registrazione",
+    "syncOffsetLater": "Posticipa la registrazione",
+    "headphonesHint": "Usa le cuffie, così l'audio della timeline non viene catturato dal microfono.",
+    "fileNamePrefix": "voce-fuori-campo",
+    "errors": {
+      "unsupported": "La registrazione dal microfono non è supportata in questo browser.",
+      "noProject": "Apri un progetto prima di registrare.",
+      "permissionDenied": "L'accesso al microfono è stato bloccato. Consenti l'accesso al microfono nel browser e riprova.",
+      "noDevice": "Nessun microfono trovato. Collega un microfono e riprova.",
+      "deviceBusy": "Il microfono è in uso da un'altra app.",
+      "startFailed": "Impossibile avviare la registrazione. Riprova.",
+      "failed": "Registrazione non riuscita. Riprova.",
+      "saveFailed": "Impossibile salvare la registrazione.",
+      "systemBlocked": "DroneClean Studio non può usare il microfono. Consentilo in Impostazioni di Sistema › Privacy e sicurezza › Microfono, poi riprova.",
+      "startTimeout": "Il microfono non si è avviato. Controlla che sia collegato e consentito (Impostazioni di Sistema › Privacy e sicurezza › Microfono), poi riprova."
+    }
+  }
+}

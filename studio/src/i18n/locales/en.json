@@ -27,6 +27,7 @@
       "unset": "Not set",
       "suggested": "Suggested: {{profile}}?",
       "apply": "Apply",
+      "uncheckedDrone": "D-Log M was fitted on Avata 2 footage; its colour has not been checked on this drone.",
       "askTitle": "Were these DJI clips shot in D-Log M?",
       "askBody": "The file does not say. Yes sets the D-Log M colour profile on them; you can change it on any clip.",
       "askYes": "Yes, D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "When the editor hits an error, send the error and where it happened in the code, with the version and the operating system, to Sentry (EU), so it can be fixed.",
       "usageStats": "Send anonymous usage statistics",
       "usageStatsDescription": "Count a few moments (opening the app, creating a project, finishing an export, connecting an AI agent, removing a shadow) under a random id of this installation, to PostHog (EU). Switching it off forgets the id.",
+      "updateCheck": "Check for new versions",
+      "updateCheckDescription": "When the app starts (once a day at most), ask GitHub for the number of the latest version and tell you if a newer one exists. GitHub sees your IP address; nothing else about you or your work is sent. Switched off, no request is made.",
+      "updateNoticeTitle": "DroneClean Studio {{version}} is available",
+      "updateNoticeDownload": "Download",
+      "updateNoticeLater": "Later",
       "never": "Never sent: your footage, frames, file and folder names, project names or your account. Your IP address is not stored."
     }
   },
@@ -241,5 +247,36 @@
       "allow": "Allow",
       "decline": "Don't allow"
     }
+  },
+  "docs": {
+    "title": "Docs",
+    "openStudio": "Open DroneClean Studio",
+    "home": "Home",
+    "searchPlaceholder": "Search docs",
+    "searchLabel": "Search documentation",
+    "overview": "Docs overview",
+    "noMatches": "No pages match “{{query}}”.",
+    "documentation": "DroneClean Studio documentation",
+    "userGuide": "DroneClean Studio User Guide",
+    "homeIntro": "Start with setup, workspaces, media import, timeline editing, and export. Use the reference pages when you need a precise control, shortcut, or troubleshooting path.",
+    "startEditing": "Start editing",
+    "fixProblem": "Fix a problem",
+    "groups": {
+      "start": "Start",
+      "coreEditing": "Core Editing",
+      "creativeTools": "Creative Tools",
+      "output": "Output",
+      "reference": "Reference"
+    },
+    "groupBlurbs": {
+      "start": "Set up the browser, workspace, projects, and editor layout.",
+      "coreEditing": "Import media, cut on the timeline, preview, and adjust clip properties.",
+      "creativeTools": "Text, shapes and masks, audio, effects, color, transitions, keyframes, animation, scenes, and local AI.",
+      "output": "Export files from the browser and manage queued renders."
+    },
+    "related": "Related",
+    "notFoundTitle": "Docs page not found",
+    "notFoundText": "This docs URL does not match a published DroneClean Studio guide.",
+    "backToDocs": "Back to docs"
   }
 }

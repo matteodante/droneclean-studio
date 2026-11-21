@@ -77,6 +77,10 @@
       "qualityMedium": "中",
       "qualityUltra": "超高",
       "quicktimeMov": "QuickTime MOV",
+      "rateControl": "码率控制",
+      "rateControlAuto": "自动（参考源文件）",
+      "rateControlCbr": "CBR（恒定码率）",
+      "rateControlVbr": "VBR（可变码率）",
       "renderWholeProject": "渲染整个项目",
       "resolution": "分辨率",
       "resolutionSameAsProject": "与项目相同 ({{width}}×{{height}})",
@@ -86,6 +90,12 @@
       "selectQuality": "选择画质",
       "selectResolution": "选择分辨率",
       "sequence": "序列",
+      "targetBitrate": "目标码率",
+      "useSourceBitrate": "使用源文件",
+      "smartCopy": "尽可能使用智能拷贝",
+      "smartCopyPath": "智能拷贝 · 无需重新编码",
+      "estimatedSize": "预计 {{size}}",
+      "sourceBitrate": "源文件 {{bitrate}} Mbps",
       "subtitleMode": {
         "off": "关闭",
         "burn": "烧录",
@@ -99,11 +109,24 @@
       "subtitles": "字幕",
       "video": "视频",
       "smartCopyStatus": {
-        "shadow-pieces": "由于片段的一部分已通过 DroneClean 阴影移除清理，无法使用。"
+        "eligible": "可用：将逐字节复制原始媒体。",
+        "disabled": "已禁用。将渲染并编码时间线。",
+        "not-video": "仅适用于视频导出。",
+        "range": "导出入点/出点范围时不可用。",
+        "timeline-layout": "需要一个完整的源片段，且不含其他图层。",
+        "source-unavailable": "原始源文件或元数据不可用。",
+        "trimmed-or-retimed": "由于源片段已被修剪、分割、倒放或变速，无法使用。",
+        "shadow-pieces": "由于片段的一部分已通过 DroneClean 阴影移除清理，无法使用。",
+        "visual-processing": "由于需要渲染视觉编辑、字幕、转场或关键帧，无法使用。",
+        "audio-processing": "由于音频或轨道混音已更改，无法使用。",
+        "project-mismatch": "项目分辨率或帧率与源文件不一致。",
+        "format-mismatch": "所选格式或编解码器与源文件不一致。"
       },
       "presetSameAsSource": "与源相同",
       "presetYoutube4k": "YouTube 4K",
       "presetInstagramReel": "Instagram Reels",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
       "presetSmallFile": "小文件（分享）",
       "presetMasterProres": "母版 ProRes",
       "presetMasterHevc10": "母版 HEVC 10 位",
@@ -120,6 +143,7 @@
       "checking": "正在检查导出预检…",
       "title": "导出预检",
       "workerPath": "Worker 路径",
+      "smartCopyPath": "智能拷贝路径",
       "fallback": "主线程回退",
       "checks": {
         "empty-range": {
@@ -150,6 +174,10 @@
         "video-codec-supported": {
           "title": "支持视频编解码器",
           "detail": "{{codec}} 可在此浏览器中编码为 {{container}}。"
+        },
+        "smart-copy-ready": {
+          "title": "智能拷贝已就绪",
+          "detail": "将直接拷贝原始媒体，无需渲染或重新编码。"
         },
         "audio-codec-supported": {
           "title": "支持音频编解码器",

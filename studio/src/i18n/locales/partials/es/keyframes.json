@@ -70,6 +70,16 @@
         "easeInOut": "Entrada/salida suave",
         "easeOut": "Salida suave"
       },
+      "editLane": {
+        "property": "Propiedad del fotograma clave",
+        "position": "Posición",
+        "scale": "Escala",
+        "anchor": "Ancla",
+        "previous": "Fotograma clave anterior",
+        "next": "Siguiente fotograma clave",
+        "show": "Mostrar el panel de fotogramas clave",
+        "hide": "Ocultar el panel de fotogramas clave"
+      },
       "holdHint": "El valor se mantiene hasta el siguiente fotograma clave.",
       "unhold": "No mantener",
       "legend": {

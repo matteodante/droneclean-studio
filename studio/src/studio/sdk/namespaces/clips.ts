@@ -38,7 +38,7 @@ import { setMotionBlur as setMotionBlurAction } from '@/studio/motion-blur/ui/ac
 import { canHoldSpeedCurve, setSpeedCurve as setSpeedCurveAction } from '@/studio/speed/actions'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import * as grade from './clips-grade'
-import { applySmoothEdit } from './clips-smooth'
+import { applySmoothEdit, applySmoothEditTimeline } from './clips-smooth'
 import { useTimelineSettingsStore } from '@/features/timeline/stores/timeline-settings-store'
 import { useProjectStore } from '@/features/projects/stores/project-store'
 import {
@@ -309,10 +309,13 @@ function fieldOf(value: unknown, field: string): unknown {
  * The smooth slow motion a settings object asks for: its `smoothSlowMotion`, or the deprecated `blendSlowMotion`
  * (`true` is `'blend'`, `false` is off) when only that is given; `null` when the one given is not valid.
  */
-function requestedSmoothSlowMotion(value: unknown): { mode: MotionBlurSettings['smoothSlowMotion'] } | null {
+function requestedSmoothSlowMotion(
+  value: unknown,
+): { mode: MotionBlurSettings['smoothSlowMotion'] } | null {
   const smooth = fieldOf(value, 'smoothSlowMotion')
   const legacy = fieldOf(value, 'blendSlowMotion')
-  if (legacy === undefined) return smooth === undefined || isSmoothSlowMotion(smooth) ? { mode: smooth } : null
+  if (legacy === undefined)
+    return smooth === undefined || isSmoothSlowMotion(smooth) ? { mode: smooth } : null
   if (typeof legacy !== 'boolean') return null
   return { mode: legacy ? 'blend' : undefined }
 }
@@ -329,11 +332,15 @@ function requireFlowSettings(
   const detail = fieldOf(value, 'flowDetail')
   const edges = fieldOf(value, 'flowEdges')
   if (detail === undefined && edges === undefined) return {}
-  if ((detail !== undefined && !isFlowDetail(detail)) || (edges !== undefined && !isFlowEdges(edges))) {
+  if (
+    (detail !== undefined && !isFlowDetail(detail)) ||
+    (edges !== undefined && !isFlowEdges(edges))
+  ) {
     throw invalidArgumentError({
       method,
       argument: 'settings',
-      expectation: '"flowDetail" "normal" or "high", and "flowEdges" "mix" or "nearest", each optional',
+      expectation:
+        '"flowDetail" "normal" or "high", and "flowEdges" "mix" or "nearest", each optional',
       value,
       hint: 'Leave them out for the defaults: normal detail, mixed hard edges.',
     })
@@ -357,7 +364,10 @@ function requireFlowSettings(
  */
 function requireMotionBlurSettings(value: unknown, method: string): MotionBlurSettings | null {
   if (value === null) return null
-  if (fieldOf(value, 'smoothSlowMotion') !== undefined && fieldOf(value, 'blendSlowMotion') !== undefined) {
+  if (
+    fieldOf(value, 'smoothSlowMotion') !== undefined &&
+    fieldOf(value, 'blendSlowMotion') !== undefined
+  ) {
     throw invalidArgumentError({
       method,
       argument: 'settings',
@@ -954,7 +964,12 @@ export function createClipsApi(): ClipsApi {
         addItem(item)
       })
       if (onOverlap === 'fail') return item.id
-      return { id: item.id, from: firstFree, requestedFrom: item.from, moved: firstFree !== item.from }
+      return {
+        id: item.id,
+        from: firstFree,
+        requestedFrom: item.from,
+        moved: firstFree !== item.from,
+      }
     }) as ClipsApi['add'],
 
     addMany: ((inputs: ClipAddInput[]): Array<ClipId | ClipPlacement> => {
@@ -1205,6 +1220,7 @@ export function createClipsApi(): ClipsApi {
     },
 
     applySmoothEdit,
+    smoothEditTimeline: applySmoothEditTimeline,
 
     getColorProfile: grade.getColorProfile,
     setColorProfile: grade.setColorProfile,

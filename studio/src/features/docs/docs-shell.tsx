@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -16,13 +17,28 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/shared/ui/cn'
 import {
   DOC_GROUPS,
-  DOC_PAGES,
-  getDocPage,
+  useDocPages,
   type DocBlock,
   type DocCategory,
   type DocPage,
   type DocSection,
 } from './docs-content'
+
+/** The translated heading of a category (the category itself stays the English key). */
+function groupLabel(t: TFunction, group: DocCategory): string {
+  switch (group) {
+    case 'Start':
+      return t('docs.groups.start')
+    case 'Core Editing':
+      return t('docs.groups.coreEditing')
+    case 'Creative Tools':
+      return t('docs.groups.creativeTools')
+    case 'Output':
+      return t('docs.groups.output')
+    case 'Reference':
+      return t('docs.groups.reference')
+  }
+}
 
 /** Free-text haystack for a page, used by the sidebar search filter. */
 function pageSearchText(page: DocPage): string {
@@ -49,20 +65,23 @@ interface DocsShellProps {
 }
 
 export function DocsShell({ children, currentSlug }: DocsShellProps) {
+  const { t } = useTranslation()
   return (
     <div className="min-h-screen bg-background text-foreground select-text">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Link to="/projects" className="flex items-center gap-3">
             <FreeCutLogo size="md" />
-            <span className="hidden text-sm text-muted-foreground sm:inline">Docs</span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {t('docs.title')}
+            </span>
           </Link>
           <nav className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
-              <Link to="/projects">Open DroneClean Studio</Link>
+              <Link to="/projects">{t('docs.openStudio')}</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link to="/projects">Home</Link>
+              <Link to="/projects">{t('docs.home')}</Link>
             </Button>
           </nav>
         </div>
@@ -80,15 +99,16 @@ export function DocsShell({ children, currentSlug }: DocsShellProps) {
 
 function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
   const { t } = useTranslation()
+  const pages = useDocPages()
   const [query, setQuery] = useState('')
   const trimmed = query.trim().toLowerCase()
 
   const matches = useMemo(() => {
     if (!trimmed) return null
     return new Set(
-      DOC_PAGES.filter((page) => pageSearchText(page).includes(trimmed)).map((p) => p.slug),
+      pages.filter((page) => pageSearchText(page).includes(trimmed)).map((p) => p.slug),
     )
-  }, [trimmed])
+  }, [trimmed, pages])
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-3">
@@ -98,8 +118,8 @@ function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search docs"
-          aria-label="Search documentation"
+          placeholder={t('docs.searchPlaceholder')}
+          aria-label={t('docs.searchLabel')}
           className="w-full rounded-md border border-border bg-background py-2 pl-8 pr-8 text-sm outline-none focus:border-primary/60"
         />
       </div>
@@ -112,25 +132,27 @@ function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
         )}
       >
         <BookOpen className="h-4 w-4" />
-        Docs overview
+        {t('docs.overview')}
       </Link>
 
       {matches?.size === 0 && (
-        <p className="px-2 text-sm text-muted-foreground">No pages match “{query.trim()}”.</p>
+        <p className="px-2 text-sm text-muted-foreground">
+          {t('docs.noMatches', { query: query.trim() })}
+        </p>
       )}
 
       {DOC_GROUPS.map((group) => {
-        const pages = DOC_PAGES.filter(
+        const groupPages = pages.filter(
           (page) => page.category === group && (matches === null || matches.has(page.slug)),
         )
-        if (pages.length === 0) return null
+        if (groupPages.length === 0) return null
 
         return (
           <div key={group} className="space-y-1">
             <p className="px-2 text-xs font-semibold uppercase tracking-wide text-primary">
-              {group}
+              {groupLabel(t, group)}
             </p>
-            {pages.map((page) => (
+            {groupPages.map((page) => (
               <Link
                 key={page.slug}
                 to="/docs/$slug"
@@ -159,30 +181,29 @@ function DocsNavigation({ currentSlug }: { currentSlug?: string }) {
 }
 
 export function DocsHome() {
+  const { t } = useTranslation()
+  const pages = useDocPages()
   return (
     <div className="space-y-8">
       <section className="rounded-lg border border-border bg-card p-6 sm:p-8">
         <div className="mb-4 flex items-center gap-2 text-primary">
           <BookOpen className="h-5 w-5" />
-          <span className="text-sm font-medium">DroneClean Studio documentation</span>
+          <span className="text-sm font-medium">{t('docs.documentation')}</span>
         </div>
         <h1 className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
-          DroneClean Studio User Guide
+          {t('docs.userGuide')}
         </h1>
-        <p className="mt-4 max-w-3xl text-muted-foreground">
-          Start with setup, workspaces, media import, timeline editing, and export. Use the
-          reference pages when you need a precise control, shortcut, or troubleshooting path.
-        </p>
+        <p className="mt-4 max-w-3xl text-muted-foreground">{t('docs.homeIntro')}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild>
             <Link to="/docs/$slug" params={{ slug: 'getting-started' }}>
-              Start editing
+              {t('docs.startEditing')}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
           <Button asChild variant="outline">
             <Link to="/docs/$slug" params={{ slug: 'troubleshooting' }}>
-              Fix a problem
+              {t('docs.fixProblem')}
             </Link>
           </Button>
         </div>
@@ -191,33 +212,29 @@ export function DocsHome() {
       <section className="grid gap-4 md:grid-cols-2">
         {(
           [
-            ['Start', 'Set up the browser, workspace, projects, and editor layout.'],
-            [
-              'Core Editing',
-              'Import media, cut on the timeline, preview, and adjust clip properties.',
-            ],
-            [
-              'Creative Tools',
-              'Text, shapes and masks, audio, effects, color, transitions, keyframes, animation, scenes, and local AI.',
-            ],
-            ['Output', 'Export files from the browser and manage queued renders.'],
+            ['Start', t('docs.groupBlurbs.start')],
+            ['Core Editing', t('docs.groupBlurbs.coreEditing')],
+            ['Creative Tools', t('docs.groupBlurbs.creativeTools')],
+            ['Output', t('docs.groupBlurbs.output')],
           ] satisfies [DocCategory, string][]
         ).map(([title, description]) => (
           <div key={title} className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-lg font-semibold">{title}</h2>
+            <h2 className="text-lg font-semibold">{groupLabel(t, title)}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{description}</p>
             <div className="mt-4 space-y-1">
-              {DOC_PAGES.filter((page) => page.category === title).map((page) => (
-                <Link
-                  key={page.slug}
-                  to="/docs/$slug"
-                  params={{ slug: page.slug }}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                >
-                  {page.title}
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Link>
-              ))}
+              {pages
+                .filter((page) => page.category === title)
+                .map((page) => (
+                  <Link
+                    key={page.slug}
+                    to="/docs/$slug"
+                    params={{ slug: page.slug }}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                  >
+                    {page.title}
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Link>
+                ))}
             </div>
           </div>
         ))}
@@ -226,20 +243,22 @@ export function DocsHome() {
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center gap-2">
           <Search className="h-4 w-4 text-primary" />
-          <h2 className="text-lg font-semibold">Reference</h2>
+          <h2 className="text-lg font-semibold">{groupLabel(t, 'Reference')}</h2>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {DOC_PAGES.filter((page) => page.category === 'Reference').map((page) => (
-            <Link
-              key={page.slug}
-              to="/docs/$slug"
-              params={{ slug: page.slug }}
-              className="rounded-md border border-border bg-background p-3 hover:border-primary/60"
-            >
-              <p className="text-sm font-medium">{page.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{page.description}</p>
-            </Link>
-          ))}
+          {pages
+            .filter((page) => page.category === 'Reference')
+            .map((page) => (
+              <Link
+                key={page.slug}
+                to="/docs/$slug"
+                params={{ slug: page.slug }}
+                className="rounded-md border border-border bg-background p-3 hover:border-primary/60"
+              >
+                <p className="text-sm font-medium">{page.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{page.description}</p>
+              </Link>
+            ))}
         </div>
       </section>
     </div>
@@ -247,9 +266,11 @@ export function DocsHome() {
 }
 
 export function DocsArticle({ page }: { page: DocPage }) {
-  const index = DOC_PAGES.findIndex((candidate) => candidate.slug === page.slug)
-  const previous = index > 0 ? DOC_PAGES[index - 1] : undefined
-  const next = index >= 0 && index < DOC_PAGES.length - 1 ? DOC_PAGES[index + 1] : undefined
+  const { t } = useTranslation()
+  const pages = useDocPages()
+  const index = pages.findIndex((candidate) => candidate.slug === page.slug)
+  const previous = index > 0 ? pages[index - 1] : undefined
+  const next = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined
 
   return (
     <article className="rounded-lg border border-border bg-card">
@@ -259,9 +280,9 @@ export function DocsArticle({ page }: { page: DocPage }) {
           className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Docs
+          {t('docs.title')}
         </Link>
-        <p className="text-sm font-medium text-primary">{page.category}</p>
+        <p className="text-sm font-medium text-primary">{groupLabel(t, page.category)}</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{page.title}</h1>
         <p className="mt-3 max-w-3xl text-muted-foreground">{page.description}</p>
       </div>
@@ -473,12 +494,16 @@ function RichText({ text }: { text: string }) {
 }
 
 function RelatedPages({ slugs }: { slugs?: string[] }) {
-  const related = (slugs ?? []).map(getDocPage).filter((page): page is DocPage => Boolean(page))
+  const { t } = useTranslation()
+  const pages = useDocPages()
+  const related = (slugs ?? [])
+    .map((slug) => pages.find((page) => page.slug === slug))
+    .filter((page): page is DocPage => Boolean(page))
   if (related.length === 0) return null
 
   return (
     <section className="border-t border-border pt-6">
-      <h2 className="text-xl font-semibold">Related</h2>
+      <h2 className="text-xl font-semibold">{t('docs.related')}</h2>
       <div className="mt-3 flex flex-wrap gap-2">
         {related.map((page) => (
           <Link

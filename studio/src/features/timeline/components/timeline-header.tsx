@@ -51,6 +51,8 @@ import { ZOOM_MIN, ZOOM_MAX, SLIP_SLIDE_TOOLS_ENABLED } from '../constants'
 import { EDITOR_LAYOUT_CSS_VALUES } from '@/config/editor-layout'
 import { useResolvedHotkeys } from '@/features/timeline/deps/settings'
 import { MicRecordControl } from './mic-record-control'
+import { SmoothEditControl } from '@/studio/smooth-edit/dialog'
+import { PrerenderMenu } from '@/studio/prerender/ui/PrerenderMenu'
 
 interface TimelineHeaderProps {
   onZoomChange?: (newZoom: number) => void
@@ -714,6 +716,9 @@ export const TimelineHeader = memo(function TimelineHeader({
             >
               <X className="w-3.5 h-3.5" />
             </Button>
+
+            {/* DroneClean: Render preview (In to Out, or the whole timeline) */}
+            <PrerenderMenu buttonStyle={btnSize} />
           </div>
 
           <Separator orientation="vertical" className="h-5 mx-1.5" />
@@ -765,6 +770,8 @@ export const TimelineHeader = memo(function TimelineHeader({
 
           {/* Microphone voiceover */}
           <MicRecordControl />
+
+          <SmoothEditControl />
 
           <Separator orientation="vertical" className="h-5 mx-1.5" />
 

@@ -292,7 +292,7 @@ describe('the @throws contract of types.ts and the namespace tests', () => {
     expect(unattributed).toEqual([])
   })
 
-  it('reads all seventeen namespaces and their methods', () => {
+  it('reads all eighteen namespaces and their methods', () => {
     expect([...namespaces.keys()].sort()).toEqual([
       'clips',
       'effects',
@@ -303,6 +303,7 @@ describe('the @throws contract of types.ts and the namespace tests', () => {
       'markers',
       'media',
       'playback',
+      'preview',
       'project',
       'selection',
       'shadow',

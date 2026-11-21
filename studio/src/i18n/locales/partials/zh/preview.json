@@ -68,7 +68,11 @@
       "loadingMedia": "正在加载媒体…",
       "videoPreview": "视频预览",
       "emptyTitle": "时间线上还没有内容",
-      "emptyDescription": "导入媒体，将片段拖到时间线，然后按空格键预览。"
+      "emptyDescription": "导入媒体，将片段拖到时间线，然后按空格键预览。",
+      "gradeComparisonSplit": "分屏调色对比",
+      "gradeComparisonBefore": "之前",
+      "gradeComparisonAfter": "之后",
+      "gradeComparisonWipe": "调整分屏对比"
     },
     "zoom": {
       "ariaLabel": "缩放级别：{{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "无法检查拖放的视频。",
       "unableToInspectFile": "无法检查拖放的文件。",
       "unableToImportFile": "无法导入拖放的文件。"
+    },
+    "previewRender": {
+      "quality": {
+        "label": "播放分辨率",
+        "tooltip": "播放分辨率：{{value}}",
+        "full": "完整",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "渲染预览",
+        "renderInOut": "渲染入点到出点",
+        "renderTimeline": "渲染整个时间线",
+        "clear": "删除已渲染的预览",
+        "shortcut": "渲染预览（入点到出点，或整个时间线）",
+        "rendering": "正在渲染预览 {{percent}}%",
+        "cancel": "取消预览渲染",
+        "barLabel": "已渲染的预览",
+        "done": "预览已渲染：用 {{took}} 秒渲染了 {{seconds}} 秒时间线。",
+        "alreadyDone": "此范围已渲染。",
+        "cancelled": "预览渲染已取消。已渲染的部分会保留。",
+        "changed": "预览渲染已停止：渲染期间项目发生了变化。仍然有效的帧会保留。",
+        "full": "预览渲染已停止：预览缓存已满（1 GB）。已渲染的部分会保留。",
+        "unsupported": "这台电脑无法以此尺寸保存已渲染的预览帧。预览保持实时。",
+        "error": "预览渲染失败：{{message}}",
+        "empty": "没有可渲染的内容：时间线为空。",
+        "busy": "已有一个预览渲染在进行中。",
+        "noPreview": "请在编辑器中打开项目以渲染其预览。"
+      }
     }
   }
 }

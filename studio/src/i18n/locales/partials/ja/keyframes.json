@@ -70,6 +70,16 @@
         "easeInOut": "イーズイン/アウト",
         "easeOut": "イーズアウト"
       },
+      "editLane": {
+        "property": "キーフレームのプロパティ",
+        "position": "位置",
+        "scale": "スケール",
+        "anchor": "アンカー",
+        "previous": "前のキーフレーム",
+        "next": "次のキーフレーム",
+        "show": "キーフレームパネルを表示",
+        "hide": "キーフレームパネルを非表示"
+      },
       "holdHint": "次のキーフレームまで値を保持します。",
       "unhold": "ホールド解除",
       "legend": {

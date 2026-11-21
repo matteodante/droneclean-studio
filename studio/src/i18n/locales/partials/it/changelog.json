@@ -1,0 +1,16 @@
+{
+  "changelog": {
+    "homeAria": "Home di DroneClean Studio",
+    "backToHome": "Torna alla home",
+    "releaseNotes": "Note di rilascio",
+    "title": "Novità di DroneClean Studio",
+    "description": "Un'edizione settimanale con nuovi strumenti di montaggio, miglioramenti del flusso di lavoro e correzioni. L'ultima versione è aperta; espandi una settimana precedente per vedere l'elenco completo delle modifiche.",
+    "latest": "Ultima",
+    "changeCount_one": "{{count}} modifica",
+    "changeCount_other": "{{count}} modifiche",
+    "initialRelease": "Prima versione",
+    "ctaTitle": "Pronto a creare qualcosa?",
+    "ctaDescription": "Apri DroneClean Studio e metti al lavoro gli strumenti più recenti.",
+    "openEditor": "Apri DroneClean Studio"
+  }
+}

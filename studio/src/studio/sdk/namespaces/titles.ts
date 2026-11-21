@@ -533,7 +533,9 @@ function requireFreeRange(item: TextItem): void {
     .getState()
     .items.find(
       (other) =>
-        other.trackId === item.trackId && other.from < end && other.from + other.durationInFrames > item.from,
+        other.trackId === item.trackId &&
+        other.from < end &&
+        other.from + other.durationInFrames > item.from,
     )
   const where = blocker
     ? `clip "${blocker.id}" (frames ${blocker.from}..${blocker.from + blocker.durationInFrames})`

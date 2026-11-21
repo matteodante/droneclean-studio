@@ -770,6 +770,8 @@
       "signInAgain": "Tekrar giriş yap",
       "removeCleaning": "Temizliği kaldır",
       "noSource": "Bu klibin dosyası açık değil, gölgesi gönderilemez. Önce yeniden bağlayın.",
+      "cutNoKeyframe": "Bu videoda başlanacak bir anahtar kare yok, bu yüzden gölge içinde takip edilemez. Önce standart bir MP4'e dönüştürün.",
+      "cutNoVideo": "Bu dosyada düzenleyicinin okuyabileceği bir video yok, bu yüzden gölge içinde takip edilemez.",
       "clickHint": "Gölgeye burada tıklayın",
       "reverseRefused": "Bu klipte temizlenmiş gölge kareleri var ve bunlar tersine çevrilemez. Önce temizlemeyi kaldırın.",
       "missingPieces_one": "Temizlenmiş {{count}} parça eksik.",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "İlk kullanımda ≈{{size}} indirilir."
     },
     "colorPanel": {
+      "dockLabel": "Renk düzenleme çalışma alanı",
+      "dockTitle": "Renk",
       "emptyState": "Renk düzenlemek için bir klip seçin",
       "adjustmentLayerLabel": "Renk düzenleme"
     },

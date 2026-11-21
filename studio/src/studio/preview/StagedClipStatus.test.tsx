@@ -58,7 +58,9 @@ describe('the staged clip status on the preview', () => {
     expect(screen.queryByRole('status')).toBeNull()
 
     act(() => setClipStageState('clip-1', { kind: 'opening', stage: 'input-colour' }))
-    expect(screen.getByTestId('staged-clip-opening').textContent).toBe('Run 2: preparing input colour')
+    expect(screen.getByTestId('staged-clip-opening').textContent).toBe(
+      'Run 2: preparing input colour',
+    )
 
     act(() => setClipStageState('clip-1', null))
     expect(screen.queryByRole('status')).toBeNull()
@@ -74,7 +76,9 @@ describe('the staged clip status on the preview', () => {
     expect(screen.queryByRole('status')).toBeNull()
 
     act(() => usePlaybackStore.setState({ currentFrame: 29 }))
-    expect(screen.getByTestId('staged-clip-opening').textContent).toBe('Run 2: preparing stabilization')
+    expect(screen.getByTestId('staged-clip-opening').textContent).toBe(
+      'Run 2: preparing stabilization',
+    )
   })
 
   it('shows a failure with Retry, which prepares the clip again and draws the frame again', async () => {
@@ -83,7 +87,11 @@ describe('the staged clip status on the preview', () => {
     const stop = subscribeStagedFrameReady(redraw)
     render(<StagedClipStatus />)
     act(() =>
-      setClipStageState('clip-1', { kind: 'failed', stage: 'input-colour', message: 'the pass broke' }),
+      setClipStageState('clip-1', {
+        kind: 'failed',
+        stage: 'input-colour',
+        message: 'the pass broke',
+      }),
     )
     expect(screen.getByTestId('staged-clip-failed').textContent).toContain(
       'Run 2: input colour failed: the pass broke',

@@ -45,6 +45,22 @@ const FORK_FOLDERS = [
     path: 'src/routes/licenses.lazy.tsx',
     why: "the router's file-based routes: a page is one file in src/routes/ (task 1.4)",
   },
+  {
+    path: 'src/i18n/locales/partials/it/',
+    why: "Italian, the fork's own language (21 Nov 2026): the i18n loader reads partials per language from src/i18n/locales/partials/<code>/, so the whole Italian set has to sit here",
+  },
+  {
+    path: 'src/i18n/locales/it.json',
+    why: "Italian's base file, which the i18n loader reads by name from src/i18n/locales/ (21 Nov 2026)",
+  },
+  {
+    path: '.claude/skills/studio-release/',
+    why: "the release skill (21 Nov 2026): Claude Code reads a project's skills from .claude/skills/<name>/; studio/.claude is never exported to the public repository",
+  },
+  ...['it', 'es', 'fr', 'de', 'pt-BR', 'tr', 'ja', 'ko', 'zh'].map((language) => ({
+    path: `src/features/docs/pages/${language}/`,
+    why: `the user guide in ${language} (21 Nov 2026): docs-content.ts reads a translated page beside the English one, by its file name, from src/features/docs/pages/<code>/`,
+  })),
   ...LICENCE_LANGUAGES.map((language) => ({
     path: `src/i18n/locales/partials/${language}/licenses.json`,
     why: "the i18n loader reads one partial per language from this folder; the licences page's copy has to sit here",

@@ -1,0 +1,138 @@
+{
+  "preview": {
+    "mediaOffline": {
+      "title": "Media non disponibile",
+      "relink": "Ricollegalo dal pannello Media",
+      "loading": "Caricamento…"
+    },
+    "align": {
+      "left": "Allinea a sinistra",
+      "centerH": "Centra orizzontalmente",
+      "right": "Allinea a destra",
+      "top": "Allinea in alto",
+      "centerV": "Centra verticalmente",
+      "bottom": "Allinea in basso",
+      "distributeH": "Distribuisci orizzontalmente",
+      "distributeV": "Distribuisci verticalmente",
+      "disableCanvasSnap": "Disattiva aggancio al canvas",
+      "enableCanvasSnap": "Attiva aggancio al canvas",
+      "toggleCanvasSnap": "Attiva/disattiva aggancio al canvas"
+    },
+    "controls": {
+      "captureFailed": "Impossibile catturare il fotogramma corrente.",
+      "disableProxyPlayback": "Disattiva riproduzione proxy",
+      "enableProxyPlayback": "Attiva riproduzione proxy",
+      "frameDownloadedNoProject": "Fotogramma scaricato: apri un progetto per salvarlo nella libreria multimediale.",
+      "frameDownloadedNotSaved": "Fotogramma scaricato, ma non è stato possibile salvarlo nella libreria multimediale: {{message}}",
+      "frameSaved": "\"{{name}}\" salvato nella libreria multimediale.",
+      "goToEnd": "Vai alla fine",
+      "goToEndTooltip": "Vai alla fine",
+      "goToStart": "Vai all'inizio",
+      "goToStartTooltip": "Vai all'inizio",
+      "nextFrame": "Fotogramma successivo",
+      "nextFrameTooltip": "Fotogramma successivo",
+      "pauseTooltip": "Pausa",
+      "playTooltip": "Riproduci",
+      "prevFrame": "Fotogramma precedente",
+      "prevFrameTooltip": "Fotogramma precedente",
+      "proxyPlaybackOff": "Riproduzione proxy disattivata",
+      "proxyPlaybackOn": "Riproduzione proxy attivata",
+      "saveFrame": "Salva fotogramma",
+      "saveFrameFailed": "Impossibile salvare il fotogramma.",
+      "saveFrameTooltip": "Salva fotogramma",
+      "savingFrame": "Salvataggio del fotogramma",
+      "savingFrameTooltip": "Salvataggio del fotogramma"
+    },
+    "monitor": {
+      "mute": "Silenzia",
+      "muteShort": "Muto",
+      "muted": "Silenziato",
+      "percent": "Percentuale",
+      "previewOnlyNote": "Riguarda solo la riproduzione locale: l'esportazione usa il mix del progetto.",
+      "thisDeviceOnly": "Solo questo dispositivo",
+      "title": "Audio dell'anteprima",
+      "unmute": "Riattiva audio",
+      "volume": "Volume"
+    },
+    "player": {
+      "exitFullscreen": "Esci da schermo intero",
+      "fullscreen": "Schermo intero",
+      "mute": "Silenzia",
+      "pause": "Pausa",
+      "play": "Riproduci",
+      "seek": "Cerca",
+      "unmute": "Riattiva audio",
+      "volume": "Volume"
+    },
+    "stage": {
+      "loadingMedia": "Caricamento media",
+      "videoPreview": "Anteprima video",
+      "emptyTitle": "Ancora niente sulla timeline",
+      "emptyDescription": "Importa dei media, trascina una clip sulla timeline, poi premi Spazio per vedere l'anteprima.",
+      "gradeComparisonSplit": "Confronto colore a schermo diviso",
+      "gradeComparisonBefore": "Prima",
+      "gradeComparisonAfter": "Dopo",
+      "gradeComparisonWipe": "Regola il confronto a schermo diviso"
+    },
+    "zoom": {
+      "ariaLabel": "Livello di zoom: {{label}}",
+      "auto": "Auto",
+      "tooltip": "Zoom: {{label}}"
+    },
+    "canvasDrop": {
+      "dropOnTimeline": "Rilascia sulla timeline",
+      "compoundClipsTimeline": "Le clip composte si posizionano meglio sulla timeline.",
+      "presetsTimeline": "I preset di testo e forme si posizionano meglio sulla timeline.",
+      "adjustmentLayersTimeline": "I livelli di regolazione si applicano a tutto il fotogramma: posizionali sulla timeline.",
+      "placeLayerDescription": "Posiziona questo livello nel punto di rilascio.",
+      "dropOneItem": "Rilascia un solo elemento",
+      "oneMediaAtATime": "Posiziona un solo media alla volta sul canvas.",
+      "audioGoesOnTimeline": "L'audio va sulla timeline",
+      "visualLayersOnly": "Il rilascio sul canvas posiziona solo livelli visivi.",
+      "dropToPlace": "Rilascia per posizionare",
+      "addAtPlayhead": "Aggiungi questo media alla testina e nel punto di rilascio.",
+      "dropOneFile": "Rilascia un solo file",
+      "oneVisualFileAtATime": "Il rilascio sul canvas importa un solo file visivo alla volta.",
+      "importAndPlace": "Importa e posiziona",
+      "importAndPlaceDescription": "Importa questo file e posizionalo sul canvas.",
+      "noCompatibleTrack": "Nessuna traccia compatibile e sbloccata disponibile per questo rilascio.",
+      "unableToLoadMedia": "Impossibile caricare il media rilasciato.",
+      "mediaNoLongerAvailable": "Il media rilasciato non è più disponibile.",
+      "dragDropUnsupported": "Il trascinamento non è supportato da questo browser. Usa Chrome o Edge.",
+      "filesRejected": "Alcuni file sono stati rifiutati: {{errors}}",
+      "dropAudioOnTimeline": "Rilascia l'audio sulla timeline.",
+      "unableToInspectVideo": "Impossibile analizzare il video rilasciato.",
+      "unableToInspectFile": "Impossibile analizzare il file rilasciato.",
+      "unableToImportFile": "Impossibile importare il file rilasciato."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Risoluzione di riproduzione",
+        "tooltip": "Risoluzione di riproduzione: {{value}}",
+        "full": "Completa",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Render dell'anteprima",
+        "renderInOut": "Renderizza da In a Out",
+        "renderTimeline": "Renderizza tutta la timeline",
+        "clear": "Elimina l'anteprima renderizzata",
+        "shortcut": "Render dell'anteprima (da In a Out, o tutta la timeline)",
+        "rendering": "Render dell'anteprima {{percent}}%",
+        "cancel": "Annulla il render dell'anteprima",
+        "barLabel": "Anteprima renderizzata",
+        "done": "Anteprima renderizzata: {{seconds}} s di timeline in {{took}} s.",
+        "alreadyDone": "Questo intervallo è già renderizzato.",
+        "cancelled": "Render dell'anteprima annullato. La parte già renderizzata resta.",
+        "changed": "Render dell'anteprima interrotto: il progetto è cambiato mentre andava. I fotogrammi ancora validi restano.",
+        "full": "Render dell'anteprima interrotto: la cache dell'anteprima è piena (1 GB). La parte già renderizzata resta.",
+        "unsupported": "Questo computer non può conservare i fotogrammi renderizzati a questa dimensione. L'anteprima resta dal vivo.",
+        "error": "Render dell'anteprima non riuscito: {{message}}",
+        "empty": "Niente da renderizzare: la timeline è vuota.",
+        "busy": "Un render dell'anteprima è già in corso.",
+        "noPreview": "Apri il progetto nell'editor per renderizzarne l'anteprima."
+      }
+    }
+  }
+}

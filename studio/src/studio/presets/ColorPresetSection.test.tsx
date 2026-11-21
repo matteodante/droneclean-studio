@@ -4,7 +4,7 @@
 // section reads the real switch.
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { i18n } from '@/i18n'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { useTimelineCommandStore } from '@/features/timeline/stores/timeline-command-store'
@@ -139,10 +139,29 @@ describe('ColorPresetSection', () => {
     renderStored(item)
 
     expect(screen.getByTestId('color-preset-suggestion').textContent).toBe(
-      'DJI Avata2 · Suggested: D-Log M?',
+      'DJI Avata 2 · Suggested: D-Log M?',
     )
     expect(screen.getByTestId('color-preset-apply').textContent).toBe('Apply')
     expect(screen.getByTestId('color-preset-select').textContent).toBe('Not set')
+  })
+
+  it('names a Mini 4 Pro and an Air 3 and says D-Log M is unchecked on them, but not on an Avata 2', () => {
+    renderStored(clip())
+    expect(screen.queryByTestId('color-preset-unchecked')).toBeNull()
+    cleanup()
+
+    for (const [model, name] of [
+      ['DJI Mini4Pro', 'DJI Mini 4 Pro'],
+      ['DJI FC8482', 'DJI Mini 4 Pro'],
+      ['DJI Air3', 'DJI Air 3'],
+    ] as const) {
+      const media = { ...AVATA_MEDIA, id: 'media-other', droneModel: model }
+      useMediaLibraryStore.setState({ mediaItems: [media] })
+      renderStored(clip({ mediaId: media.id }))
+      expect(screen.getByTestId('color-preset-suggestion').textContent).toBe(`${name} · Suggested: D-Log M?`)
+      expect(screen.getByTestId('color-preset-unchecked').textContent).toContain('Avata 2')
+      cleanup()
+    }
   })
 
   it('sets the profile on Apply, as one undo step', () => {
@@ -211,7 +230,7 @@ describe('ColorPresetSection', () => {
       renderSelection(three())
 
       expect(screen.getByTestId('color-preset-suggestion').textContent).toBe(
-        'DJI Avata2 · Suggested: D-Log M?',
+        'DJI Avata 2 · Suggested: D-Log M?',
       )
       fireEvent.click(screen.getByTestId('color-preset-apply'))
 

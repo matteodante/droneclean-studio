@@ -1,7 +1,10 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { makeTimelineVideoItem, resetTimelineCompositionTestState } from '@/features/timeline/test-helpers'
+import {
+  makeTimelineVideoItem,
+  resetTimelineCompositionTestState,
+} from '@/features/timeline/test-helpers'
 import { useItemsStore } from '@/features/timeline/stores/items-store'
 import { useLooksStore } from '@/studio/looks/store'
 import { StudioError } from '../errors'
@@ -43,7 +46,12 @@ const LOOK = {
 describe('studio.looks', () => {
   beforeEach(() => {
     // A test that replaced a store action must not leak it into the next one.
-    useLooksStore.setState({ ...useLooksStore.getInitialState(), status: 'ready', looks: [LOOK], error: null })
+    useLooksStore.setState({
+      ...useLooksStore.getInitialState(),
+      status: 'ready',
+      looks: [LOOK],
+      error: null,
+    })
   })
 
   describe('list', () => {
@@ -78,7 +86,14 @@ describe('studio.looks', () => {
     const CUBE = 'LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n'
 
     it('adds the text through the library and answers the new look', async () => {
-      const added = { ...LOOK, id: 'look-2', name: 'warm', fileName: 'warm.cube', filePath: 'warm.cube', size: 2 }
+      const added = {
+        ...LOOK,
+        id: 'look-2',
+        name: 'warm',
+        fileName: 'warm.cube',
+        filePath: 'warm.cube',
+        size: 2,
+      }
       const calls: unknown[] = []
       useLooksStore.setState({
         add: async (input) => {
@@ -98,7 +113,14 @@ describe('studio.looks', () => {
     })
 
     it('names the look when a name is given', async () => {
-      const added = { ...LOOK, id: 'look-2', name: 'warm', fileName: 'warm.cube', filePath: 'warm.cube', size: 2 }
+      const added = {
+        ...LOOK,
+        id: 'look-2',
+        name: 'warm',
+        fileName: 'warm.cube',
+        filePath: 'warm.cube',
+        size: 2,
+      }
       useLooksStore.setState({
         add: async () => {
           useLooksStore.setState({ looks: [LOOK, added] })
@@ -110,7 +132,11 @@ describe('studio.looks', () => {
         },
       })
 
-      const look = await createLooksApi().add({ text: CUBE, fileName: 'warm.cube', name: 'Domenica' })
+      const look = await createLooksApi().add({
+        text: CUBE,
+        fileName: 'warm.cube',
+        name: 'Domenica',
+      })
 
       expect(look.name).toBe('Domenica')
     })
@@ -149,15 +175,26 @@ describe('studio.looks', () => {
 
     it('throws INVALID_ARGUMENT for a missing text or a name without .cube', async () => {
       const api = createLooksApi()
-      const noText = await api.add({ text: ' ', fileName: 'a.cube' }).catch((caught: unknown) => caught)
-      const badName = await api.add({ text: CUBE, fileName: 'a.txt' }).catch((caught: unknown) => caught)
+      const noText = await api
+        .add({ text: ' ', fileName: 'a.cube' })
+        .catch((caught: unknown) => caught)
+      const badName = await api
+        .add({ text: CUBE, fileName: 'a.txt' })
+        .catch((caught: unknown) => caught)
 
       expect((noText as StudioError).code).toBe('INVALID_ARGUMENT')
       expect((badName as StudioError).code).toBe('INVALID_ARGUMENT')
     })
 
     it("studio.looks.add({ fileName: 'warm.cube', text: cubeText, name: 'Warm' })", async () => {
-      const added = { ...LOOK, id: 'look-3', name: 'Warm', fileName: 'warm.cube', filePath: 'warm.cube', size: 2 }
+      const added = {
+        ...LOOK,
+        id: 'look-3',
+        name: 'Warm',
+        fileName: 'warm.cube',
+        filePath: 'warm.cube',
+        size: 2,
+      }
       useLooksStore.setState({
         add: async () => {
           useLooksStore.setState({ looks: [LOOK, added] })
@@ -165,7 +202,9 @@ describe('studio.looks', () => {
         },
       })
 
-      expect((await createLooksApi().add({ fileName: 'warm.cube', text: CUBE, name: 'Warm' })).id).toBe('look-3')
+      expect(
+        (await createLooksApi().add({ fileName: 'warm.cube', text: CUBE, name: 'Warm' })).id,
+      ).toBe('look-3')
     })
   })
 

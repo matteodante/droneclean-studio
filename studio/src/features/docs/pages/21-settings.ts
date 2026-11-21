@@ -29,13 +29,25 @@ const page = {
               'Storage',
               'Generate missing proxies; clear project cache; regenerate thumbnails; delete proxies; manage Local AI.',
             ],
-            ['Privacy', 'Crash reports and anonymous usage statistics, each on or off (both off until you allow them).'],
+            [
+              'Privacy',
+              'Crash reports and anonymous usage statistics, each on or off (both off until you allow them); in the desktop app, also **Check for new versions** (on by default).',
+            ],
           ],
         },
         {
           kind: 'note',
           tone: 'info',
           text: 'Clearing the project cache removes regenerated data (waveforms, filmstrips, GIF frames, decoded audio); it never deletes source media. Use **Reset** in the dialog header to restore defaults.',
+        },
+      ],
+    },
+    {
+      title: 'New versions',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The desktop app is not signed, so it cannot update itself. Instead, when it starts (at most once a day) it asks GitHub for the number of the latest release and, if a newer one exists, shows a small card with **Download** (opens that release page in your browser) and **Later** (hides it until tomorrow). Nothing is shown while an export is rendering. This is the one request the app makes without you asking, so it has a switch: **Settings › Privacy › Check for new versions**, on by default. GitHub sees your IP address; nothing else about you or your work is sent, and with the switch off no request is made. The web editor is always the latest version and never checks.',
         },
       ],
     },
@@ -67,7 +79,7 @@ const page = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'DroneClean Studio sends nothing about you or your work unless you allow it. The first time it opens it asks, in a card in the bottom-left corner, whether to send **crash reports** and **anonymous usage statistics**; until you answer, and after **Don\'t allow**, nothing is sent. Change either one at any time in **Settings › Privacy**.',
+          text: "DroneClean Studio sends nothing about you or your work unless you allow it. The first time it opens it asks, in a card in the bottom-left corner, whether to send **crash reports** and **anonymous usage statistics**; until you answer, and after **Don't allow**, nothing is sent. Change either one at any time in **Settings › Privacy**.",
         },
         {
           kind: 'table',
@@ -75,7 +87,7 @@ const page = {
           rows: [
             [
               'Crash reports',
-              'The error, where it happened in the editor\'s code, the version and the operating system. Paths and file names are removed from messages before they leave.',
+              "The error, where it happened in the editor's code, the version and the operating system. Paths and file names are removed from messages before they leave.",
               'Sentry, in the EU',
             ],
             [
@@ -112,7 +124,7 @@ const page = {
         {
           kind: 'list',
           items: [
-            'Interface **language** is a separate control in the toolbar, not part of this dialog; DroneClean Studio ships in 9 languages.',
+            'Interface **language** is a separate control in the toolbar, not part of this dialog; DroneClean Studio ships in 10 languages.',
           ],
         },
         {

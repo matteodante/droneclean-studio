@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link } from '@tanstack/react-router'
 import { DocsArticle, DocsShell } from '@/features/docs/docs-shell'
-import { getDocPage } from '@/features/docs/docs-content'
+import { useDocPage } from '@/features/docs/docs-content'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
 export const Route = createLazyFileRoute('/docs/$slug')({
@@ -9,18 +10,17 @@ export const Route = createLazyFileRoute('/docs/$slug')({
 
 function DocsSlugPage() {
   const { slug } = Route.useParams()
-  const page = getDocPage(slug)
+  const { t } = useTranslation()
+  const page = useDocPage(slug)
 
   if (!page) {
     return (
       <DocsShell>
         <div className="rounded-lg border border-border bg-card p-8">
-          <h1 className="text-2xl font-semibold">Docs page not found</h1>
-          <p className="mt-3 text-muted-foreground">
-            This docs URL does not match a published DroneClean Studio guide.
-          </p>
+          <h1 className="text-2xl font-semibold">{t('docs.notFoundTitle')}</h1>
+          <p className="mt-3 text-muted-foreground">{t('docs.notFoundText')}</p>
           <Button asChild className="mt-6">
-            <Link to="/docs">Back to docs</Link>
+            <Link to="/docs">{t('docs.backToDocs')}</Link>
           </Button>
         </div>
       </DocsShell>

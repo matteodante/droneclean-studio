@@ -197,14 +197,22 @@ const PRESET_LABELS: Record<string, string> = {
   'same-as-source': 'Same as source',
   'youtube-4k': 'YouTube 4K',
   'instagram-reel': 'Instagram Reel',
+  tiktok: 'TikTok',
+  'youtube-shorts': 'YouTube Shorts',
   'small-file': 'Small file (sharing)',
 }
 
 /** The source the dialog's "Same as source" reads: the first placed video clip's file, when there is one. */
-function presetSource(): { width: number; height: number; fps: number; bitrate: number } | undefined {
+function presetSource():
+  | { width: number; height: number; fps: number; bitrate: number }
+  | undefined {
   const video = useItemsStore.getState().items.find((item) => item.type === 'video')
   if (!video || video.type !== 'video') return undefined
-  const { sourceWidth, sourceHeight, sourceFps } = video as { sourceWidth?: number; sourceHeight?: number; sourceFps?: number }
+  const { sourceWidth, sourceHeight, sourceFps } = video as {
+    sourceWidth?: number
+    sourceHeight?: number
+    sourceFps?: number
+  }
   if (!sourceWidth || !sourceHeight || !sourceFps) return undefined
   return { width: sourceWidth, height: sourceHeight, fps: sourceFps, bitrate: 0 }
 }
@@ -214,7 +222,11 @@ function presetContext(): PresetContext | undefined {
   const project = useProjectStore.getState().currentProject
   if (!project) return undefined
   const { width, height, fps } = project.metadata
-  return { project: { width, height, fps }, source: presetSource(), capabilities: WEB_PRESET_CAPABILITIES }
+  return {
+    project: { width, height, fps },
+    source: presetSource(),
+    capabilities: WEB_PRESET_CAPABILITIES,
+  }
 }
 
 /**
@@ -222,7 +234,10 @@ function presetContext(): PresetContext | undefined {
  * with the preset (Meta's Reel asks for 128 kbps AAC). `setSettings` refuses `audioBitrate`, so a job gets it
  * only this way. Undefined when no preset states one.
  */
-function presetAudioBitrate(settings: ExtendedExportSettings, container: string): string | undefined {
+function presetAudioBitrate(
+  settings: ExtendedExportSettings,
+  container: string,
+): string | undefined {
   const context = presetContext()
   if (!context) return undefined
   const id = findActivePilotPresetId(container, settings, context)
@@ -241,7 +256,11 @@ function presets(): ExportPresetInfo[] {
     })
   }
   const { width, height, fps } = project.metadata
-  const context = { project: { width, height, fps }, source: presetSource(), capabilities: WEB_PRESET_CAPABILITIES }
+  const context = {
+    project: { width, height, fps },
+    source: presetSource(),
+    capabilities: WEB_PRESET_CAPABILITIES,
+  }
   return getPilotPresets(context).flatMap(({ id }) => {
     const resolved = resolvePilotPreset(id, context)
     if (!resolved || resolved.settings.codec === 'prores') return []
@@ -259,7 +278,9 @@ function presets(): ExportPresetInfo[] {
           smartCopy: resolved.settings.smartCopy,
           videoContainer: resolved.container,
         },
-        ...(resolved.settings.audioBitrate !== undefined && { audioBitrate: resolved.settings.audioBitrate }),
+        ...(resolved.settings.audioBitrate !== undefined && {
+          audioBitrate: resolved.settings.audioBitrate,
+        }),
         numbers: { ...resolved.numbers, codec },
       },
     ]

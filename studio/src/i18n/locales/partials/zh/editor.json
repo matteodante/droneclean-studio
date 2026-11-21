@@ -770,6 +770,8 @@
       "signInAgain": "重新登录",
       "removeCleaning": "移除清理",
       "noSource": "此剪辑的文件尚未打开，无法发送它的阴影。请先重新链接。",
+      "cutNoKeyframe": "此视频没有可作为起点的关键帧，无法追踪其中的阴影。请先将其转换为标准 MP4。",
+      "cutNoVideo": "此文件没有编辑器可读取的视频，无法追踪其中的阴影。",
       "clickHint": "在此点击阴影",
       "reverseRefused": "此片段含有已清理的阴影帧，无法倒放。请先移除清理。",
       "missingPieces_one": "缺少 {{count}} 个已清理的片段。",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "首次使用会下载约 {{size}}。"
     },
     "colorPanel": {
+      "dockLabel": "调色工作区",
+      "dockTitle": "调色",
       "emptyState": "选择要调色的剪辑",
       "adjustmentLayerLabel": "调色"
     },

@@ -46,3 +46,41 @@ function djiModelIn(text: string): string | undefined {
   if (!match) return undefined
   return match[0].trim().replace(/[ -]+$/, '')
 }
+
+/** The DJI drones this editor's D-Log M profile is known to have been looked at for, or has an open question for. */
+export type KnownDjiDrone = 'avata-2' | 'mini-4-pro' | 'air-3'
+
+/**
+ * Which known DJI drone a model string names. DJI writes the model without spaces ("DJI Avata2") and some files
+ * carry the camera code instead: `FC8482` is the Mini 4 Pro's (exiftool forum, "DJI Mini 4 Pro - Maker notes could
+ * not be parsed", and sampleshots.com). The Air 3's code was not found in a public source, so the Air 3 is
+ * recognised by its name only. The Air 3S is a different drone and is not matched.
+ */
+export function knownDjiDrone(model: string | null | undefined): KnownDjiDrone | null {
+  const key = (model ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (key.includes('avata2')) return 'avata-2'
+  if (key.includes('mini4pro') || key.includes('fc8482')) return 'mini-4-pro'
+  if (/air3(?!s)/.test(key)) return 'air-3'
+  return null
+}
+
+const DRONE_NAMES: Record<KnownDjiDrone, string> = {
+  'avata-2': 'DJI Avata 2',
+  'mini-4-pro': 'DJI Mini 4 Pro',
+  'air-3': 'DJI Air 3',
+}
+
+/** The name a person writes for the drone a tag names ("DJI Avata2" → "DJI Avata 2"); the tag's own text for any other. */
+export function droneDisplayName(model: string): string {
+  const known = knownDjiDrone(model)
+  return known === null ? model : DRONE_NAMES[known]
+}
+
+/**
+ * Whether the D-Log M profile has not been checked against this drone's footage: it was fitted to the
+ * Avata 2's, and DJI lists a separate D-Log M LUT for the Mini 4 Pro and the Air 3 without saying the curve is the same.
+ */
+export function dlogMUncheckedFor(model: string | null | undefined): boolean {
+  const known = knownDjiDrone(model)
+  return known === 'mini-4-pro' || known === 'air-3'
+}

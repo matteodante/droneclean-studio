@@ -770,6 +770,8 @@
       "signInAgain": "Se reconnecter",
       "removeCleaning": "Retirer le nettoyage",
       "noSource": "Le fichier de ce clip n'est pas ouvert, son ombre ne peut donc pas être envoyée. Reliez-le d'abord.",
+      "cutNoKeyframe": "Cette vidéo n'a aucune image clé à partir de laquelle commencer, l'ombre ne peut donc pas y être suivie. Convertissez-la d'abord en MP4 standard.",
+      "cutNoVideo": "Ce fichier ne contient aucune vidéo que l'éditeur peut lire, l'ombre ne peut donc pas y être suivie.",
       "clickHint": "Cliquez sur l'ombre ici",
       "reverseRefused": "Ce clip contient des images d'ombre nettoyées, qui ne peuvent pas être inversées. Retirez d'abord le nettoyage.",
       "missingPieces_one": "{{count}} morceau nettoyé est manquant.",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "La première utilisation télécharge ≈{{size}}."
     },
     "colorPanel": {
+      "dockLabel": "Espace de travail d’étalonnage",
+      "dockTitle": "Étalonnage",
       "emptyState": "Sélectionnez un clip à étalonner",
       "adjustmentLayerLabel": "Étalonnage"
     },

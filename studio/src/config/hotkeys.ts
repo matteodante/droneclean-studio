@@ -14,6 +14,8 @@ export const HOTKEYS = {
   GO_TO_END: "end",
   NEXT_SNAP_POINT: "down",
   PREVIOUS_SNAP_POINT: "up",
+  // DroneClean: render the In/Out range (or the whole timeline) ahead, as Premiere's "Render In to Out"
+  RENDER_PREVIEW: "enter",
 
   // Timeline editing
   SPLIT_AT_PLAYHEAD_ALT: "alt+c",
@@ -289,6 +291,7 @@ const HOTKEY_DESCRIPTIONS: Record<HotkeyKey, string> = {
   GO_TO_END: "Go to end",
   NEXT_SNAP_POINT: "Next snap point",
   PREVIOUS_SNAP_POINT: "Previous snap point",
+  RENDER_PREVIEW: "Render preview (In to Out, or the whole timeline)",
 
   // Timeline editing
   SPLIT_AT_PLAYHEAD_ALT: "Split at playhead",

@@ -101,7 +101,7 @@ test('plural groups: other and one are needed where the language has a singular,
     }
     const errors = judge(measure(fixture.root), NO_BASELINES).errors
     assert.equal(errors.length, 1)
-    assert.match(errors[0], /'common\.items' is used by DroneClean code but missing in de, es, fr, pt-BR, tr\./)
+    assert.match(errors[0], /'common\.items' is used by DroneClean code but missing in de, es, fr, it, pt-BR, tr\./)
     assert.doesNotMatch(errors[0], /ja|ko|zh/)
   } finally {
     fixture.cleanup()

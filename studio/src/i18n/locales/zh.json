@@ -27,6 +27,7 @@
       "unset": "未设置",
       "suggested": "建议: {{profile}}?",
       "apply": "应用",
+      "uncheckedDrone": "D-Log M 是根据 Avata 2 的素材拟合的，尚未在这款无人机上验证色彩。",
       "askTitle": "这些 DJI 片段是用 D-Log M 拍摄的吗？",
       "askBody": "文件里没有记录。选择“是”会为它们设置 D-Log M 色彩配置，你可以在任意片段上更改。",
       "askYes": "是，D-Log M",
@@ -228,6 +229,11 @@
       "crashReportsDescription": "编辑器出错时，将错误及其在代码中的位置连同版本和操作系统发送到 Sentry（欧盟），以便修复。",
       "usageStats": "发送匿名使用统计",
       "usageStatsDescription": "以本次安装的随机 ID，向 PostHog（欧盟）计数几个时刻（打开应用、创建项目、完成导出、连接 AI 代理、去除阴影）。关闭后会忘记该 ID。",
+      "updateCheck": "检查新版本",
+      "updateCheckDescription": "应用启动时（每天最多一次）向 GitHub 询问最新版本号，有更新的版本时通知你。GitHub 会看到你的 IP 地址；不会发送任何其他与你或你的作品有关的信息。关闭后不会发出任何请求。",
+      "updateNoticeTitle": "DroneClean Studio {{version}} 已发布",
+      "updateNoticeDownload": "下载",
+      "updateNoticeLater": "稍后",
       "never": "绝不发送：你的素材、画面、文件和文件夹名称、项目名称或账户。不会保存你的 IP 地址。"
     }
   },
@@ -241,5 +247,36 @@
       "allow": "允许",
       "decline": "不允许"
     }
+  },
+  "docs": {
+    "title": "文档",
+    "openStudio": "打开 DroneClean Studio",
+    "home": "首页",
+    "searchPlaceholder": "搜索文档",
+    "searchLabel": "搜索文档",
+    "overview": "文档概览",
+    "noMatches": "没有与“{{query}}”匹配的页面。",
+    "documentation": "DroneClean Studio 文档",
+    "userGuide": "DroneClean Studio 用户指南",
+    "homeIntro": "从设置、工作区、媒体导入、时间线剪辑和导出开始。需要了解某个具体控件、快捷键或故障排除方法时，请查阅参考页面。",
+    "startEditing": "开始剪辑",
+    "fixProblem": "解决问题",
+    "groups": {
+      "start": "入门",
+      "coreEditing": "基础剪辑",
+      "creativeTools": "创意工具",
+      "output": "输出",
+      "reference": "参考"
+    },
+    "groupBlurbs": {
+      "start": "设置浏览器、工作区、项目和编辑器布局。",
+      "coreEditing": "导入媒体、在时间线上剪切、预览并调整片段属性。",
+      "creativeTools": "文字、形状与蒙版、音频、效果、调色、转场、关键帧、动画、场景和本地 AI。",
+      "output": "从浏览器导出文件并管理排队的渲染任务。"
+    },
+    "related": "相关页面",
+    "notFoundTitle": "未找到文档页面",
+    "notFoundText": "此网址与任何已发布的 DroneClean Studio 指南都不匹配。",
+    "backToDocs": "返回文档"
   }
 }

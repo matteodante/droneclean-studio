@@ -195,29 +195,64 @@ describe('studio.export', () => {
 
   describe('presets', () => {
     it("resolves the Instagram Reel preset for a 2K vertical project at 59.94 fps: Meta's 1080x1920 at 20 Mbps", () => {
-      useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1440, height: 2560, fps: 59.94 } }) })
+      useProjectStore.setState({
+        currentProject: makeProject({ metadata: { width: 1440, height: 2560, fps: 59.94 } }),
+      })
 
       const reel = api.presets().find((preset) => preset.id === 'instagram-reel')
 
       expect(reel).toMatchObject({
         label: 'Instagram Reel',
-        settings: { codec: 'h264', videoContainer: 'mp4', resolution: { width: 1080, height: 1920 }, videoBitrate: 20_000_000 },
+        settings: {
+          codec: 'h264',
+          videoContainer: 'mp4',
+          resolution: { width: 1080, height: 1920 },
+          videoBitrate: 20_000_000,
+        },
         numbers: { width: 1080, height: 1920, fps: 59.94, codec: 'h264', bitrate: 20_000_000 },
       })
     })
 
-    it('shows the preset audio bitrate read-only, and only on the preset that states one', () => {
+    it('lists TikTok and YouTube Shorts beside the Reel, with their audio bitrates', () => {
       useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1080, height: 1920, fps: 30 } }) })
 
       const presets = api.presets()
 
+      expect(presets.map((preset) => preset.id)).toEqual(
+        expect.arrayContaining(['instagram-reel', 'tiktok', 'youtube-shorts']),
+      )
+      expect(presets.find((preset) => preset.id === 'tiktok')).toMatchObject({
+        label: 'TikTok',
+        audioBitrate: '128k',
+        settings: { codec: 'h264', resolution: { width: 1080, height: 1920 }, videoBitrate: 10_000_000 },
+      })
+      expect(presets.find((preset) => preset.id === 'youtube-shorts')).toMatchObject({
+        label: 'YouTube Shorts',
+        audioBitrate: '384k',
+        settings: { codec: 'h264', resolution: { width: 1080, height: 1920 }, videoBitrate: 8_000_000 },
+      })
+    })
+
+    it('shows the preset audio bitrate read-only, and only on the preset that states one', () => {
+      useProjectStore.setState({
+        currentProject: makeProject({ metadata: { width: 1080, height: 1920, fps: 30 } }),
+      })
+
+      const presets = api.presets()
+
       expect(presets.find((preset) => preset.id === 'instagram-reel')?.audioBitrate).toBe('128k')
-      expect(presets.filter((preset) => preset.id !== 'instagram-reel').every((p) => p.audioBitrate === undefined)).toBe(true)
+      expect(
+        presets
+          .filter((preset) => !['instagram-reel', 'tiktok', 'youtube-shorts'].includes(preset.id))
+          .every((p) => p.audioBitrate === undefined),
+      ).toBe(true)
       expect(presets.find((preset) => preset.id === 'instagram-reel')?.settings).not.toHaveProperty('audioBitrate')
     })
 
     it('an export started with the Instagram Reel preset gets its 128 kbps AAC; any other gets the usual 192', async () => {
-      useProjectStore.setState({ currentProject: makeProject({ metadata: { width: 1920, height: 1080, fps: 30 } }) })
+      useProjectStore.setState({
+        currentProject: makeProject({ metadata: { width: 1920, height: 1080, fps: 30 } }),
+      })
       seedSmartCopyProject()
       const reel = api.presets().find((preset) => preset.id === 'instagram-reel')!
 
@@ -249,7 +284,9 @@ describe('studio.export', () => {
     })
 
     it("studio.export.presets().find((preset) => preset.id === 'instagram-reel')?.settings", () => {
-      expect(api.presets().find((preset) => preset.id === 'instagram-reel')?.settings.codec).toBe('h264')
+      expect(api.presets().find((preset) => preset.id === 'instagram-reel')?.settings.codec).toBe(
+        'h264',
+      )
     })
   })
 

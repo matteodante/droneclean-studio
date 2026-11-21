@@ -13,6 +13,7 @@ import { perfMarkRender } from '@/shared/logging/perf-marks'
 
 // Components
 import { TimelineInOutMarkers } from './timeline-in-out-markers'
+import { PrerenderBar } from '@/studio/prerender/ui/PrerenderBar'
 import { TimelineProjectMarkers } from './timeline-project-markers'
 import { previewScrubberSuppressRef } from './preview-scrubber-suppress'
 import { beginIoPointerDrag, IoRangeStrip } from '@/shared/timeline/io-range'
@@ -695,6 +696,9 @@ export const TimelineMarkers = memo(function TimelineMarkers({
 
       {/* Project markers (DOM - minimal count) */}
       <TimelineProjectMarkers />
+
+      {/* DroneClean: the frames that play from the pre-render cache */}
+      <PrerenderBar frameToPixels={frameToPixels} />
     </div>
   )
 })

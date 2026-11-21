@@ -9,7 +9,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const LANGUAGES = ['en', 'de', 'es', 'fr', 'ja', 'ko', 'pt-BR', 'tr', 'zh']
+export const LANGUAGES = ['en', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'pt-BR', 'tr', 'zh']
 const SCANNED_FOLDERS = ['src/', 'desktop/src/']
 const CODE = /\.(?:[cm]?[jt]sx?)$/
 const isTest = (file) =>

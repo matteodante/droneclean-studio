@@ -77,6 +77,10 @@
       "qualityMedium": "Media",
       "qualityUltra": "Ultra",
       "quicktimeMov": "QuickTime MOV",
+      "rateControl": "Control de tasa",
+      "rateControlAuto": "Automático (según el origen)",
+      "rateControlCbr": "CBR (tasa de bits constante)",
+      "rateControlVbr": "VBR (tasa de bits variable)",
       "renderWholeProject": "Renderizar todo el proyecto",
       "resolution": "Resolución",
       "resolutionSameAsProject": "Igual que el proyecto ({{width}}×{{height}})",
@@ -86,6 +90,12 @@
       "selectQuality": "Selecciona una calidad",
       "selectResolution": "Selecciona una resolución",
       "sequence": "Secuencia",
+      "targetBitrate": "Tasa de bits objetivo",
+      "useSourceBitrate": "Usar el origen",
+      "smartCopy": "Copia inteligente cuando sea posible",
+      "smartCopyPath": "Copia inteligente · sin recodificar",
+      "estimatedSize": "Estimado {{size}}",
+      "sourceBitrate": "Origen {{bitrate}} Mbps",
       "subtitleMode": {
         "off": "Desactivado",
         "burn": "Incrustar",
@@ -99,11 +109,24 @@
       "subtitles": "Subtítulos",
       "video": "Vídeo",
       "smartCopyStatus": {
-        "shadow-pieces": "No disponible porque parte del clip se limpió con la eliminación de sombras de DroneClean."
+        "eligible": "Disponible: el medio original se copiará byte a byte.",
+        "disabled": "Desactivada. La línea de tiempo se renderizará y codificará.",
+        "not-video": "Disponible solo para exportaciones de vídeo.",
+        "range": "No disponible al exportar un rango de entrada/salida.",
+        "timeline-layout": "Requiere un único clip de origen completo sin capas adicionales.",
+        "source-unavailable": "El archivo de origen original o sus metadatos no están disponibles.",
+        "trimmed-or-retimed": "No disponible porque el origen está recortado, dividido, invertido o con cambio de velocidad.",
+        "shadow-pieces": "No disponible porque parte del clip se limpió con la eliminación de sombras de DroneClean.",
+        "visual-processing": "No disponible porque hay que renderizar ediciones visuales, subtítulos, transiciones o fotogramas clave.",
+        "audio-processing": "No disponible porque se cambió el audio o la mezcla de pistas.",
+        "project-mismatch": "La resolución o la velocidad de fotogramas del proyecto no coincide con el origen.",
+        "format-mismatch": "El formato o el códec seleccionado no coincide con el origen."
       },
       "presetSameAsSource": "Igual que el original",
       "presetYoutube4k": "YouTube 4K",
       "presetInstagramReel": "Reel de Instagram",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
       "presetSmallFile": "Archivo pequeño (compartir)",
       "presetMasterProres": "Máster ProRes",
       "presetMasterHevc10": "Máster HEVC 10 bits",
@@ -120,6 +143,7 @@
       "checking": "Comprobando requisitos de exportación…",
       "title": "Comprobación previa de exportación",
       "workerPath": "Ruta del worker",
+      "smartCopyPath": "Ruta de copia inteligente",
       "fallback": "Modo alternativo en el hilo principal",
       "checks": {
         "empty-range": {
@@ -150,6 +174,10 @@
         "video-codec-supported": {
           "title": "Códec de vídeo compatible",
           "detail": "{{codec}} se puede codificar como {{container}} en este navegador."
+        },
+        "smart-copy-ready": {
+          "title": "Copia inteligente lista",
+          "detail": "El medio original se copiará sin renderizar ni recodificar."
         },
         "audio-codec-supported": {
           "title": "Códec de audio compatible",

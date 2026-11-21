@@ -68,7 +68,11 @@
       "loadingMedia": "Medien werden geladen…",
       "videoPreview": "Videovorschau",
       "emptyTitle": "Noch nichts in der Timeline",
-      "emptyDescription": "Importiere Medien, ziehe einen Clip in die Timeline und drücke die Leertaste für die Vorschau."
+      "emptyDescription": "Importiere Medien, ziehe einen Clip in die Timeline und drücke die Leertaste für die Vorschau.",
+      "gradeComparisonSplit": "Geteilter Farbkorrektur-Vergleich",
+      "gradeComparisonBefore": "Vorher",
+      "gradeComparisonAfter": "Nachher",
+      "gradeComparisonWipe": "Geteilten Vergleich anpassen"
     },
     "zoom": {
       "ariaLabel": "Zoomstufe: {{label}}",
@@ -100,6 +104,35 @@
       "unableToInspectVideo": "Abgelegtes Video konnte nicht geprüft werden.",
       "unableToInspectFile": "Abgelegte Datei konnte nicht geprüft werden.",
       "unableToImportFile": "Abgelegte Datei konnte nicht importiert werden."
+    },
+    "previewRender": {
+      "quality": {
+        "label": "Wiedergabeauflösung",
+        "tooltip": "Wiedergabeauflösung: {{value}}",
+        "full": "Voll",
+        "half": "1/2",
+        "quarter": "1/4"
+      },
+      "prerender": {
+        "menu": "Vorschau rendern",
+        "renderInOut": "Von In bis Out rendern",
+        "renderTimeline": "Gesamte Timeline rendern",
+        "clear": "Gerenderte Vorschau löschen",
+        "shortcut": "Vorschau rendern (von In bis Out oder die gesamte Timeline)",
+        "rendering": "Vorschau wird gerendert: {{percent}} %",
+        "cancel": "Vorschau-Rendern abbrechen",
+        "barLabel": "Gerenderte Vorschau",
+        "done": "Vorschau gerendert: {{seconds}} s Timeline in {{took}} s.",
+        "alreadyDone": "Dieser Bereich ist bereits gerendert.",
+        "cancelled": "Vorschau-Rendern abgebrochen. Der bereits gerenderte Teil bleibt erhalten.",
+        "changed": "Vorschau-Rendern gestoppt: Das Projekt hat sich währenddessen geändert. Noch gültige Bilder bleiben erhalten.",
+        "full": "Vorschau-Rendern gestoppt: Der Vorschau-Cache ist voll (1 GB). Der bereits gerenderte Teil bleibt erhalten.",
+        "unsupported": "Dieser Computer kann gerenderte Vorschaubilder in dieser Größe nicht speichern. Die Vorschau bleibt live.",
+        "error": "Vorschau-Rendern fehlgeschlagen: {{message}}",
+        "empty": "Nichts zu rendern: Die Timeline ist leer.",
+        "busy": "Es wird bereits eine Vorschau gerendert.",
+        "noPreview": "Öffne das Projekt im Editor, um seine Vorschau zu rendern."
+      }
     }
   }
 }

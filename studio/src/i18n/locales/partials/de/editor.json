@@ -770,6 +770,8 @@
       "signInAgain": "Erneut anmelden",
       "removeCleaning": "Bereinigung entfernen",
       "noSource": "Die Datei dieses Clips ist nicht geöffnet, daher kann ihr Schatten nicht gesendet werden. Verknüpfe sie zuerst neu.",
+      "cutNoKeyframe": "Dieses Video hat kein Keyframe, mit dem es beginnen könnte, daher kann der Schatten darin nicht verfolgt werden. Konvertiere es zuerst in ein Standard-MP4.",
+      "cutNoVideo": "Diese Datei enthält kein Video, das der Editor lesen kann, daher kann der Schatten darin nicht verfolgt werden.",
       "clickHint": "Klicke hier auf den Schatten",
       "reverseRefused": "Dieser Clip enthält bereinigte Schattenbilder, die nicht umgekehrt werden können. Entferne zuerst die Bereinigung.",
       "missingPieces_one": "{{count}} bereinigtes Teilstück fehlt.",
@@ -1001,6 +1003,8 @@
       "firstUseDownload": "Bei der ersten Verwendung werden ≈{{size}} heruntergeladen."
     },
     "colorPanel": {
+      "dockLabel": "Farbkorrektur-Arbeitsbereich",
+      "dockTitle": "Farbe",
       "emptyState": "Wähle einen Clip für die Farbkorrektur aus",
       "adjustmentLayerLabel": "Farbkorrektur"
     },

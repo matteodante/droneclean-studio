@@ -77,6 +77,10 @@
       "qualityMedium": "Orta",
       "qualityUltra": "Ultra",
       "quicktimeMov": "QuickTime MOV",
+      "rateControl": "Hız denetimi",
+      "rateControlAuto": "Otomatik (kaynağa duyarlı)",
+      "rateControlCbr": "CBR (sabit bit hızı)",
+      "rateControlVbr": "VBR (değişken bit hızı)",
       "renderWholeProject": "Projenin tamamını işle",
       "resolution": "Çözünürlük",
       "resolutionSameAsProject": "Proje ile aynı ({{width}}×{{height}})",
@@ -86,6 +90,12 @@
       "selectQuality": "Kalite seçin",
       "selectResolution": "Çözünürlük seçin",
       "sequence": "Sekans",
+      "targetBitrate": "Hedef bit hızı",
+      "useSourceBitrate": "Kaynağı kullan",
+      "smartCopy": "Mümkün olduğunda akıllı kopyala",
+      "smartCopyPath": "Akıllı kopya · yeniden kodlama yok",
+      "estimatedSize": "Tahmini {{size}}",
+      "sourceBitrate": "Kaynak {{bitrate}} Mbps",
       "subtitleMode": {
         "off": "Kapalı",
         "burn": "Göm",
@@ -99,11 +109,24 @@
       "subtitles": "Altyazılar",
       "video": "Video",
       "smartCopyStatus": {
-        "shadow-pieces": "Klipin bir kısmı DroneClean gölge temizleme ile temizlendiği için kullanılamaz."
+        "eligible": "Kullanılabilir: orijinal medya bayt bayt kopyalanacak.",
+        "disabled": "Devre dışı. Zaman çizelgesi işlenecek ve kodlanacak.",
+        "not-video": "Yalnızca video dışa aktarımları için kullanılabilir.",
+        "range": "Giriş/çıkış aralığı dışa aktarılırken kullanılamaz.",
+        "timeline-layout": "Ek katman içermeyen tek bir tam kaynak klip gerektirir.",
+        "source-unavailable": "Orijinal kaynak dosya veya meta verileri kullanılamıyor.",
+        "trimmed-or-retimed": "Kaynak kırpıldığı, bölündüğü, tersine çevrildiği veya hızı değiştirildiği için kullanılamaz.",
+        "shadow-pieces": "Klipin bir kısmı DroneClean gölge temizleme ile temizlendiği için kullanılamaz.",
+        "visual-processing": "Görsel düzenlemeler, altyazılar, geçişler veya anahtar kareler işlenmesi gerektiği için kullanılamaz.",
+        "audio-processing": "Ses veya iz karışımı değiştirildiği için kullanılamaz.",
+        "project-mismatch": "Proje çözünürlüğü veya kare hızı kaynakla eşleşmiyor.",
+        "format-mismatch": "Seçilen biçim veya codec kaynakla eşleşmiyor."
       },
       "presetSameAsSource": "Kaynakla aynı",
       "presetYoutube4k": "YouTube 4K",
       "presetInstagramReel": "Instagram Reels",
+      "presetTiktok": "TikTok",
+      "presetYoutubeShorts": "YouTube Shorts",
       "presetSmallFile": "Küçük dosya (paylaşım)",
       "presetMasterProres": "Master ProRes",
       "presetMasterHevc10": "Master HEVC 10 bit",
@@ -120,6 +143,7 @@
       "checking": "Dışa aktarma ön denetimi yapılıyor…",
       "title": "Dışa aktarma ön denetimi",
       "workerPath": "Worker yolu",
+      "smartCopyPath": "Akıllı kopya yolu",
       "fallback": "Ana iş parçacığına geri dönüş",
       "checks": {
         "empty-range": {
@@ -150,6 +174,10 @@
         "video-codec-supported": {
           "title": "Video kodeği destekleniyor",
           "detail": "{{codec}} bu tarayıcıda {{container}} olarak kodlanabilir."
+        },
+        "smart-copy-ready": {
+          "title": "Akıllı kopya hazır",
+          "detail": "Orijinal medya, işlenmeden ve yeniden kodlanmadan kopyalanacak."
         },
         "audio-codec-supported": {
           "title": "Ses kodeği destekleniyor",

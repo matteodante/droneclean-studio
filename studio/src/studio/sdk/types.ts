@@ -2,7 +2,7 @@
  * Public types of the DroneClean Studio SDK (task 2.1).
  *
  * Everything declared here is plain JSON: no store objects, no class
- * instances, no functions. The `Studio` interface and the seventeen namespace
+ * instances, no functions. The `Studio` interface and the eighteen namespace
  * interfaces use only these declarations, so the reference can be generated
  * from this file's declarations alone (design `docs/designs/2.1-sdk.md` §4.9).
  *
@@ -615,6 +615,38 @@ export interface SmoothEditResult {
   zoom: { firstFrame: Frame; lastFrame: Frame; scale: number } | null
 }
 
+/** Options of `clips.smoothEditTimeline`; every field is optional. */
+export interface SmoothEditTimelineOptions {
+  /** The audio clip to cut to; default the longest audio clip that is not the sound of a video clip. */
+  songId?: ClipId
+  /** Bars per shot: 1, 2 or 4; default 1. A bar is four beats. */
+  bars?: 1 | 2 | 4
+  /** Whether to add a short crossfade (a quarter of a second) at each cut; default true. */
+  crossfade?: boolean
+}
+
+/** What `clips.smoothEditTimeline` laid out. */
+export interface SmoothEditTimelineResult {
+  /** The song the shots were cut to. */
+  songId: ClipId
+  /** Bars per shot. */
+  bars: number
+  /** How many beats the song's analysis found. */
+  beats: number
+  /** The first beat, where the first shot starts. */
+  firstDownbeat: Frame
+  /** The shots, in order, as they stand after the speed ramps. */
+  shots: Array<{ clipId: ClipId; from: Frame; durationInFrames: Frame }>
+  /** How many cuts got a crossfade; a cut whose clips have no spare footage keeps a plain cut. */
+  crossfades: number
+  /** Clips whose footage from their in-point is too short for a shot, left as they are after the last shot. */
+  tooShort: ClipId[]
+  /** Clips that cannot take the smooth edit (reversed, composition wrappers), left as they are after the last shot. */
+  unsupported: ClipId[]
+  /** Clips that would have started after the song ended, left as they are after the last shot. */
+  afterSong: ClipId[]
+}
+
 /** A clip's colour profile, as `clips.getColorProfile` reads it and `clips.setColorProfile` takes it: DJI D-Log M, DJI D-Log, or `none` (an answered "no transform"). */
 export type ColorProfile = 'dlog-m' | 'dlog' | 'none'
 
@@ -1221,6 +1253,58 @@ export interface PlaybackInfo {
   loop: boolean
 }
 
+/** The preview's playback resolution: 1 full, 0.5 half, 0.25 quarter of its render size. */
+export type PreviewQualityLevel = 1 | 0.5 | 0.25
+
+/** The bounds of a pre-render; each defaults to the timeline's In/Out, else to the whole timeline. */
+export interface PrerenderRangeInput {
+  /** First frame to render. */
+  startFrame?: Frame
+  /** The frame after the last one to render (exclusive, like the out point). */
+  endFrame?: Frame
+}
+
+/** A range of timeline frames, `endFrame` exclusive. */
+export interface FrameRangeInfo {
+  /** First frame. */
+  startFrame: Frame
+  /** The frame after the last one. */
+  endFrame: Frame
+}
+
+/** How a pre-render ended. */
+export interface PrerenderResult {
+  /** `done` the whole range plays from the cache; `cancelled` or `stopped` part of it does. */
+  status: 'done' | 'cancelled' | 'stopped'
+  /**
+   * Why it stopped: `changed` the project changed under it, `full` the cache reached its memory limit,
+   * `unsupported` WebCodecs cannot encode or decode the preview size here, `error` the render failed.
+   */
+  reason?: 'changed' | 'full' | 'unsupported' | 'error'
+  /** The error's own words, for `reason: 'error'`. */
+  detail?: string
+  /** First frame of the range asked for. */
+  startFrame: Frame
+  /** The frame after the last one asked for. */
+  endFrame: Frame
+  /** Frames this call rendered (frames already in the cache are not rendered again). */
+  renderedFrames: number
+  /** Wall-clock seconds the call took. */
+  seconds: number
+}
+
+/** What the pre-render cache holds and does now. */
+export interface PrerenderStatus {
+  /** The frames that play from the cache now, merged. */
+  ranges: FrameRangeInfo[]
+  /** Encoded bytes the cache holds (its limit is 1 GiB). */
+  bytes: number
+  /** The pre-render running now: its range and how many of its missing frames are done. */
+  running: { startFrame: Frame; endFrame: Frame; done: number; total: number } | null
+  /** How the last pre-render of this session ended. */
+  last: PrerenderResult | null
+}
+
 // ---------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------
@@ -1293,7 +1377,7 @@ export interface ExportPresetInfo {
   /** The settings it stands for: pass them to `export.setSettings` or as `export.start({ settings })`. */
   settings: ExportSettingsPatch
   /**
-   * The AAC bitrate it states, when it states one (`'128k'` for the Instagram Reel). Read-only: `export.start` with
+   * The AAC bitrate it states, when it states one (`'128k'` for the Instagram Reel and TikTok, `'384k'` for YouTube Shorts). Read-only: `export.start` with
    * these settings applies it by itself, and `export.setSettings` refuses `audioBitrate`.
    */
   audioBitrate?: string
@@ -1517,7 +1601,7 @@ export interface SdkErrorReference {
 export interface SdkReference {
   /** Format version, `1`. */
   version: 1
-  /** The seventeen namespaces. */
+  /** The eighteen namespaces. */
   namespaces: SdkNamespaceReference[]
   /** The public types. */
   types: SdkTypeReference[]
@@ -2077,6 +2161,26 @@ export interface ClipsApi {
   applySmoothEdit(id: ClipId, options?: SmoothEditOptions): SmoothEditResult
 
   /**
+   * The smooth edit of the whole timeline, cut to a song, in one call: the song's beats are marked (a
+   * marker each, if it has none yet); the video clips are laid end to end from the song's first beat in
+   * the order they play, each cut to `bars` bars (four beats a bar, each clip keeping the in-point it has,
+   * at normal speed before the look); each gets the `applySmoothEdit` look with its default numbers
+   * (fast-slow-fast speed ramp with optical-flow slow motion, motion blur, eased zoom); and a quarter-second
+   * crossfade is added at each cut when `crossfade` is true. A clip's stabilization stays. Clips with too
+   * little footage, clips that cannot take the look and clips that would end after the song are left as
+   * they are, after the last shot. Nothing is deleted. Finding the beats takes a few seconds for a
+   * three-minute song, so the call is async. One undo step.
+   * @mapsTo smoothEditTimeline (src/studio/smooth-edit/timeline.ts) with MARKERS_ADD_BEATS and SMOOTH_EDIT
+   * @throws NOT_FOUND when `songId` is not a clip in the active context
+   * @throws UNSUPPORTED when `songId` is not an audio clip of a song
+   * @throws INVALID_ARGUMENT when `options` is not an object, `bars` is not 1, 2 or 4, or `crossfade` is not a boolean
+   * @throws CONFLICT when there is no song on the timeline, the song has no beats, or no video clip fits a shot
+   * @throws MEDIA_UNAVAILABLE when the song's audio cannot be loaded or decoded
+   * @example const result = await studio.clips.smoothEditTimeline({ bars: 1, crossfade: true })
+   */
+  smoothEditTimeline(options?: SmoothEditTimelineOptions): Promise<SmoothEditTimelineResult>
+
+  /**
    * The speed a clip holds at a timeline frame, in x: the curve's value there,
    * or the clip's constant speed when it has no curve. `frame` is an absolute
    * timeline frame, like `clips.split` and `playback.seek`; the keys a curve
@@ -2585,7 +2689,7 @@ export interface ExportApi {
   setSettings(patch: ExportSettingsPatch): void
 
   /**
-   * The export dialog's presets resolved for the open project (Instagram Reel, YouTube 4K, Small file, and Same as
+   * The export dialog's presets resolved for the open project (Instagram Reel, TikTok, YouTube Shorts, YouTube 4K, Small file, and Same as
    * source when a video clip is placed): each one's settings and numbers. The desktop's ProRes and 10-bit masters
    * need the native encoder and are not offered here. Not an undo step.
    * @mapsTo getPilotPresets / resolvePilotPreset (src/studio/export/presets.ts)
@@ -2874,6 +2978,79 @@ export interface ShadowApi {
 }
 
 /**
+ * `studio.preview`: the program monitor's playback resolution and the
+ * pre-render, as After Effects renders a work area: the frames of a range are
+ * rendered ahead through the preview's own pipeline at the current quality,
+ * encoded into memory, and played back from there at full frame rate. Any edit
+ * that changes a frame makes it stale at once and the preview renders it live
+ * again; an export never reads the cache. Implemented by
+ * `createPreviewApi(): PreviewApi` in `namespaces/preview.ts`. None of it is an
+ * undo step.
+ */
+export interface PreviewApi {
+  /**
+   * The playback resolution: 1 (Full), 0.5 (1/2) or 0.25 (1/4) of the size the
+   * preview renders at. Not an undo step.
+   * @mapsTo usePlaybackStore.previewQuality (shared/state/playback/store.ts)
+   * @throws Nothing
+   * @example studio.preview.quality()
+   */
+  quality(): PreviewQualityLevel
+
+  /**
+   * Set the playback resolution (kept for the app, as the menu does). A lower
+   * one renders fewer pixels: the composite, the effects and a pre-render get
+   * cheaper; frames pre-rendered at another resolution become stale. Not an
+   * undo step.
+   * @mapsTo usePlaybackStore.setPreviewQuality
+   * @throws INVALID_ARGUMENT when `quality` is not 1, 0.5 or 0.25
+   * @example studio.preview.setQuality(0.5)
+   */
+  setQuality(quality: PreviewQualityLevel): void
+
+  /**
+   * Render a range of the timeline ahead so it plays back smoothly: the
+   * timeline's In/Out by default, else the whole timeline. Pauses playback,
+   * renders only the frames the cache does not hold yet, and resolves when it
+   * ends with how it ended (a cancelled or stopped render keeps the frames it
+   * finished). The ruler shows the rendered frames in green. Not an undo step.
+   * @mapsTo runPrerender (src/studio/prerender/job.ts)
+   * @throws INVALID_ARGUMENT when a bound is not an integer frame of the timeline, the range is empty, or the timeline is empty
+   * @throws CONFLICT when a pre-render is already running
+   * @throws UNSUPPORTED when the editor's preview is not open
+   * @example await studio.preview.prerender({ startFrame: 0, endFrame: 300 })
+   */
+  prerender(range?: PrerenderRangeInput): Promise<PrerenderResult>
+
+  /**
+   * What the pre-render cache holds now: the ranges that play from it, its
+   * size, the render running and how the last one ended. Not an undo step.
+   * @mapsTo usePrerenderStore (src/studio/prerender/store.ts)
+   * @throws Nothing
+   * @example studio.preview.prerendered().ranges
+   */
+  prerendered(): PrerenderStatus
+
+  /**
+   * Stop the running pre-render after the frame it is drawing; the frames it
+   * finished stay. Does nothing when none runs. Not an undo step.
+   * @mapsTo cancelPrerender (src/studio/prerender/job.ts)
+   * @throws Nothing
+   * @example studio.preview.cancelPrerender()
+   */
+  cancelPrerender(): void
+
+  /**
+   * Delete every pre-rendered frame; the preview renders live again. Not an
+   * undo step.
+   * @mapsTo prerenderCache.clear (src/studio/prerender/cache.ts)
+   * @throws Nothing
+   * @example studio.preview.clearPrerender()
+   */
+  clearPrerender(): void
+}
+
+/**
  * The DroneClean Studio SDK: one typed object over the editor's command store
  * and domain stores (design §4.2). Every call that changes the timeline is one
  * undo step; a failed call leaves the project exactly as it was.
@@ -2916,6 +3093,8 @@ export interface Studio {
   readonly looks: LooksApi
   /** DroneClean shadow removal. */
   readonly shadow: ShadowApi
+  /** The playback resolution and the pre-render. */
+  readonly preview: PreviewApi
 
   /**
    * Run `fn` as one undo step and report what it changed (design §4.4).

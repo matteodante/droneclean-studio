@@ -413,6 +413,16 @@ async function run(options) {
     const context = await browser.newContext({
       serviceWorkers: 'allow',
       viewport: { width: 1600, height: 1000 },
+      locale: 'en-US',
+    })
+    // The interface follows the browser's language (Italian joined in 0.1.9, and this Mac is Italian); the steps
+    // find buttons by their English names, so the page runs in English whatever the machine speaks.
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem('freecut-language', 'en')
+      } catch {
+        // storage unavailable: the locale above still asks for English
+      }
     })
     const recorder = createNetworkRecorder({ context, servedOrigin: server.origin })
     const page = await context.newPage()

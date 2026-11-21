@@ -90,6 +90,11 @@ import { createPreviewPresentationGate } from '../utils/preview-presentation-gat
 import type { TransitionPreviewSessionTrace } from './use-preview-transition-session-controller'
 import { resolveTransitionDomPlaybackState } from '../utils/transition-dom-playback'
 import { createLogger } from '@/shared/logging/logger'
+import {
+  presentPrerenderedFrame,
+  prerenderServesFrame,
+  prerenderShowedLaterFrame,
+} from '@/studio/prerender/playback'
 import { isPreviewTraceEnabled, recordPumpTrace } from '@/shared/logging/preview-trace'
 import {
   recordPreviewScrubPresentationQuality,
@@ -1158,6 +1163,16 @@ export function usePreviewRenderPump({
               continue
             }
 
+            if (
+              prerenderShowedLaterFrame(
+                frameToRender,
+                playbackState.isPlaying,
+                playbackState.playbackRate,
+              )
+            ) {
+              // DroneClean: the pre-render cache already showed a later frame
+              continue
+            }
             presentation.drawToDisplay(frameToRender, priorityRenderUsedFallback)
             if (shouldShowPlaybackTransitionOverlay) {
               tracePump('transition-overlay')
@@ -1359,6 +1374,19 @@ export function usePreviewRenderPump({
       const playbackDirection = playbackState.playbackRate < 0 ? -1 : 1
 
       if (currentFrame !== lastRafRenderedFrame) {
+        // DroneClean: a frame the pre-render cache holds is drawn from it, not rendered live
+        const prerendered = presentPrerenderedFrame(currentFrame, playbackDirection, (canvas) => {
+          presentation.drawSourceToDisplay(canvas, currentFrame)
+          if (!showFastScrubOverlayRef.current) showFastScrubOverlayForFrame()
+        })
+        if (prerendered !== 'live') {
+          if (prerendered === 'presented') {
+            lastRafRenderedFrame = currentFrame
+            lastRafPresentedFrame = currentFrame
+          }
+          playbackRafId = requestAnimationFrame(playbackRafPump)
+          return
+        }
         lastRafRenderedFrame = currentFrame
         if (playbackDirection < 0 && currentFrame !== lastReversePreseekFrame) {
           lastReversePreseekFrame = currentFrame
@@ -2328,6 +2356,10 @@ export function usePreviewRenderPump({
             lastBackwardRequestedFrame: lastBackwardRequestedFrameRef.current,
           })
       if (backwardScrubFramePlan.throttleRequest) {
+        return
+      }
+      if (renderedPlaybackActive && prerenderServesFrame(targetFrame, state.playbackRate)) {
+        // DroneClean: the pre-render cache draws this frame; no live render is asked for it
         return
       }
       lastBackwardScrubRenderAtRef.current = backwardScrubFramePlan.nextLastBackwardScrubRenderAt

@@ -294,7 +294,12 @@ describe('keyframes namespace', () => {
     it('lets a size keyframe reach past the graph bound of 2000 px in a 2K project, and still bounds it', () => {
       useProjectStore.setState({
         currentProject: {
-          id: 'p', name: 'p', description: '', createdAt: 1, updatedAt: 1, duration: 0,
+          id: 'p',
+          name: 'p',
+          description: '',
+          createdAt: 1,
+          updatedAt: 1,
+          duration: 0,
           metadata: { width: 1440, height: 2560, fps: 60 },
         },
       })
@@ -391,10 +396,19 @@ describe('keyframes namespace', () => {
 
     it('gives a keyframe spring physics, and a plain easing afterwards drops them', () => {
       studio.keyframes.update('c1', 'k1', { spring: { tension: 220, friction: 18, mass: 1 } })
-      expect(studio.keyframes.list('c1')[0]).toMatchObject({ easing: 'spring', spring: { tension: 220, friction: 18, mass: 1 } })
+      expect(studio.keyframes.list('c1')[0]).toMatchObject({
+        easing: 'spring',
+        spring: { tension: 220, friction: 18, mass: 1 },
+      })
 
       studio.keyframes.update('c1', 'k1', { easing: 'ease-out' })
-      expect(studio.keyframes.list('c1')[0]).toEqual({ id: 'k1', property: 'opacity', frame: 10, value: 0.5, easing: 'ease-out' })
+      expect(studio.keyframes.list('c1')[0]).toEqual({
+        id: 'k1',
+        property: 'opacity',
+        frame: 10,
+        value: 0.5,
+        easing: 'ease-out',
+      })
     })
 
     it('refuses a bezier x outside 0..1, and a patch with both a bezier and a spring', () => {
@@ -477,7 +491,9 @@ describe('keyframes namespace', () => {
 
       expect(error.code).toBe('INVALID_ARGUMENT')
       expect(error.argument).toBe('patch')
-      expect(error.message).toContain('"patch" must be an object with value, easing, bezier, spring or frame')
+      expect(error.message).toContain(
+        '"patch" must be an object with value, easing, bezier, spring or frame',
+      )
     })
 
     it('throws CONFLICT when the new frame is outside the clip', () => {
@@ -664,7 +680,9 @@ describe('keyframes namespace', () => {
       const x = studio.keyframes.add('c1', 'framingX', 0, -1)
       const y = studio.keyframes.add('c1', 'framingY', 60, 1, 'ease-in-out')
       expect(undoDepth()).toBe(before + 2)
-      expect(studio.keyframes.list('c1', 'framingX')).toMatchObject([{ id: x, frame: 0, value: -1 }])
+      expect(studio.keyframes.list('c1', 'framingX')).toMatchObject([
+        { id: x, frame: 0, value: -1 },
+      ])
       expect(studio.keyframes.list('c1', 'framingY')).toMatchObject([
         { id: y, frame: 60, value: 1, easing: 'ease-in-out' },
       ])
@@ -679,14 +697,18 @@ describe('keyframes namespace', () => {
         'keyframes.add: "value" must be a number from -1 to 1 for property "framingX" (got 1.5)',
       )
       const id = studio.keyframes.add('c1', 'framingY', 0, 0)
-      expect(catchError(() => studio.keyframes.update('c1', id, { value: -1.01 })).argument).toBe('value')
+      expect(catchError(() => studio.keyframes.update('c1', id, { value: -1.01 })).argument).toBe(
+        'value',
+      )
     })
 
     it('refuses the property on a clip that is not stabilized', () => {
       const error = catchError(() => studio.keyframes.add('c1', 'framingX', 0, 0))
       expect(error.code).toBe('INVALID_ARGUMENT')
       expect(error.argument).toBe('property')
-      expect(error.message).toContain('keyframes.add: "property" must be an animatable property of clip "c1"')
+      expect(error.message).toContain(
+        'keyframes.add: "property" must be an animatable property of clip "c1"',
+      )
     })
   })
 

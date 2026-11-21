@@ -12,6 +12,7 @@ import { resolveEffectiveTrackStates } from '@/features/preview/deps/timeline-ut
 import { useCompositionsStore, useItemsStore } from '@/features/preview/deps/timeline-store'
 import { appendVirtualTranscriptCaptionTrack } from '@/features/preview/deps/caption-items'
 import { resolveShadowSource } from '@/studio/shadow/source-map'
+import { scalePreviewRenderSize } from '@/studio/preview/quality'
 import { getItemRenderTimelineSpan, resolveVideoRenderSourceTimeSeconds } from '../deps/export'
 import { useCornerPinStore } from '../stores/corner-pin-store'
 import { useGizmoStore, type ItemPreview } from '../stores/gizmo-store'
@@ -269,9 +270,14 @@ export function usePreviewCompositionModel({
   const projectHeight = project.height
   const playerWidth = playerSize.width
   const playerHeight = playerSize.height
-  const calculatedPreviewRenderSize = getRealtimePreviewRenderSize(
-    { width: projectWidth, height: projectHeight },
-    { width: playerWidth, height: playerHeight },
+  // DroneClean: the preview quality (Full, 1/2, 1/4) scales the size the preview renders at
+  const previewQuality = usePlaybackStore((s) => s.previewQuality)
+  const calculatedPreviewRenderSize = scalePreviewRenderSize(
+    getRealtimePreviewRenderSize(
+      { width: projectWidth, height: projectHeight },
+      { width: playerWidth, height: playerHeight },
+    ),
+    previewQuality,
   )
   const previewRenderWidth = calculatedPreviewRenderSize.width
   const previewRenderHeight = calculatedPreviewRenderSize.height

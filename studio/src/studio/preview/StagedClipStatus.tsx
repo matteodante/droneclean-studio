@@ -33,7 +33,10 @@ function StatusLine({ item, state }: { item: VideoItem; state: ClipStageState })
   const stage = t(`editor.stagedClip.stage.${state.stage}`)
   if (state.kind === 'opening') {
     return (
-      <div className="rounded bg-black/70 px-2 py-1 text-xs text-white" data-testid="staged-clip-opening">
+      <div
+        className="rounded bg-black/70 px-2 py-1 text-xs text-white"
+        data-testid="staged-clip-opening"
+      >
         {t('editor.stagedClip.opening', { clip, stage })}
       </div>
     )
