@@ -31,7 +31,7 @@ export { ratesEqual } from './rate'
 /** The start time in seconds of a frame: `frame · den / num`, one rounding. */
 export { frameToSeconds } from './rate'
 
-/** The frame that contains a time in seconds: `round(seconds · num / den)`. */
+/** The frame whose start is nearest to a time in seconds: `round(seconds · num / den)` (see `rate.ts`). */
 export { secondsToFrame } from './rate'
 
 /** The label a UI list shows for a rate: "60", "59.94", "29.97", "23.976". */

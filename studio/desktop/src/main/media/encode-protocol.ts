@@ -46,7 +46,7 @@ import { answerAudioRequest, NATIVE_AUDIO_ROUTE } from './audio-protocol'
 import { audioStage } from './audio-stage'
 import { EncodeJobs, pipeBodyIntoJob, spawnEncode } from './encode-stream'
 import { parseEncodeStartRequest } from './encode-request'
-import { ffmpegCapabilities, ffmpegLocation } from './ffmpeg'
+import { ffmpegCapabilities, ffmpegLocation, missingFfmpegMessage } from './ffmpeg'
 import { chooseEncoder, encodeArguments, isHardwareEncoder } from './formats'
 import {
   checkOutputPath,
@@ -66,10 +66,15 @@ export const NATIVE_ENCODE_SCHEME_PRIVILEGES: CustomScheme = {
 
 const jobs = new EncodeJobs({ spawn: spawnEncode })
 
-/** One export at a time per window; the others of the window are refused. */
+/**
+ * One export at a time per window; the others of the window are refused. No idle sweep, as for the muxer's route
+ * (`export-file-protocol.ts`): a heavy frame can take minutes, and the page being gone (navigation, crash, closed
+ * window, an aborted POST) already ends the job.
+ */
 const windowJobs = new WindowJobs({
   cancel: (jobId) => jobs.cancel(jobId),
   maxPerWindow: 1,
+  idleMs: Number.POSITIVE_INFINITY,
   call: 'encode.start',
   noun: 'encodes',
 })
@@ -169,7 +174,7 @@ async function answerEncodeStart(
     const location = ffmpegLocation()
     if (location === null) {
       throw new NativeEngineFailure({
-        message: 'no FFmpeg binary: set DRONECLEAN_FFMPEG to one, or add ffmpeg to PATH',
+        message: missingFfmpegMessage(),
         command: [],
         exitCode: null,
         signal: null,

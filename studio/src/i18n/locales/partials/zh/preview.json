@@ -47,7 +47,7 @@
       "mute": "静音",
       "muteShort": "静音",
       "muted": "已静音",
-      "percent": "{{value}}%",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "仅影响本地播放 — 导出时使用项目混音。",
       "thisDeviceOnly": "仅此设备",
       "title": "预览音频",

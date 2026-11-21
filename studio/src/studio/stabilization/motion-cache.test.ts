@@ -173,6 +173,45 @@ describe('the bounded store', () => {
     expect(later.counts).toEqual({ hits: 1, misses: 1, puts: 0 })
   })
 
+  it('leaves no partial file and no entry when a write fails half way, and the index matches the files', async () => {
+    const { backend, store } = setupStore(30)
+    await store.put('a', blob(10))
+    await store.put('b', blob(10))
+    await store.put('c', blob(10))
+    const write = backend.write
+    // The write leaves half of the bytes under the name, then fails (the disk fills up)
+    backend.write = async (name, data) => {
+      backend.files.set(name, data.slice(0, data.byteLength / 2))
+      throw new Error('disk full')
+    }
+
+    await expect(store.put('d', blob(15))).rejects.toThrow('disk full') // a and b are evicted to make room
+
+    expect(await store.get('d')).toBeNull()
+    expect(Object.keys(await backend.readIndex())).toHaveLength(backend.files.size)
+    for (const name of Object.keys(await backend.readIndex())) expect(backend.files.has(name)).toBe(true)
+    expect(backend.files.size).toBe(1) // c alone: nothing of d is left on the disk
+
+    backend.write = write
+    await store.put('d', blob(15))
+    expect(await store.get('d')).toEqual(blob(15))
+  })
+
+  it('removes a written blob whose index entry could not be recorded', async () => {
+    const { backend, store } = setupStore(30)
+    const writeIndex = backend.writeIndex
+    let failures = 1
+    backend.writeIndex = async (next) => {
+      if (failures-- > 0) throw new Error('index not written')
+      await writeIndex(next)
+    }
+
+    await expect(store.put('a', blob(10))).rejects.toThrow('index not written')
+
+    expect(backend.files.size).toBe(0)
+    expect(await backend.readIndex()).toEqual({})
+  })
+
   it('stores what the encoder gives and counts those bytes against the cap', async () => {
     const backend = memoryBackend()
     const store = createBoundedMotionStore(backend, {

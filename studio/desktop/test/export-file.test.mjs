@@ -8,6 +8,8 @@ import { ExportFiles, checkExportPath } from '../out/main/export-file.js'
 import { OutputGrants, commitOutput, partialPathFor } from '../out/main/media/output-file.js'
 import {
   EXPORT_FILE_CHANNELS,
+  EXPORT_FILE_DEFAULT_TITLE,
+  exportDialogTitle,
   parseExportFileUrl,
 } from '../out/shared/export-file.js'
 
@@ -117,6 +119,24 @@ test('the sidecar subtitle file is written beside the video, at the end only', a
     readdirSync(folder).filter((n) => n.includes('with-subs')).sort(),
     ['with-subs.mp4', 'with-subs.srt'],
   )
+})
+
+test('F7: a subtitle file the user already had is never replaced; the next free name is used and reported', async () => {
+  const { files, final } = granted('keep-subs.mp4')
+  const mine = path.join(folder, 'keep-subs.srt')
+  writeFileSync(mine, 'my own subtitles')
+  await files.open('exp-f7', final)
+  await files.write('exp-f7', 0, bytes('video'))
+  const first = await files.commit('exp-f7', { content: 'one' })
+  assert.equal(readFileSync(mine, 'utf8'), 'my own subtitles')
+  assert.equal(first.sidecarPath, path.join(folder, 'keep-subs (2).srt'))
+  assert.equal(readFileSync(first.sidecarPath, 'utf8'), 'one')
+
+  const again = granted('keep-subs.mp4')
+  await again.files.open('exp-f7b', again.final)
+  const second = await again.files.commit('exp-f7b', { content: 'two' })
+  assert.equal(second.sidecarPath, path.join(folder, 'keep-subs (3).srt'))
+  assert.equal(readFileSync(mine, 'utf8'), 'my own subtitles')
 })
 
 test('only a path the save dialog granted, once, is opened', async () => {
@@ -253,4 +273,16 @@ test('a native export of a path the muxer route would refuse is refused with its
   await assert.rejects(files.openNative('exp-n6', path.join(folder, 'nope', 'cut.mp4')), /does not exist/)
   await assert.rejects(files.openNative('exp n6', path.join(folder, 'a.mp4')), /invalid id/)
   assert.equal(encoder.has(path.join(folder, 'a.mp4')), false)
+})
+
+test('the save dialog title is the page\'s short plain string, else the default', () => {
+  assert.equal(EXPORT_FILE_DEFAULT_TITLE, 'Export')
+  assert.equal(exportDialogTitle('Esporta'), 'Esporta')
+  assert.equal(exportDialogTitle('書き出し'), '書き出し')
+  assert.equal(exportDialogTitle('  Exporter '), 'Exporter')
+  assert.equal(exportDialogTitle(undefined), undefined)
+  assert.equal(exportDialogTitle(42), undefined)
+  assert.equal(exportDialogTitle(''), undefined)
+  assert.equal(exportDialogTitle('x'.repeat(41)), undefined)
+  assert.equal(exportDialogTitle('two\nlines'), undefined)
 })

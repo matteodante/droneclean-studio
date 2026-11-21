@@ -191,10 +191,10 @@
       "actionClearCache": "Limpar cache",
       "actionRegenerateThumbnails": "Regerar miniaturas",
       "actionDeleteProxies": "Excluir proxies",
-      "noMediaNeededUpdating": "No project media needed updating.",
-      "couldntProcessItems_one": "{{action}}: couldn't process {{count}} item{{detail}}",
-      "couldntProcessItems_other": "{{action}}: couldn't process {{count}} items{{detail}}",
-      "partialOutcome": "{{action}}: {{succeeded}}/{{total}} done. Needs attention: {{failed}}."
+      "noMediaNeededUpdating": "Nenhuma mídia do projeto precisava de atualização.",
+      "couldntProcessItems_one": "{{action}}: não foi possível processar {{count}} item{{detail}}",
+      "couldntProcessItems_other": "{{action}}: não foi possível processar {{count}} itens{{detail}}",
+      "partialOutcome": "{{action}}: {{succeeded}}/{{total}} concluídos. Requer atenção: {{failed}}."
     },
     "agentAccess": {
       "title": "Acesso de agentes",
@@ -271,7 +271,7 @@
     "groupBlurbs": {
       "start": "Configure o navegador, o espaço de trabalho, os projetos e o layout do editor.",
       "coreEditing": "Importe mídia, corte na linha do tempo, visualize e ajuste as propriedades dos clipes.",
-      "creativeTools": "Texto, formas e máscaras, áudio, efeitos, cor, transições, quadros-chave, animação, cenas e IA local.",
+      "creativeTools": "Texto, formas e máscaras, áudio, efeitos, cor, transições, keyframes, animação, cenas e IA local.",
       "output": "Exporte arquivos pelo navegador e gerencie as renderizações na fila."
     },
     "related": "Relacionados",

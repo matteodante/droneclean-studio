@@ -58,6 +58,7 @@ import {
   deliveredDecodeFormat,
   ffmpegCapabilities,
   ffmpegLocation,
+  missingFfmpegMessage,
   preferredHardware,
   probeSource,
   spawnDecode,
@@ -212,7 +213,7 @@ async function answerDecodeStart(
     const location = ffmpegLocation()
     if (location === null) {
       throw new NativeEngineFailure({
-        message: 'no FFmpeg binary: set DRONECLEAN_FFMPEG to one, or add ffmpeg to PATH',
+        message: missingFfmpegMessage(),
         command: [],
         exitCode: null,
         signal: null,

@@ -1,11 +1,9 @@
 /**
- * The switches for DroneClean's own features while they are unfinished, and the only place a
- * surface asks whether one of them is shown.
+ * The switches for DroneClean's own features, and the only place a surface asks whether one of them is shown.
  *
- * Every entry is one of our features that is merged into the editor but not finished: it names
- * the PLAN.md task that finishes it, and it is `false` until a slice of that task proves the flow
- * end to end. The slice that proves it turns it on; the switch stays as the one place that can hide
- * the surface again while the feature's own task is not ticked — `colorPresets` since the render
+ * Every entry is one of our features: it names the PLAN.md task that finished it, and it was `false` until a slice
+ * of that task proved the flow end to end. Every one is on today; the switch stays as the one place that can hide
+ * the surface again — `colorPresets` since the render
  * seat landed (slice 5.1c: one press changes the picture). Every entry must be read by app code
  * (`feature-switches.test.ts` fails for one that is not). Nothing
  * of FreeCut's is listed here: no FreeCut feature is ever hidden (PLAN.md decision D4), so a

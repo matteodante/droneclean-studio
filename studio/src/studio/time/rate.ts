@@ -181,7 +181,9 @@ export function frameToSeconds(rate: Rate, frame: number): number {
 }
 
 /**
- * The frame that contains `seconds` at `rate`: `round(seconds · num / den)`, one rounding.
+ * The frame whose start is nearest to `seconds` at `rate`: `round(seconds · num / den)`, one rounding. It is the
+ * frame that contains `seconds` only for a time in the first half of that frame: a caller that wants the frame on
+ * screen at any instant floors instead (or asks half a frame in, as the WebCodecs backend does).
  *
  * `secondsToFrame(frameToSeconds(frame))` is `frame` for every frame in the editor's range: at
  * 20 minutes and 59.94 the product is at most 7.2e7, whose rounding error is eight orders of

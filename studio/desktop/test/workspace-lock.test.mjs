@@ -566,3 +566,20 @@ test('D9: every workspace-owner handler refuses a sender that is not the app pag
     fake.restore()
   }
 })
+
+test('F6: the preload is scoped by the launch environment, never by process.env', () => {
+  const { editorOrigin } = require('../out/main/workspace-lock.js')
+  const before = process.env.DRONECLEAN_DEV_URL
+  process.env.DRONECLEAN_DEV_URL = 'https://evil.example/projects'
+  try {
+    // A packaged launch resolves its dev URL to null (`resolveLaunchEnvironment`), whatever the environment says.
+    assert.equal(editorOrigin(null), 'droneclean://app')
+    assert.equal(editorOrigin('http://localhost:5173/projects'), 'http://localhost:5173')
+    assert.equal(editorOrigin('not a url'), 'droneclean://app')
+  } finally {
+    if (before === undefined) delete process.env.DRONECLEAN_DEV_URL
+    else process.env.DRONECLEAN_DEV_URL = before
+  }
+  const source = fs.readFileSync(new URL('../src/main/workspace-lock.ts', import.meta.url), 'utf8')
+  assert.ok(!source.includes('process.env.DRONECLEAN_DEV_URL'))
+})

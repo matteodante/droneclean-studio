@@ -92,7 +92,11 @@ function checkRangeLine(trimmed: string): LookImportFailure | null {
     return { code: 'invalid', detail: `${keyword} does not hold two numbers` }
   }
   const [min, max] = values
-  return min === '0' && max === '1' ? null : { code: 'range', keyword, min, max }
+  if (!Number.isFinite(Number(min)) || !Number.isFinite(Number(max))) {
+    return { code: 'invalid', detail: `${keyword} does not hold two numbers` }
+  }
+  // As numbers: exporters write 0 1, 0.0 1.0 or 0.000000 1.000000 for the same range
+  return Number(min) === 0 && Number(max) === 1 ? null : { code: 'range', keyword, min, max }
 }
 
 /** The failure a `LUT_3D_SIZE` line declares, or null when the grid fits (or there is no line). */

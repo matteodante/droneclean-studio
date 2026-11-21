@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { EventEmitter } from 'node:events'
 import {
   UPDATES_FILE,
   UPDATE_API_URL,
@@ -19,7 +20,7 @@ import {
   parseUpdateSettings,
   releaseUrl,
 } from '../out/shared/updates.js'
-import { createUpdateChecker, installUpdatesIpc } from '../out/main/updates/index.js'
+import { UPDATE_RECHECK_MS, createUpdateChecker, installUpdatesIpc, scheduleUpdateCheck } from '../out/main/updates/index.js'
 import { readUpdateSettings, updateSettingsPath } from '../out/main/updates/settings.js'
 
 const here = path.dirname(new URL(import.meta.url).pathname)
@@ -239,4 +240,47 @@ test('the preload writes out the same channels as the shared file', () => {
 test('the main process asks only when installed, and the shell has no other GitHub request', () => {
   const index = fs.readFileSync(path.join(here, '..', 'src', 'main', 'index.ts'), 'utf8')
   assert.match(index, /app\.isPackaged && !STARTED_FOR_MCP && APP_NAME !== TEST_APP_NAME\) scheduleUpdateCheck/)
+})
+
+test('an app left open asks again every day, never twice inside 24 hours, never while off, and stops with its window', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 1_000_000_000_000 })
+  const sent = []
+  const window = Object.assign(new EventEmitter(), {
+    isDestroyed: () => false,
+    webContents: { send: (channel, notice) => sent.push([channel, notice]) },
+  })
+  const { calls, fetch } = fakeFetch()
+  const dir = profile()
+  const check = createUpdateChecker({ userDataDir: dir, appVersion: '0.1.9', fetch })
+  scheduleUpdateCheck(window, check, 10_000)
+  const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+  t.mock.timers.tick(60 * 60 * 1000)
+  await settle()
+  assert.equal(calls.length, 0, 'nothing happens before the window is ready')
+
+  window.emit('ready-to-show')
+  t.mock.timers.tick(10_000)
+  await settle()
+  assert.equal(calls.length, 1, 'the first check, ten seconds after the window is ready')
+  assert.equal(sent.length, 1)
+
+  t.mock.timers.tick(UPDATE_RECHECK_MS - 10_000 - 1)
+  await settle()
+  assert.equal(calls.length, 1, 'not again before a day has passed')
+
+  t.mock.timers.tick(1)
+  await settle()
+  assert.equal(calls.length, 2, 'the daily check of an app left open')
+
+  check.setEnabled(false)
+  t.mock.timers.tick(UPDATE_RECHECK_MS)
+  await settle()
+  assert.equal(calls.length, 2, 'switched off: no request')
+
+  check.setEnabled(true)
+  window.emit('closed')
+  t.mock.timers.tick(UPDATE_RECHECK_MS * 3)
+  await settle()
+  assert.equal(calls.length, 2, 'the window is closed: the timers are gone')
 })

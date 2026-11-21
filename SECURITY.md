@@ -15,7 +15,10 @@ credit if you want it.
 
 ## Scope worth knowing
 
-- The desktop app's MCP server listens only on a local socket that only your user can read, and it is off until you
-  turn on **Allow AI agents**.
-- The editor makes no network request you did not ask for: footage leaves the computer only when you send a piece of
-  it to clean the shadow, and only to the DroneClean service.
+- Agent access is on by default in the desktop app. Its MCP server listens only on this computer (a socket file that
+  only your user can read, a per-user pipe on Windows), with no password: any program running as the same user can
+  use it. **Settings › Agent access › Allow AI agents** switches it off.
+- The app asks GitHub, once a day at most, for the number of the latest version, to show a "new version" notice. It
+  can be switched off in **Settings › Privacy**. Apart from that, the editor makes no request you did not ask for:
+  footage leaves the computer only when you send a piece of it to clean the shadow, and only to the DroneClean
+  service. Crash reports and usage statistics are off until you say yes.

@@ -92,6 +92,45 @@ export function mediaIdForPath(realPath: string): string {
   return createHash('sha256').update(realPath, 'utf8').digest('base64url').slice(0, 22)
 }
 
+/**
+ * Why a path may not be named through the media routes, or null. The folders where a program keeps its own data
+ * (a hidden folder of the home folder such as `~/.ssh` or `~/.config`, `~/Library` on macOS, `AppData` / `%APPDATA%`
+ * on Windows) hold no footage a pilot picks, and a page that names them gets nothing there but the media-looking
+ * files of other programs (review finding F5). Only the folders are judged: a hidden file name is not, and a hidden
+ * folder outside the home folder (a working copy under `.worktrees/`) is not.
+ *
+ * Pure on its inputs (real paths, the home folder, the platform, `%APPDATA%` and `%LOCALAPPDATA%`), so a test checks
+ * the Windows rules on any machine.
+ */
+export function sensitiveFolderReason(
+  realPath: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string | null {
+  const flavour = platform === 'win32' ? path.win32 : path.posix
+  const fold = (value: string): string => (platform === 'win32' || platform === 'darwin' ? value.toLowerCase() : value)
+  const inside = (outer: string, inner: string): boolean => {
+    const relative = flavour.relative(fold(outer), fold(inner))
+    return relative !== '' && !relative.startsWith('..') && !flavour.isAbsolute(relative)
+  }
+  if (platform === 'win32') {
+    for (const folder of [env['APPDATA'], env['LOCALAPPDATA']]) {
+      if (folder !== undefined && folder !== '' && (inside(folder, realPath) || fold(folder) === fold(realPath))) {
+        return 'the folder where programs keep their data'
+      }
+    }
+  }
+  if (!inside(home, realPath)) return null
+  const segments = flavour.relative(home, realPath).split(/[\\/]/).filter((segment) => segment !== '')
+  const folders = segments.slice(0, -1)
+  if (folders.some((segment) => segment.startsWith('.'))) return 'a hidden folder'
+  const first = fold(segments[0] ?? '')
+  if (platform === 'darwin' && first === 'library') return 'the Library folder'
+  if (platform === 'win32' && first === 'appdata') return 'the AppData folder'
+  return null
+}
+
 /** A file an id names: where its bytes are and what they are. */
 interface RegisteredMedia {
   readonly path: string
@@ -151,6 +190,7 @@ export class MediaPathAccess {
       if (!stat.isFile()) {
         throw new Error(`media paths: not a regular file: ${value}`)
       }
+      this.refuseSensitive(real, path.dirname(real), 'file')
       files.push({ path: real, size: stat.size, lastModified: Math.round(stat.mtimeMs) })
     }
 
@@ -205,6 +245,7 @@ export class MediaPathAccess {
       if (!(await fs.promises.stat(real)).isDirectory()) {
         throw new Error(`media paths: not a folder: ${value}`)
       }
+      this.refuseSensitive(path.join(real, 'x'), real, 'folder')
       this.allowFolder(real)
       allowed.push(real)
     }
@@ -268,6 +309,22 @@ export class MediaPathAccess {
       throw new Error(`media paths: a media folder cannot be the home folder or above it: ${folder}`)
     }
     this.allowedFolders.add(folder)
+  }
+
+  /** Throws when `judged` (a file, or a probe path inside a folder) is where programs keep their own data. */
+  private refuseSensitive(judged: string, shown: string, noun: 'file' | 'folder'): void {
+    const reason = sensitiveFolderReason(judged, this.realHome(), this.platform)
+    if (reason !== null) {
+      throw new Error(`media paths: not a media ${noun}, it is in ${reason}: ${shown}`)
+    }
+  }
+
+  private realHome(): string {
+    try {
+      return fs.realpathSync(this.homeDir)
+    } catch {
+      return this.homeDir
+    }
   }
 
   private isHomeOrAbove(folder: string): boolean {

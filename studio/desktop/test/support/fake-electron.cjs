@@ -174,6 +174,9 @@ function install({ isPackaged = false, userData, productName = 'DroneClean Studi
     state,
     FakeWebContents,
     restore() {
+      // The shell's own quit: what `index.ts` started (the agent socket, its idle timer) is stopped as the app
+      // stops it, so a test that loaded the shell leaves no listener open and its process can end.
+      app.emit('before-quit')
       Module._load = originalLoad
       if (hadResources) process.resourcesPath = savedResources
       else delete process.resourcesPath

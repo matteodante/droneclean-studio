@@ -362,15 +362,13 @@ once stalled the app's renderer for minutes, so the check is done by hand (step 
   (the dev server's origin under `npm run dev`); `window.open`/`target=_blank` with
   `https:` goes to the system browser and everything else is denied.
 - In `npm run dev` Electron prints its own "Insecure Content-Security-Policy" warning
-  to the console. It is about the Vite dev server (no CSP, eval for HMR) and does not
-  appear in the packaged app. The packaged app logs no console error while it starts;
+  to the console. Electron only prints it for an unpackaged run; the packaged app serves the editor with no
+  Content-Security-Policy either (not yet added). The packaged app logs no console error while it starts;
   later the editor's own filmstrip extractor can log one
   (`[VideoFrameExtractor] … InputDisposedError`) while a preview video is disposed.
-- No signing, no notarization, no auto-update. The app is arm64 only, as this Mac is.
+- No signing, no notarization, no auto-update (the app only tells the user a newer release exists: `src/main/updates/`). The Mac app is arm64 only; the Windows app is x64 (see "Windows").
 - The `.app` is 473 MB: the editor's `dist/` (191 MB: 68 MB of onnxruntime
   WebAssembly, 14 MB of text-to-speech assets, 7 MB of source maps) and the Electron
   framework make up the rest. `app.asar` (our code) is 37 KB.
-- The editor's `index.html` loads Google Fonts from `fonts.googleapis.com` /
-  `fonts.gstatic.com`. The isolation headers do not block them (they answer with
-  CORS), so the packaged app asks a third party for its fonts on every launch and no
-  request fails; task 1.4 bundles the fonts and removes the request.
+- The editor's `index.html` loads no web fonts: the fonts are bundled, and the packaged app asks no third party for
+  them (`src/studio/brand/brand-assets.test.ts` fails if a Google Fonts address comes back).

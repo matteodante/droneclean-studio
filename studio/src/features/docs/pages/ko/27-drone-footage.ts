@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: '드론 영상: 보정, 색 보정, 속도, 공유',
   description:
-    '자이로 흔들림 보정과 프레이밍, D-Log M 프로필, 룩과 하늘, 이징이 있는 스피드 램프, 모션 블러와 부드러운 슬로 모션, 비트 마커, 원클릭 부드러운 편집, Instagram 릴스 내보내기, 에이전트 액세스를 다뤄요.',
+    '자이로 흔들림 보정과 프레이밍, D-Log M 프로필, 룩과 하늘, 이징이 있는 스피드 램프, 모션 블러와 부드러운 슬로 모션, 비트 마커, 원클릭 부드러운 편집, Instagram 릴스, TikTok, YouTube Shorts 내보내기, 에이전트 액세스를 다뤄요.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Instagram용 내보내기',
+      title: 'Instagram, TikTok, Shorts용 내보내기',
       blocks: [
         {
           kind: 'paragraph',
-          text: '**Instagram 릴스** 프리셋은 Meta의 릴스 사양을 따라요. 프로젝트 프레임 속도의 H.264 MP4, 1080x1920(Instagram이 보여 주는 프레임), 60fps에서는 20Mbps, 30fps에서는 12Mbps로 Meta의 최대 25Mbps 이내이고, 128kbps AAC 오디오, 파일 앞쪽에 둔 인덱스, 편집 목록 없음이에요. Instagram은 업로드한 모든 영상을 다시 인코딩하는데, 영상에 자체 프레임과 크기를 주면 두 번째 스케일링을 피할 수 있어요.',
+          text: '**Instagram 릴스** 프리셋은 Meta의 릴스 사양을 따라요. 프로젝트 프레임 속도의 H.264 MP4, 60fps에서는 20Mbps, 30fps에서는 12Mbps로 Meta의 최대 25Mbps 이내이고, 128kbps AAC 오디오, 파일 앞쪽에 둔 인덱스, 편집 목록 없음이에요. 세로(9:16) 프로젝트에서는 프레임이 1080x1920이고, 이것이 Instagram이 보여 주는 프레임이에요. 다른 프로젝트에서는 프리셋이 프로젝트의 비율을 유지하고(16:9면 1920x1080) 늘이지 않아요. Instagram은 업로드한 모든 영상을 다시 인코딩하는데, 영상에 자체 프레임과 크기를 주면 두 번째 스케일링을 피할 수 있어요.',
         },
         {
           kind: 'paragraph',
-          text: '**TikTok**과 **YouTube Shorts** 프리셋은 프로젝트의 프레임 레이트(최대 60fps)로 같은 세로 1080x1920 H.264 MP4를 만들어요. **YouTube Shorts**는 YouTube가 공개한 1080p 비트레이트를 써요. 60fps에서 12Mbps, 30fps에서 8Mbps이고 오디오는 AAC 스테레오 384kbps예요. TikTok은 비트레이트를 공개하지 않아서 **TikTok**은 저희가 정한 60fps 16Mbps, 30fps 10Mbps에 AAC 128kbps를 써요. 두 플랫폼 모두 업로드한 영상을 다시 인코딩해요.',
+          text: '**TikTok**과 **YouTube Shorts** 프리셋은 프로젝트의 프레임 레이트(최대 60fps)로 같은 H.264 MP4를 만들어요. 세로 프로젝트에서는 1080x1920이고, 그 밖의 프로젝트에서는 프로젝트 자체의 비율이에요. **YouTube Shorts**는 YouTube가 공개한 1080p 비트레이트를 써요. 60fps에서 12Mbps, 30fps에서 8Mbps이고 오디오는 AAC 스테레오 384kbps예요. TikTok은 비트레이트를 공개하지 않아서 **TikTok**은 저희가 정한 60fps 16Mbps, 30fps 10Mbps에 AAC 128kbps를 써요. 두 플랫폼 모두 업로드한 영상을 다시 인코딩해요. 세로 영상을 만들려면 1080x1920 세로 프로젝트에서 시작하세요. 그러면 흔들림 보정의 프레이밍이 드론 영상에서 남길 부분을 골라요.',
         },
       ],
     },

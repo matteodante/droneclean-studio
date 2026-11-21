@@ -47,7 +47,7 @@
       "mute": "음소거",
       "muteShort": "음소거",
       "muted": "음소거됨",
-      "percent": "{{value}}%",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "로컬 재생에만 적용됩니다. 내보내기에는 프로젝트 믹스가 사용됩니다.",
       "thisDeviceOnly": "이 기기에서만",
       "title": "미리보기 오디오",

@@ -114,6 +114,10 @@
       "noClip": "没有可动画的片段",
       "animatedClip": "有动画"
     },
+    "colorTimeline": {
+      "label": "调色时间线",
+      "noClip": "没有可调色的片段"
+    },
     "animatePresets": {
       "title": "动效库",
       "animationsHeading": "动画",

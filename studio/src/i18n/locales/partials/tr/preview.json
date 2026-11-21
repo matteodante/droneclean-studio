@@ -47,7 +47,7 @@
       "mute": "Sessize al",
       "muteShort": "Sessiz",
       "muted": "Sessiz",
-      "percent": "Yüzde",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "Yalnızca yerel oynatmayı etkiler — dışa aktarmada proje miksi kullanılır.",
       "thisDeviceOnly": "Yalnızca bu cihaz",
       "title": "Önizleme sesi",
@@ -75,7 +75,7 @@
       "gradeComparisonWipe": "Bölünmüş karşılaştırmayı ayarla"
     },
     "zoom": {
-      "ariaLabel": "Önizleme yakınlaştırması",
+      "ariaLabel": "Önizleme yakınlaştırması: {{label}}",
       "auto": "Otomatik",
       "tooltip": "Yakınlaştırma: {{label}}"
     },

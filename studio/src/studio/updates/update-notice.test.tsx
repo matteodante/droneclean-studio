@@ -64,6 +64,15 @@ describe('UpdateNotice', () => {
     expect(bridge.open).toHaveBeenCalledWith()
   })
 
+  it('keeps the card when the shell could not open the page, so Download can be pressed again', async () => {
+    const { bridge } = fakeBridge({ notice: NOTICE })
+    bridge.open.mockRejectedValueOnce(new Error('no browser'))
+    render(<UpdateNotice />)
+    fireEvent.click(await screen.findByRole('button', { name: /download/i }))
+    await waitFor(() => expect(bridge.open).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('button', { name: /download/i })).toBeTruthy()
+  })
+
   it('shows a version the shell finds later, and "Later" hides it', async () => {
     const { bridge, push } = fakeBridge()
     render(<UpdateNotice />)

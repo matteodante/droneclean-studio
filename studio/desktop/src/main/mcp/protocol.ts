@@ -134,17 +134,57 @@ export function pipeUserPart(userName: string): string {
 }
 
 /**
+ * The longest Unix socket path, in bytes, that `bind` and `connect` take: the
+ * size of `sockaddr_un.sun_path` less its terminator, 104 - 1 on macOS (and the
+ * BSDs) and 108 - 1 on Linux. Measured on macOS with Node 24.14: 104 bytes still
+ * bound, 105 failed with EINVAL; the terminator is kept as margin.
+ */
+export function maxSocketPathBytes(platform: NodeJS.Platform): number {
+  return platform === 'linux' ? 107 : 103
+}
+
+/** This process's user id; -1 where there is none (Windows, which never needs it). */
+export function currentUid(): number {
+  return typeof process.getuid === 'function' ? process.getuid() : -1
+}
+
+/**
+ * The folder a socket moves to when its path in the profile is too long: one
+ * per user, `/tmp/droneclean-mcp-<uid>`, mode 0700 (`socket-dir.ts`). `/tmp`
+ * rather than `os.tmpdir()`: `$TMPDIR` can differ between the app started from
+ * the Finder and the launcher started by an MCP client (a sandbox sets its own),
+ * while `/tmp` is the same folder for both, and short on every machine.
+ */
+export function shortSocketDirFor(uid: number = currentUid()): string {
+  return path.posix.join('/tmp', `droneclean-mcp-${uid}`)
+}
+
+/**
  * The per-user socket the app listens on. Windows has named pipes instead of
  * socket files, named per user; the other platforms keep the socket in
  * `userData`, whose folder Electron creates with the user's mode and whose
- * socket is chmod'ed to 0600.
+ * socket is created 0600. A profile whose socket path would be longer than the
+ * platform takes (`maxSocketPathBytes`: a long user name, a profile moved deep
+ * into a folder) gets `<shortSocketDirFor(uid)>/<16 hex digits of the
+ * profile path's SHA-256>.sock` instead, one per profile, so a throwaway
+ * profile never meets the real one. The launcher computes the same path
+ * (`studio/mcp/launcher.mjs`); the contract test holds the two together.
  */
 export function socketPathFor(
   userDataDir: string,
   platform: NodeJS.Platform = process.platform,
   userName: string = os.userInfo().username,
+  uid: number = currentUid(),
 ): string {
-  return platform === 'win32'
-    ? `${WINDOWS_PIPE_NAME_PREFIX}${pipeUserPart(userName)}`
-    : path.join(userDataDir, SOCKET_FILE_NAME)
+  if (platform === 'win32') return `${WINDOWS_PIPE_NAME_PREFIX}${pipeUserPart(userName)}`
+  const inProfile = path.join(userDataDir, SOCKET_FILE_NAME)
+  if (Buffer.byteLength(inProfile) <= maxSocketPathBytes(platform)) return inProfile
+  const profile = crypto.createHash('sha256').update(userDataDir).digest('hex').slice(0, 16)
+  return path.posix.join(shortSocketDirFor(uid), `${profile}.sock`)
+}
+
+/** The private folder `socketPath` was moved to (`shortSocketDirFor`), or null for a socket in the profile or a pipe. */
+export function shortSocketDirOf(socketPath: string, uid: number = currentUid()): string | null {
+  const dir = shortSocketDirFor(uid)
+  return path.posix.dirname(socketPath) === dir ? dir : null
 }

@@ -9,6 +9,7 @@ import {
   ShadowPieceUnavailable,
   SourceFrameMismatch,
   type BackendFrame,
+  type DecodeOptions,
   type FrameBackend,
   type FrameFile,
 } from './types'
@@ -29,10 +30,12 @@ function fakeBackend(indexFor: (asked: number) => number = (asked) => asked) {
   const decodes: Array<{ file: string; index: number }> = []
   const prefetches: Array<{ file: string; indices: readonly number[] }> = []
   let destroyed = false
+  const sizes: Array<{ width: number; height: number } | undefined> = []
   const backend: FrameBackend = {
     origin: 'webcodecs',
-    async decode(file: FrameFile, index: number): Promise<BackendFrame> {
+    async decode(file: FrameFile, index: number, options?: DecodeOptions): Promise<BackendFrame> {
       decodes.push({ file: file.key, index })
+      sizes.push(options?.size)
       const texture: FakeTexture = {
         id: textures.length,
         destroyed: false,
@@ -41,11 +44,14 @@ function fakeBackend(indexFor: (asked: number) => number = (asked) => asked) {
         },
       }
       textures.push(texture)
+      // A backend that uploads straight to an asked size, as the WebCodecs one does for a preview
+      const size = options?.size
       return {
         texture: texture as unknown as GPUTexture,
         index: indexFor(index),
-        width: 64,
-        height: 36,
+        width: size?.width ?? 64,
+        height: size?.height ?? 36,
+        ...(size === undefined ? {} : { natural: { width: 64, height: 36 } }),
       }
     },
     prefetch(file, indices) {
@@ -59,6 +65,7 @@ function fakeBackend(indexFor: (asked: number) => number = (asked) => asked) {
     backend,
     textures,
     decodes,
+    sizes,
     prefetches,
     live: () => textures.filter((texture) => !texture.destroyed).length,
     isDestroyed: () => destroyed,
@@ -296,6 +303,55 @@ describe('the shadow piece as a source of frames', () => {
     await provider.frameAt(cleanedItem({ sourceFps: undefined }), 10)
     await provider.frameAt(cleanedItem({ sourceFps: 24 }), 40)
     expect(rates).toEqual([60, 24])
+  })
+})
+
+describe('a preview’s reduced frames (design 8.10)', () => {
+  const quarter = (natural: { width: number; height: number }) => ({ width: natural.width / 4, height: natural.height / 4 })
+
+  it('asks the backend for the reduced size once it knows the file’s size, and says the file’s size', async () => {
+    const fake = fakeBackend()
+    const provider = createSourceFrameProvider({ ...options(fake.backend, 2), mode: 'preview' })
+    const item = plainItem()
+
+    const first = await provider.frameAt(item, 0, quarter)
+    provider.release(first)
+    const second = await provider.frameAt(item, 1, quarter)
+
+    // The first frame teaches the file's size; the next ones come reduced
+    expect(fake.sizes).toEqual([undefined, { width: 16, height: 9 }])
+    expect(first).toMatchObject({ width: 64, height: 36 })
+    expect(first.natural).toBeUndefined()
+    expect(second).toMatchObject({ width: 16, height: 9, natural: { width: 64, height: 36 } })
+  })
+
+  it('keeps a reduced frame apart from the same frame at another size', async () => {
+    const fake = fakeBackend()
+    const provider = createSourceFrameProvider({ ...options(fake.backend, 3), mode: 'preview' })
+    const item = plainItem()
+    provider.release(await provider.frameAt(item, 0))
+    const reduced = await provider.frameAt(item, 0, quarter)
+    const full = await provider.frameAt(item, 0)
+
+    expect(fake.decodes.map((decode) => decode.index)).toEqual([0, 0])
+    expect(reduced).toMatchObject({ width: 16, height: 9 })
+    expect(full).toMatchObject({ width: 64, height: 36 })
+    // ... and finds each again in the cache
+    provider.release(reduced)
+    expect(await provider.frameAt(item, 0, quarter)).toMatchObject({ width: 16, height: 9 })
+    expect(fake.decodes).toHaveLength(2)
+  })
+
+  it('asks for no reduced size in an export, nor for a reduction that reduces nothing', async () => {
+    const fake = fakeBackend()
+    const exporting = createSourceFrameProvider(options(fake.backend, 2))
+    exporting.release(await exporting.frameAt(plainItem(), 0, quarter))
+    exporting.release(await exporting.frameAt(plainItem(), 1, quarter))
+    const preview = createSourceFrameProvider({ ...options(fake.backend, 2), mode: 'preview' })
+    preview.release(await preview.frameAt(plainItem(), 0, (natural) => natural))
+    preview.release(await preview.frameAt(plainItem(), 1, (natural) => natural))
+
+    expect(fake.sizes).toEqual([undefined, undefined, undefined, undefined])
   })
 })
 

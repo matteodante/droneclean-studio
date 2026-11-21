@@ -95,8 +95,9 @@ export const useUpdates = create<UpdatesState>((set) => ({
     await getUpdatesBridge()?.dismiss()
   },
   async open() {
-    set({ notice: null })
+    // The notice goes once the shell has opened the page: if it could not, Download stays there to press again
     await getUpdatesBridge()?.open()
+    set({ notice: null })
   },
   found(notice) {
     set((state) => (state.enabled ? { notice: parseNotice(notice) } : {}))

@@ -105,7 +105,7 @@ npm run package        # 편집기, Gyroflow의 wasm, FFmpeg를 빌드한 뒤 di
 | `studio/web/` | 웹 편집기의 정적 서버. |
 | `gyroflow/` | [Gyroflow](https://github.com/gyroflow/gyroflow)(GPL-3.0)의 포크. `gyroflow/wasm/`이 그 엔진을 편집기용으로 빌드합니다. |
 
-이 저장소는 릴리스 프로세스가 게시합니다. 각 릴리스는 커밋 하나이며, 이 릴리스의 태그는 `v0.1.9`입니다.
+이 저장소는 릴리스 프로세스가 게시합니다. 각 릴리스는 커밋 하나이며, 이 릴리스의 태그는 `v0.1.10`입니다.
 
 ## 기여와 보안
 

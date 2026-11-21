@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Drone görüntüsü: sabitle, renk düzenle, hızlandır, paylaş',
   description:
-    'Jiroskop sabitleme ve kadraj, D-Log M profili, görünümler ve gökyüzü, yavaşlama eğrili hız rampaları, hareket bulanıklığı ve akıcı ağır çekim, vuruş işaretçileri, tek tıkla yumuşak kurgu, Instagram Reel dışa aktarma ve ajan erişimi.',
+    'Jiroskop sabitleme ve kadraj, D-Log M profili, görünümler ve gökyüzü, yavaşlama eğrili hız rampaları, hareket bulanıklığı ve akıcı ağır çekim, vuruş işaretçileri, tek tıkla yumuşak kurgu, Instagram Reels, TikTok ve YouTube Shorts için dışa aktarma ve ajan erişimi.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -112,15 +112,15 @@ const page = {
       ],
     },
     {
-      title: 'Instagram için dışa aktarma',
+      title: "Instagram, TikTok ve Shorts için dışa aktarma",
       blocks: [
         {
           kind: 'paragraph',
-          text: "**Instagram Reels** ön ayarı Meta'nın Reel belirtimini izler: projenin kare hızında H.264 MP4, 1080x1920 (Instagram'ın gösterdiği kare), 60 fps'de 20 Mbps veya 30 fps'de 12 Mbps (Meta'nın 25 Mbps üst sınırının altında), 128 kbps AAC ses, dosyanın başında dizin ve düzenleme listesi yok. Instagram her yüklemeyi yeniden kodlar; ona kendi karesini ve boyutunu vermek ikinci bir ölçeklemeyi önler.",
+          text: "**Instagram Reels** ön ayarı Meta'nın Reel belirtimini izler: projenin kare hızında H.264 MP4, 60 fps'de 20 Mbps veya 30 fps'de 12 Mbps (Meta'nın 25 Mbps üst sınırının altında), 128 kbps AAC ses, dosyanın başında dizin ve düzenleme listesi yok. Dikey (9:16) bir projede kare 1080x1920'dir ve Instagram'ın gösterdiği kare budur; başka bir projede ön ayar projenin şeklini korur (16:9 için 1920x1080) ve asla germez. Instagram her yüklemeyi yeniden kodlar; ona kendi karesini ve boyutunu vermek ikinci bir ölçeklemeyi önler.",
         },
         {
           kind: 'paragraph',
-          text: "**TikTok** ve **YouTube Shorts** hazır ayarları, projenin kare hızında (en fazla 60 fps) aynı dikey 1080x1920 H.264 MP4 dosyasını üretir. **YouTube Shorts**, YouTube'un yayımladığı 1080p değerlerini kullanır: 60 fps için 12 Mbps veya 30 fps için 8 Mbps, 384 kbps AAC stereo ses ile. TikTok bir bit hızı yayımlamadığından **TikTok**, bizim seçtiğimiz değerleri kullanır: 60 fps için 16 Mbps veya 30 fps için 10 Mbps, 128 kbps AAC ile. İki platform da her yüklemeyi yeniden kodlar.",
+          text: "**TikTok** ve **YouTube Shorts** hazır ayarları, projenin kare hızında (en fazla 60 fps) aynı H.264 MP4 dosyasını üretir: dikey bir projede 1080x1920, başka bir projede projenin kendi şekli. **YouTube Shorts**, YouTube'un yayımladığı 1080p değerlerini kullanır: 60 fps için 12 Mbps veya 30 fps için 8 Mbps, 384 kbps AAC stereo ses ile. TikTok bir bit hızı yayımlamadığından **TikTok**, bizim seçtiğimiz değerleri kullanır: 60 fps için 16 Mbps veya 30 fps için 10 Mbps, 128 kbps AAC ile. İki platform da her yüklemeyi yeniden kodlar. Dikey bir video için 1080x1920'lik dikey bir projeyle başlayın; sabitlemenin kadrajı da drone görüntüsünün hangi bölümünün kalacağını seçer.",
         },
       ],
     },

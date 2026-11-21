@@ -1,7 +1,7 @@
 {
   "media": {
     "card": {
-      "aiCaptionsCount": "AI Captions Count",
+      "aiCaptionsCount": "{{count}} AI captions",
       "analyzeWithAI": "Analyze with AI",
       "analyzingWithAI": "Analyzing with AI",
       "cancelInterpolation": "Cancel Interpolation",
@@ -35,11 +35,11 @@
       "transcribeFailed": "Transcribe Failed",
       "transcribing": "Transcribing",
       "transcriptDeleteFailed": "Transcript Delete Failed",
-      "transcriptDeleteFailedFor": "Couldn't delete transcript for \"{{name}}\"",
+      "transcriptDeleteFailedFor": "Couldn't delete the transcripts of {{failed}} of {{total}} clips",
       "transcriptDeletedFor": "Transcript deleted for \"{{name}}\"",
       "transcriptProgressAria": "Transcript progress",
       "transcriptReadyFor": "Transcript ready for \"{{name}}\"",
-      "transcriptionFailedFor": "Transcription failed for \"{{name}}\"",
+      "transcriptionFailedFor": "Transcription failed for {{failed}} of {{total}} clips",
       "transcriptsDeleted": "Transcripts Deleted",
       "transcriptsReady": "Transcripts Ready",
       "menuUpscale": "Upscale",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "AI Analysis Progress",
       "allTypes": "All Types",
-      "analyzingMultiple": "Analyzing Multiple",
+      "analyzingMultiple": "Analyzing {{current}} of {{total}}…",
       "analyzingSingle": "Analyzing Single",
       "andJoiner": " and ",
       "assetsCount": "{{count}} assets",
@@ -162,7 +162,7 @@
       "dismiss": "Dismiss",
       "dragDropUnsupported": "Drag Drop Unsupported",
       "dropFilesHere": "Drop Files Here",
-      "filesRejected": "Files Rejected",
+      "filesRejected": "Some files could not be added.",
       "downloadingInterpolationModel": "Downloading Interpolation Model",
       "generateProxiesForSelected": "Generate proxies for {{count}} selected items",
       "generatingProxies": "Generating Proxies",
@@ -276,7 +276,7 @@
       "keepAsBroken": "Keep As Broken",
       "removeAll": "Remove All",
       "select": "Select",
-      "selectReplacement": "Select Replacement",
+      "selectReplacement": "Select a replacement for “{{name}}”",
       "title": "Missing media"
     },
     "picker": {
@@ -321,11 +321,11 @@
       "video": "Video"
     },
     "unsupportedCodec": {
-      "bodyMultiple": "Body Multiple",
-      "bodySingle": "Body Single",
+      "bodyMultiple": "{{count}} files use codecs your browser cannot decode. They may not play correctly.",
+      "bodySingle": "This file uses a codec your browser cannot decode. It may not play correctly.",
       "cancelImport": "Cancel Import",
       "importAnyway": "Import Anyway",
-      "note": "Note",
+      "note": "Convert them to MP4 (H.264/AAC) or WebM for better compatibility.",
       "title": "Unsupported codec"
     },
     "subclips": {

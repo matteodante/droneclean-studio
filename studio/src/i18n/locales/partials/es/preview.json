@@ -47,7 +47,7 @@
       "mute": "Silenciar",
       "muteShort": "Mudo",
       "muted": "Silenciado",
-      "percent": "{{value}}%",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "Solo afecta a la reproducción local; la exportación usa la mezcla del proyecto.",
       "thisDeviceOnly": "Solo en este dispositivo",
       "title": "Audio de previsualización",
@@ -101,7 +101,7 @@
       "dragDropUnsupported": "Arrastrar y soltar no es compatible con este navegador. Usa Chrome o Edge.",
       "filesRejected": "Se rechazaron algunos archivos: {{errors}}",
       "dropAudioOnTimeline": "Suelta el audio en la línea de tiempo.",
-      "unableToInspectVideo": "No se pudo inspeccionar el video soltado.",
+      "unableToInspectVideo": "No se pudo inspeccionar el vídeo soltado.",
       "unableToInspectFile": "No se pudo inspeccionar el archivo soltado.",
       "unableToImportFile": "No se pudo importar el archivo soltado."
     },

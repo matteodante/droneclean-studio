@@ -318,13 +318,51 @@ function lineOf(source, index) {
   return line
 }
 
+/**
+ * The names a call's options object passes for interpolation (`{ count, name: x }` gives count and name), or null
+ * when they cannot be read: a variable, a spread, anything but an object literal. A nested object's own names are
+ * counted too, which only ever lets a name through.
+ */
+function passedValues(expression) {
+  if (!expression.startsWith('{') || expression.includes('...')) return null
+  return [...expression.matchAll(/(?:^\{|,)\s*([A-Za-z_$][\w$]*)\s*(?=[:,}])/g)].map((match) => match[1])
+}
+
+/** The interpolation names of one string: `{{count}}` and `{{value, number}}` give count and value. */
+function placeholdersOf(text) {
+  return new Set([...String(text).matchAll(/\{\{\s*([\w.]+)\s*(?:,[^}]*)?\}\}/g)].map((match) => match[1]))
+}
+
+/**
+ * The interpolation names of a key in a merged tree: its string's, or the union over a plural group's forms; null
+ * when the tree does not define it.
+ */
+export function keyPlaceholders(tree, key) {
+  const parts = key.split('.')
+  let node = tree
+  for (const part of parts.slice(0, -1)) {
+    node = isPlainObject(node) ? node[part] : undefined
+    if (node === undefined) return null
+  }
+  if (!isPlainObject(node)) return null
+  const leaf = parts.at(-1)
+  const texts = Object.entries(node)
+    .filter(([name, value]) => (name === leaf || (name.startsWith(`${leaf}_`) && PLURAL_SUFFIX.test(name))) && typeof value === 'string')
+    .map(([, value]) => value)
+  if (texts.length === 0) return null
+  const names = new Set()
+  for (const text of texts) for (const name of placeholdersOf(text)) names.add(name)
+  return names
+}
+
 /** `foo?.t(`, `foo.t(`, `i18n.t(` and a bare `t(`; the lookbehind keeps `format(`, `Math.t(`-style names out. */
 const CALL = /(?<![\w$])(?:[\w$]+\s*\??\.\s*)?t\s*\(/g
 const TRANS_KEY = /\bi18nKey\s*=\s*/g
 const KEY_PROPERTY = /(?<![\w$.])[\w$]*Key\s*:\s*/g
 
 /**
- * Every use of a translation key in one source file: `{ line, kind: 'static' | 'dynamic', key?, expression? }`.
+ * Every use of a translation key in one source file: `{ line, kind: 'static' | 'dynamic', key?, values?, expression? }`;
+ * `values` are the interpolation names a static call passes (`passedValues`): [] for none, null when unreadable.
  * `namespaces` are the top-level keys of the English files; a `...Key:` property only counts when its string
  * starts with one of them and a dot.
  */
@@ -337,7 +375,8 @@ export function scanSource(source, namespaces) {
     if (literal && !literal.interpolated) {
       const after = skipSpace(source, mask, literal.end)
       if (source[after] === ',' || source[after] === ')' || source[after] === '}') {
-        uses.push({ line: lineOf(source, index), kind: 'static', key: literal.value })
+        const values = source[after] === ',' ? passedValues(readArgument(source, mask, skipSpace(source, mask, after + 1))) : []
+        uses.push({ line: lineOf(source, index), kind: 'static', key: literal.value, values })
         return
       }
     }

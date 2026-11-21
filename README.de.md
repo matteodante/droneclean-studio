@@ -138,7 +138,7 @@ benötigt Google Chrome und FFmpeg).
 | `gyroflow/` | Ein Fork von [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` baut dessen Engine für den Editor. |
 
 Dieses Repository wird vom Release-Prozess veröffentlicht: Jede Version ist ein einzelner Commit, hier mit dem Tag
-`v0.1.9`.
+`v0.1.10`.
 
 ## Mitmachen und Sicherheit
 

@@ -6,6 +6,7 @@
  */
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import fs from 'node:fs'
 import { test } from 'node:test'
 import { resolveLaunchEnvironment } from '../out/main/launch-env.js'
 import { isUncPath } from '../out/main/media/path-guard.js'
@@ -121,4 +122,28 @@ test('R6: navigation, a renderer crash and destruction cancel the window’s job
   tracker.admit(window, 'c')
   window.emit('destroyed')
   assert.deepEqual(cancelled, ['a', 'b', 'c'])
+})
+
+test('F8: a job of a window with no idle time is never swept, and still stops with its window', () => {
+  let clock = 0
+  const cancelled = []
+  const jobs = new WindowJobs({
+    cancel: (id) => cancelled.push(id),
+    now: () => clock,
+    maxPerWindow: 1,
+    idleMs: Number.POSITIVE_INFINITY,
+  })
+  const events = new Map()
+  const window = { id: 7, on: (event, fn) => events.set(event, fn), once: (event, fn) => events.set(event, fn) }
+  jobs.admit(window, 'enc1')
+  clock = 24 * 60 * 60 * 1000
+  jobs.sweep()
+  assert.deepEqual(cancelled, [])
+  events.get('destroyed')()
+  assert.deepEqual(cancelled, ['enc1'])
+})
+
+test('F8: the native encode route sets no idle time, as the muxer route does', () => {
+  const source = fs.readFileSync(new URL('../src/main/media/encode-protocol.ts', import.meta.url), 'utf8')
+  assert.match(source, /new WindowJobs\(\{[^}]*idleMs: Number\.POSITIVE_INFINITY/s)
 })

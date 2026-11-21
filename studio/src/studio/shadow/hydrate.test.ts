@@ -81,12 +81,16 @@ let revokeObjectUrl: ReturnType<typeof vi.spyOn>
  * from a fresh module rather than inheriting the previous case's URLs.
  */
 let hydrateShadowPieces: (typeof import('./hydrate'))['hydrateShadowPieces']
+let registerSavedPieceUrl: (typeof import('./hydrate'))['registerSavedPieceUrl']
+let releaseUnreferencedPieceUrls: (typeof import('./hydrate'))['releaseUnreferencedPieceUrls']
 let unavailableShadowPieces: (typeof import('./hydrate'))['unavailableShadowPieces']
 
 beforeEach(async () => {
   vi.resetModules()
   const hydrate = await import('./hydrate')
   hydrateShadowPieces = hydrate.hydrateShadowPieces
+  registerSavedPieceUrl = hydrate.registerSavedPieceUrl
+  releaseUnreferencedPieceUrls = hydrate.releaseUnreferencedPieceUrls
   unavailableShadowPieces = hydrate.unavailableShadowPieces
   readWorkspaceBlob.mockReset()
   registry.files.clear()
@@ -94,6 +98,7 @@ beforeEach(async () => {
   registry.registerObjectUrl.mockClear()
   registry.unregisterObjectUrl.mockClear()
   objectUrlCount = 0
+  vi.restoreAllMocks()
   vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
     objectUrlCount += 1
     return `blob:hydrated-${objectUrlCount}`
@@ -187,6 +192,41 @@ describe('hydrateShadowPieces', () => {
 
     expect(readWorkspaceBlob).not.toHaveBeenCalled()
     expect(hydrated).toBe(items)
+  })
+})
+
+describe('the URL of a saved piece', () => {
+  it('is the one URL of its path: a project open after a save reuses it and creates no second', async () => {
+    const created = vi.mocked(URL.createObjectURL)
+    const saved = registerSavedPieceUrl(PIECE_PATH, new Blob(['cleaned'], { type: 'video/mp4' }))
+    readWorkspaceBlob.mockResolvedValue(new Blob(['cleaned'], { type: 'video/mp4' }))
+
+    const [hydrated] = (await hydrateShadowPieces([createItem(removal())])) as VideoItem[]
+
+    expect(hydrated?.shadowRemoval?.pieces[0]?.src).toBe(saved)
+    expect(created).toHaveBeenCalledTimes(1)
+    expect(revokeObjectUrl).not.toHaveBeenCalled()
+  })
+
+  it('revokes the URL of the file a second save of the same path replaces', () => {
+    const first = registerSavedPieceUrl(PIECE_PATH, new Blob(['one']))
+    const second = registerSavedPieceUrl(PIECE_PATH, new Blob(['two']))
+
+    expect(second).not.toBe(first)
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1)
+    expect(revokeObjectUrl).toHaveBeenCalledWith(first)
+    expect(registry.unregisterObjectUrl).toHaveBeenCalledWith(first)
+  })
+
+  it('is revoked when its project is gone, and kept while a clip still records the path', () => {
+    const kept = registerSavedPieceUrl('media/a/shadow/1_1.mp4', new Blob(['a']))
+    const gone = registerSavedPieceUrl('media/b/shadow/2_2.mp4', new Blob(['b']))
+
+    releaseUnreferencedPieceUrls(new Set(['media/a/shadow/1_1.mp4']))
+
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1)
+    expect(revokeObjectUrl).toHaveBeenCalledWith(gone)
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith(kept)
   })
 })
 

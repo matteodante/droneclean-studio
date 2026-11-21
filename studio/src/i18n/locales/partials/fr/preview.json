@@ -47,7 +47,7 @@
       "mute": "Couper le son",
       "muteShort": "Muet",
       "muted": "Muet",
-      "percent": "{{value}} %",
+      "percent": "{{percent}} %",
       "previewOnlyNote": "Concerne uniquement la lecture locale — l'exportation utilise le mixage du projet.",
       "thisDeviceOnly": "Cet appareil uniquement",
       "title": "Audio de prévisualisation",

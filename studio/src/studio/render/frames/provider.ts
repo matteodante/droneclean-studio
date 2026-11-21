@@ -18,6 +18,7 @@ import {
   type BackendFrame,
   type FrameBackend,
   type FrameFile,
+  type FrameReduction,
   type SourceFrame,
   type SourceFrameOrigin,
   type SourceFrameProvider,
@@ -47,11 +48,12 @@ export interface SourceFrameProviderOptions {
   readonly sourceFile?: (item: VideoItem, rate: Rate) => FrameFile
 }
 
-/** What the cache holds: the texture, its size and what answered. */
+/** What the cache holds: the texture, its size, the file's size when it is reduced, and what answered. */
 interface CachedFrame {
   readonly texture: GPUTexture
   readonly width: number
   readonly height: number
+  readonly natural?: { readonly width: number; readonly height: number }
   readonly origin: SourceFrameOrigin
 }
 
@@ -98,6 +100,8 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
   let destroyed = false
   /** Each source file's colour verdict, asked of the first frame decoded from it: a message, or null when it is fine. */
   const colourVerdicts = new Map<string, string | null>()
+  /** Each file's frame size, learnt from its first decode: what a preview's reduction is asked for (design 8.10) */
+  const fileSizes = new Map<string, { width: number; height: number }>()
 
   const locate = (item: VideoItem, sourceIndex: number): Located => {
     const rate = item.sourceFps === undefined ? projectRate : toRate(item.sourceFps)
@@ -138,6 +142,31 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
     throw new StageError({ clip: located.clip, stage: 'input-colour', sourceIndex, reason: problem })
   }
 
+  /** What the cache keeps of a decoded frame; the file's size is learnt from its first */
+  const cacheEntry = (located: Located, decoded: BackendFrame): CachedFrame => {
+    if (!fileSizes.has(located.file.key)) {
+      fileSizes.set(located.file.key, decoded.natural ?? { width: decoded.width, height: decoded.height })
+    }
+    return {
+      texture: decoded.texture,
+      width: decoded.width,
+      height: decoded.height,
+      origin: located.origin,
+      ...(decoded.natural === undefined ? {} : { natural: decoded.natural }),
+    }
+  }
+
+  /**
+   * The size a preview's frame is asked at (design 8.10): the reduction of the file's size, once the file's size is
+   * known; none in an export, without a reduction, or when it reduces nothing
+   */
+  const reducedSize = (located: Located, reduce: FrameReduction | undefined): { width: number; height: number } | undefined => {
+    const fileSize = reduce === undefined || mode !== 'preview' ? undefined : fileSizes.get(located.file.key)
+    if (reduce === undefined || fileSize === undefined) return undefined
+    const { width, height } = reduce(fileSize)
+    return width === fileSize.width && height === fileSize.height ? undefined : { width, height }
+  }
+
   const handOut = (key: string, sourceIndex: number, cached: CachedFrame): SourceFrame => {
     const frame: SourceFrame = {
       texture: cached.texture,
@@ -145,6 +174,7 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
       width: cached.width,
       height: cached.height,
       origin: cached.origin,
+      ...(cached.natural === undefined ? {} : { natural: cached.natural }),
     }
     held.set(frame, key)
     return frame
@@ -154,6 +184,7 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
     key: string,
     located: Located,
     sourceIndex: number,
+    size: { width: number; height: number } | undefined,
   ): Promise<SourceFrame> => {
     if (destroyed) throw new Error('source frames: the provider is destroyed')
     const hit = lru.acquire(key)
@@ -164,7 +195,10 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
         `source frames: all ${lru.capacity} cached frames are held; release the frames of the last output frame first`,
       )
     }
-    const decoded: BackendFrame = await located.backend.decode(located.file, located.fileIndex)
+    const decoded: BackendFrame = await located.backend.decode(located.file, located.fileIndex, {
+      preview: mode === 'preview',
+      ...(size === undefined ? {} : { size }),
+    })
     if (decoded.index !== located.fileIndex) {
       decoded.texture.destroy()
       throw new SourceFrameMismatch({
@@ -178,12 +212,7 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
       throw new Error('source frames: the provider was destroyed while a frame was decoding')
     }
     refuseNonBt709(located, decoded, sourceIndex)
-    const cached: CachedFrame = {
-      texture: decoded.texture,
-      width: decoded.width,
-      height: decoded.height,
-      origin: located.origin,
-    }
+    const cached = cacheEntry(located, decoded)
     try {
       lru.insert(key, cached)
     } catch (error) {
@@ -194,7 +223,7 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
   }
 
   return {
-    frameAt(item, sourceIndex) {
+    frameAt(item, sourceIndex, reduce) {
       if (!Number.isSafeInteger(sourceIndex) || sourceIndex < 0) {
         return Promise.reject(
           new RangeError(`source frames: the index must be a non-negative integer, got ${sourceIndex}`),
@@ -206,11 +235,13 @@ export function createSourceFrameProvider(options: SourceFrameProviderOptions): 
       } catch (error) {
         return Promise.reject(error)
       }
-      const key = `${located.file.key}#${located.fileIndex}`
+      // A preview's reduced frame (design 8.10) is a frame of its own in the cache
+      const size = reducedSize(located, reduce)
+      const key = `${located.file.key}#${located.fileIndex}${size === undefined ? '' : `@${size.width}x${size.height}`}`
       // A cached frame needs no turn in the queue.
       const hit = destroyed ? undefined : lru.acquire(key)
       if (hit !== undefined) return Promise.resolve(handOut(key, sourceIndex, hit))
-      const run = tail.then(() => decodeInto(key, located, sourceIndex))
+      const run = tail.then(() => decodeInto(key, located, sourceIndex, size))
       tail = run.catch(() => {})
       return run
     },

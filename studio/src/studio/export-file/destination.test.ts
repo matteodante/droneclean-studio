@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { i18n } from '@/i18n'
 import type { ExportFileBridge } from './wire'
 
 const bridge = vi.hoisted(() => ({ current: undefined as unknown }))
@@ -30,17 +31,29 @@ function shellBridge(choose: Awaited<ReturnType<ExportFileBridge['choose']>>) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
   bridge.current = undefined
   vi.unstubAllGlobals()
 })
 
 describe('chooseExportDestination in the desktop app', () => {
+  it('sends the save dialog the interface language\'s word for Export', async () => {
+    const { api, calls } = shellBridge({ ok: true, value: null })
+    bridge.current = api
+    vi.spyOn(i18n, 't').mockImplementation(((key: string) => (key === 'export.dialog.titleSettings' ? 'Esporta' : key)) as never)
+
+    await chooseExportDestination({ container: 'mp4', baseName: 'volo' })
+
+    expect(calls.choose).toEqual([{ suggestedName: 'volo.mp4', extension: 'mp4', title: 'Esporta' }])
+  })
+
   it('asks the shell with the name and extension, and names the file by its path', async () => {
     const { api, calls } = shellBridge({ ok: true, value: { id: 'exp-1', path: '/Users/p/flight.mp4', name: 'flight.mp4' } })
     bridge.current = api
     const choice = await chooseExportDestination({ container: 'mp4', baseName: 'export-1' })
 
-    expect(calls.choose).toEqual([{ suggestedName: 'export-1.mp4', extension: 'mp4' }])
+    // The title is the interface language's word for Export (English here).
+    expect(calls.choose).toEqual([{ suggestedName: 'export-1.mp4', extension: 'mp4', title: 'Export' }])
     if (choice.status !== 'chosen') throw new Error('expected a destination')
     expect(choice.destination.output).toEqual({ kind: 'desktop-file', id: 'exp-1' })
     expect(choice.destination.label).toBe('/Users/p/flight.mp4')
@@ -60,7 +73,7 @@ describe('chooseExportDestination in the desktop app', () => {
     bridge.current = api
     const choice = await chooseExportDestination({ container: 'mov', baseName: 'export-2', native: true })
 
-    expect(calls.choose).toEqual([{ suggestedName: 'export-2.mov', extension: 'mov', native: true }])
+    expect(calls.choose).toEqual([{ suggestedName: 'export-2.mov', extension: 'mov', title: 'Export', native: true }])
     if (choice.status !== 'chosen') throw new Error('expected a destination')
     expect(choice.destination.nativePath).toBe('/Users/p/master.mov')
     expect(choice.destination.label).toBe('/Users/p/master.mov')

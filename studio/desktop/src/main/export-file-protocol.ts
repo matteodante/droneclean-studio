@@ -16,7 +16,9 @@ import path from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, protocol, type CustomScheme, type IpcMainInvokeEvent } from 'electron'
 import {
   EXPORT_FILE_CHANNELS,
+  EXPORT_FILE_DEFAULT_TITLE,
   EXPORT_FILE_ID_PATTERN,
+  exportDialogTitle,
   EXPORT_FILE_MAX_WRITE_BYTES,
   EXPORT_FILE_SCHEME,
   parseExportFileUrl,
@@ -87,7 +89,7 @@ async function choose(event: IpcMainInvokeEvent, raw: unknown): Promise<ExportFi
   windowJobs.assertRoom(event.sender.id)
   const window = BrowserWindow.fromWebContents(event.sender)
   const options = {
-    title: 'Export',
+    title: request.title ?? EXPORT_FILE_DEFAULT_TITLE,
     defaultPath: path.join(app.getPath('downloads'), request.suggestedName),
     filters: [{ name: request.extension.toUpperCase(), extensions: [request.extension] }],
   }
@@ -205,7 +207,13 @@ function parseChooseRequest(raw: unknown): ExportFileChooseRequest {
   }
   const native = request.native
   if (native !== undefined && native !== true) throw new Error('export.choose: native must be true when given')
-  return native === true ? { suggestedName, extension, native } : { suggestedName, extension }
+  const title = exportDialogTitle(request.title)
+  return {
+    suggestedName,
+    extension,
+    ...(title === undefined ? {} : { title }),
+    ...(native === true ? { native } : {}),
+  }
 }
 
 function parseCommitRequest(raw: unknown): ExportFileCommitRequest {

@@ -114,6 +114,10 @@
       "noClip": "No clips to animate",
       "animatedClip": "Animated"
     },
+    "colorTimeline": {
+      "label": "Color timeline",
+      "noClip": "No clips to grade"
+    },
     "animatePresets": {
       "title": "Motion Library",
       "animationsHeading": "Animations",

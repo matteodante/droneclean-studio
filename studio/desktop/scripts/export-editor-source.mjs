@@ -11,8 +11,19 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
-/** Paths of the two folders that are not published */
-const UNPUBLISHED = ['studio/.github', 'studio/.codex', 'studio/.claude', 'studio/.impeccable', 'studio/.vite-hooks']
+/**
+ * Paths of `studio/` that are not published: our agents' tool folders, and FreeCut's own repository files that would
+ * act at (or mean nothing in) the public repository: its CI, its Vercel deploy and its CodeRabbit review settings.
+ */
+const UNPUBLISHED = [
+  'studio/.github',
+  'studio/.codex',
+  'studio/.claude',
+  'studio/.impeccable',
+  'studio/.vite-hooks',
+  'studio/vercel.json',
+  'studio/.coderabbit.yaml',
+]
 
 /**
  * The public repository's own front page and policies (README, SECURITY, CONTRIBUTING, `.github/` with the issue

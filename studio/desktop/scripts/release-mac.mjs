@@ -3,9 +3,15 @@
  * The Mac release of DroneClean Studio, built on this Mac (GitHub's checks stay off; PLAN.md, log of 19 Nov 2026).
  *
  *   node scripts/release-mac.mjs            builds and checks the release, publishes nothing
- *   node scripts/release-mac.mjs --publish  then publishes it: the matching source to the public editor repository
- *                                           (`RELEASE_REPO`, default matteodante/droneclean-studio) and a GitHub
- *                                           release there with the disk image, the zip and their checksums
+ *   node scripts/release-mac.mjs --publish  then uploads it: a DRAFT GitHub release on the public editor repository
+ *                                           (`RELEASE_REPO`, default matteodante/droneclean-studio) with the disk
+ *                                           image, the zip, the web build and the checksums, and then the matching
+ *                                           source (tagged). The release stays a draft, so nobody is told about it
+ *   node scripts/release-mac.mjs --go-live  makes the draft the latest release, only when the Mac and Windows files
+ *                                           and a SHA256SUMS.txt that lists all four are there; builds nothing
+ *
+ * A re-run of --publish after a failed upload resumes: the same draft (built from the same commit) gets its files
+ * again (`--clobber`) and the source is pushed only if the tag is not there yet.
  *
  * The build: the editor (`vp build`) and the shell, the app's own FFmpeg (scripts/build-ffmpeg.sh), and electron-builder
  * making `DroneClean-Studio-arm64.dmg` and `.zip` (no version in the name, so the site's link stays) with the whole bundle signed ad hoc (`-c.mac.identity=-`):
@@ -91,18 +97,81 @@ if (process.platform !== 'darwin' || os.arch() !== 'arm64') {
   throw new Error('release-mac: build the Mac release on an Apple silicon Mac')
 }
 
+/** What `gh` printed on stderr (or its message) for a failed call. */
+function failureText(error) {
+  return `${error?.stderr ?? ''}${error?.message ?? ''}`
+}
+
+/**
+ * The release of `tag` on the public repository: `null` only when GitHub says there is none; any other failure
+ * (no network, not signed in, a rate limit) stops the release instead of reading as "new".
+ */
+function releaseOf(releaseTag) {
+  try {
+    const json = output('gh', ['release', 'view', releaseTag, '--repo', releaseRepo, '--json', 'isDraft,body,assets'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    return JSON.parse(json)
+  } catch (error) {
+    if (/release not found/i.test(failureText(error))) return null
+    throw new Error(`release-mac: could not ask ${releaseRepo} about ${releaseTag}: ${failureText(error).trim()}`)
+  }
+}
+
+/** Whether the public repository has the tag; a failed `ls-remote` is an error, not "no". */
+function tagOnRemote(releaseTag) {
+  try {
+    const listed = output('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${releaseTag}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    return listed !== ''
+  } catch (error) {
+    throw new Error(`release-mac: could not list the tags of ${releaseRepo}: ${failureText(error).trim()}`)
+  }
+}
+
+if (process.argv.includes('--go-live')) {
+  // Makes the draft the latest release: the update notice of the installed apps reads `releases/latest`, so this is
+  // the moment users are told, and it waits until every file a user might download is there.
+  const release = releaseOf(tag)
+  if (release === null) throw new Error(`release-mac: ${releaseRepo} has no release ${tag}; run --publish first`)
+  if (!release.isDraft) throw new Error(`release-mac: ${tag} is already published`)
+  if (!tagOnRemote(tag)) throw new Error(`release-mac: the source of ${tag} is not pushed (no tag in ${releaseRepo}); run --publish again`)
+  const required = ['DroneClean-Studio-arm64.dmg', 'DroneClean-Studio-arm64.zip', 'DroneClean-Studio-web.tar.gz', 'DroneClean-Studio-x64.exe']
+  const names = release.assets.map((asset) => asset.name)
+  const missing = [...required, 'SHA256SUMS.txt'].filter((name) => !names.includes(name))
+  if (missing.length > 0) throw new Error(`release-mac: ${tag} is missing ${missing.join(', ')}; upload them first (studio-release skill, step 6)`)
+  const listedSums = output('gh', ['release', 'download', tag, '--repo', releaseRepo, '--pattern', 'SHA256SUMS.txt', '--output', '-'])
+  const unlisted = required.filter((name) => !listedSums.split('\n').some((line) => line.trim().endsWith(` ${name}`)))
+  if (unlisted.length > 0) throw new Error(`release-mac: SHA256SUMS.txt does not list ${unlisted.join(', ')}; regenerate it with all four files`)
+  run('gh', ['release', 'edit', tag, '--repo', releaseRepo, '--draft=false', '--latest'])
+  console.log(`\npublished https://github.com/${releaseRepo}/releases/tag/${tag}`)
+  console.log(`download link for the site: https://github.com/${releaseRepo}/releases/latest/download/DroneClean-Studio-arm64.dmg`)
+  process.exit(0)
+}
+
 const commit = output('git', ['rev-parse', 'HEAD'], { cwd: repoRoot })
+// What an earlier run of this version left behind: nothing (a new release), or a draft built from this very commit
+// (resumed), or something else (refused, because it could mix two builds).
+let resume = false
+let sourcePushed = false
 if (publish) {
   const dirty = output('git', ['status', '--porcelain', '--', 'studio', 'gyroflow'], { cwd: repoRoot })
   if (dirty) throw new Error(`release-mac: studio/ or gyroflow/ has uncommitted changes; commit them first:\n${dirty}`)
-  let tagExists = false
-  try {
-    output('gh', ['release', 'view', tag, '--repo', releaseRepo])
-    tagExists = true
-  } catch {
-    // no release with that tag: the version is new
+  const existing = releaseOf(tag)
+  sourcePushed = tagOnRemote(tag)
+  if (existing !== null && !existing.isDraft) {
+    throw new Error(`release-mac: ${releaseRepo} already published ${tag}; raise the version in desktop/package.json`)
   }
-  if (tagExists) throw new Error(`release-mac: ${releaseRepo} already has ${tag}; raise the version in desktop/package.json`)
+  if (existing !== null) {
+    if (!existing.body.includes(`built from ${commit.slice(0, 12)}`)) {
+      throw new Error(`release-mac: the draft ${tag} on ${releaseRepo} was built from another commit; delete the draft (and its tag) or raise the version`)
+    }
+    resume = true
+    console.log(`release-mac: resuming the draft ${tag} (same commit ${commit.slice(0, 12)})`)
+  } else if (sourcePushed) {
+    throw new Error(`release-mac: ${releaseRepo} has the tag ${tag} but no release; delete the tag, or raise the version in desktop/package.json`)
+  }
 }
 
 // The build
@@ -169,31 +238,30 @@ if (!publish) {
   process.exit(0)
 }
 
-// Publishing: the source snapshot, tagged, then the release with its files
-const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'droneclean-studio-source-'))
-run('gh', ['repo', 'clone', releaseRepo, sourceDir])
-exportEditorSource({ repoRoot, commit, target: sourceDir, version })
-run('git', ['add', '-A'], { cwd: sourceDir })
-// The public commits name the project, not a person's address (docs/publish-audit.md, section 3)
-const author = ['-c', 'user.name=DroneClean Studio', '-c', 'user.email=studio@droneclean.app']
-run('git', [...author, 'commit', '--allow-empty', '-m', `DroneClean Studio ${version}`], { cwd: sourceDir })
-run('git', [...author, 'tag', '-a', tag, '-m', `DroneClean Studio ${version}`], { cwd: sourceDir })
-run('git', ['push', 'origin', 'HEAD', tag], { cwd: sourceDir })
-run('gh', [
-  'release',
-  'create',
-  tag,
-  dmg,
-  zip,
-  webTarball,
-  sums,
-  '--repo',
-  releaseRepo,
-  '--title',
-  `DroneClean Studio ${version}`,
-  '--notes-file',
-  notes,
-  '--verify-tag',
-])
-console.log(`\npublished https://github.com/${releaseRepo}/releases/tag/${tag}`)
-console.log(`download link for the site: https://github.com/${releaseRepo}/releases/latest/download/${path.basename(dmg)}`)
+// Publishing. Order matters: the files first, as a DRAFT (invisible to users and to `releases/latest`), then the
+// source snapshot with the tag; a failure at any point leaves a draft this script resumes, never a half-public
+// version. `--go-live` is the step that publishes, once the Windows installer is there too.
+const assets = [dmg, zip, webTarball, sums]
+if (resume) {
+  run('gh', ['release', 'upload', tag, ...assets, '--repo', releaseRepo, '--clobber'])
+  run('gh', ['release', 'edit', tag, '--repo', releaseRepo, '--title', `DroneClean Studio ${version}`, '--notes-file', notes])
+} else {
+  run('gh', ['release', 'create', tag, ...assets, '--repo', releaseRepo, '--draft', '--title', `DroneClean Studio ${version}`, '--notes-file', notes])
+}
+
+if (sourcePushed) {
+  console.log(`release-mac: ${tag} is already in ${releaseRepo}; the source is not pushed again`)
+} else {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'droneclean-studio-source-'))
+  run('gh', ['repo', 'clone', releaseRepo, sourceDir])
+  exportEditorSource({ repoRoot, commit, target: sourceDir, version })
+  run('git', ['add', '-A'], { cwd: sourceDir })
+  // The public commits name the project, not a person's address (docs/publish-audit.md, section 3)
+  const author = ['-c', 'user.name=DroneClean Studio', '-c', 'user.email=studio@droneclean.app']
+  run('git', [...author, 'commit', '--allow-empty', '-m', `DroneClean Studio ${version}`], { cwd: sourceDir })
+  run('git', [...author, 'tag', '-a', tag, '-m', `DroneClean Studio ${version}`], { cwd: sourceDir })
+  run('git', ['push', 'origin', 'HEAD', tag], { cwd: sourceDir })
+}
+console.log(`\ndraft ${tag} is ready at https://github.com/${releaseRepo}/releases (not public yet)`)
+console.log('next: upload the Windows installer and a SHA256SUMS.txt of all four files (studio-release skill, step 6),')
+console.log('then: node scripts/release-mac.mjs --go-live')

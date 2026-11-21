@@ -177,6 +177,7 @@ function readParams(bytes: Uint8Array) {
     flags: int(36),
     f: [float(64), float(68)] as [number, number],
     c: [float(72), float(76)] as [number, number],
+    translation: [float(216), float(220)] as [number, number],
     sourceRect: [int(240), int(244), int(248), int(252)] as [number, number, number, number],
     outputRect: [int(256), int(260), int(264), int(268)],
   }
@@ -265,13 +266,13 @@ const realAssets = (): StabilizationAssets => ({
 })
 
 /** The kernel parameters the stage hands the GPU for one warp of `frame` from a source texture of this size */
-async function paramsForSource(width: number, height: number, frame = sizedFrame()) {
+async function paramsForSource(width: number, height: number, frame = sizedFrame(), output = { width: 64, height: 36 }) {
   const { device, written } = recordingDevice()
   const stage = await createStabilizationStage(device, realAssets(), {
     input: 'rgba16float',
     output: 'rgba16float',
   })
-  stage.warp(encoder, texture(width, height), texture(64, 36), frame)
+  stage.warp(encoder, texture(width, height), texture(output.width, output.height), frame)
   return {
     bytes: written('stabilization params'),
     params: readParams(written('stabilization params')),
@@ -386,6 +387,119 @@ describe('a source texture of any size', () => {
     expect(maxDifference(halfPicture, fullPicture)).toBeLessThan(0.025)
     // The test can tell: the half-size texture read with the full frame's parameters is another picture (6.88 dB)
     expect(psnr(unscaledPicture, fullPicture)).toBeLessThan(10)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------------------------------
+// An output texture of any size of the picture's shape (design 8.10): the preview draws the warp at the size it shows
+
+describe('an output texture of any size', () => {
+  beforeEach(() => {
+    vi.stubGlobal('GPUShaderStage', { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 })
+    vi.stubGlobal('GPUBufferUsage', { COPY_SRC: 4, COPY_DST: 8, UNIFORM: 64, STORAGE: 128 })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const quarter = { width: 16, height: 9 }
+
+  it('is drawn in the full-size output’s coordinates, written through Gyroflow’s output rect', async () => {
+    const full = await paramsForSource(64, 48)
+    const small = await paramsForSource(64, 48, sizedFrame(), quarter)
+
+    // The geometry is the full size's: the output plane, its size (the bounds test and `out_c`), the matrices
+    expect(small.params).toMatchObject({ width: 64, height: 48, outputWidth: 64, outputHeight: 36, matrixCount: 48, f: [50, 50] })
+    expect(small.matrices).toEqual(full.matrices)
+    // The texture is written through the output rect (flag 64, HAS_OUTPUT_RECT), as Gyroflow does for an output buffer
+    // of another size than its output (`stabilization/mod.rs:303`); its rows are the texture's
+    expect(small.params.flags & 64).toBe(64)
+    expect(small.params.outputRect).toEqual([0, 0, 16, 9])
+    expect(small.params.outputStride).toBe(16 * 4)
+    // The pan moves by 0.5 * s - 0.5: the rect maps pixel corners, the kernel indexes pixel centres
+    expect(small.params.translation).toEqual([0.5 * 4 - 0.5, 0.5 * 4 - 0.5])
+    // The source side is untouched: a source at the frame's own size is read as it was
+    expect(small.params.flags & 32).toBe(0)
+    expect(small.params.sourceRect).toEqual(full.params.sourceRect)
+  })
+
+  it('takes both at once: a smaller source read through the source rect into a smaller output', async () => {
+    const { params } = await paramsForSource(16, 12, sizedFrame(), quarter)
+
+    expect(params.flags & (32 | 64)).toBe(32 | 64)
+    expect(params.sourceRect).toEqual([0, 0, 16, 12])
+    expect(params.outputRect).toEqual([0, 0, 16, 9])
+  })
+
+  it('leaves the kernel parameters of an output at the picture’s own size exactly as they were', async () => {
+    const frame = sizedFrame()
+    const { bytes } = await paramsForSource(64, 48, frame, { width: 64, height: 36 })
+
+    expect(bytes).toEqual(prepareFrame(frame).params)
+    expect(prepareFrame(frame, undefined, undefined, { width: 64, height: 36 }).params).toEqual(prepareFrame(frame).params)
+  })
+
+  it('takes a rounded size of the shape, and refuses another shape', () => {
+    // 64x36 at a seventh is 9.14x5.14: 9x5 is the shape within a pixel
+    expect(() => prepareFrame(sizedFrame(), undefined, undefined, { width: 9, height: 5 })).not.toThrow()
+    expect(() => prepareFrame(sizedFrame(), undefined, undefined, { width: 16, height: 16 })).toThrow(/not the shape/)
+    expect(() => prepareFrame(sizedFrame(), undefined, undefined, { width: 36, height: 64 })).toThrow(/not the shape/)
+    expect(() => prepareFrame(sizedFrame(), undefined, undefined, { width: 0, height: 0 })).toThrow(/cannot be drawn/)
+  })
+
+  it('refuses a frame whose parameters already map the output through a rect', () => {
+    const frame = sizedFrame()
+    const view = new DataView(frame.params.buffer)
+    view.setInt32(36, 64, true)
+    expect(() => prepareFrame(frame, undefined, undefined, quarter)).toThrow(/already map the output/)
+  })
+
+  it('is the full-size picture box-filtered, within 38 dB, through the kernel’s own output-rect mapping', async () => {
+    const kernel = assembleKernel(realAssets())
+    // The two steps of the kernel this test follows: the output rect's mapping of a pixel's position onto the full-size
+    // output, and the pan added after it, before the ray is made (`undistort_coord`)
+    for (const line of [
+      'if (bool(params.flags & 64)) { // Uses output rect',
+      'map_coord(position.x, f32(params.output_rect.x), f32(params.output_rect.x + params.output_rect.z), 0.0, f32(params.output_width) ),',
+      'out_pos += params.translation2d;',
+    ]) {
+      expect(kernel).toContain(line)
+    }
+    // ... and the position it is given is the fragment's centre minus half a pixel (transform 6)
+    expect(kernel).toContain('undistort(position.xy + vec2<f32>(-0.5))')
+
+    const { params } = await paramsForSource(64, 48, sizedFrame(), quarter)
+    // The stabilized picture as a function of a full-size output position: a smooth picture seen through a ray
+    const picture = (x: number, y: number): number =>
+      0.5 + 0.25 * Math.sin((2 * Math.PI * x) / 24) * Math.cos((2 * Math.PI * y) / 20)
+    const stabilizedAt = (x: number, y: number): number => picture(x * 0.85 + 5 + 0.06 * y, y * 0.85 + 10 - 0.06 * x)
+    // What the kernel draws at texture pixel (qx, qy): its position (q, after transform 6) mapped through the rect, and
+    // the pan added
+    const mapped = (q: number, size: number, full: number, pan: number): number => (q * full) / size + pan
+    const drawn = (pan: [number, number]): number[] => {
+      const out: number[] = []
+      for (let qy = 0; qy < quarter.height; qy += 1) {
+        for (let qx = 0; qx < quarter.width; qx += 1) {
+          out.push(stabilizedAt(mapped(qx, quarter.width, 64, pan[0]), mapped(qy, quarter.height, 36, pan[1])))
+        }
+      }
+      return out
+    }
+    // The full-size warp, each 4x4 block of its pixels averaged: what the preview would show of the full-size picture
+    const boxed: number[] = []
+    for (let qy = 0; qy < quarter.height; qy += 1) {
+      for (let qx = 0; qx < quarter.width; qx += 1) {
+        let sum = 0
+        for (let y = 0; y < 4; y += 1) for (let x = 0; x < 4; x += 1) sum += stabilizedAt(4 * qx + x, 4 * qy + y)
+        boxed.push(sum / 16)
+      }
+    }
+
+    // 40.65 dB on this run: a point at each block's centre against the block's mean, on a picture whose period is 24
+    // full-size pixels (6 texture pixels); the centre is right
+    expect(psnr(drawn(params.translation), boxed)).toBeGreaterThan(38)
+    // The test can tell: without the half-pixel pan every texture pixel shows the block's top-left pixel (24.20 dB)
+    expect(psnr(drawn([0, 0]), boxed)).toBeLessThan(30)
   })
 })
 

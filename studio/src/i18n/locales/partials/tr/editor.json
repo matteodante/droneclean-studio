@@ -114,6 +114,10 @@
       "noClip": "Animasyon için klip yok",
       "animatedClip": "Animasyonlu"
     },
+    "colorTimeline": {
+      "label": "Renk zaman çizelgesi",
+      "noClip": "Renk düzenlenecek klip yok"
+    },
     "animatePresets": {
       "title": "Hareket kitaplığı",
       "animationsHeading": "Animasyonlar",

@@ -7,9 +7,12 @@ FROM alpine:3.20 AS fetch
 ARG STUDIO_RELEASE
 RUN test -n "$STUDIO_RELEASE" || (echo "STUDIO_RELEASE (a release tag such as v0.1.0) is not set" >&2; exit 1)
 RUN apk add --no-cache curl tar \
-  && mkdir -p /srv/studio \
-  && curl -fsSL "https://github.com/matteodante/droneclean-studio/releases/download/${STUDIO_RELEASE}/DroneClean-Studio-web.tar.gz" \
-    | tar -xz -C /srv/studio \
+  && mkdir -p /srv/studio /tmp/dl \
+  && base="https://github.com/matteodante/droneclean-studio/releases/download/${STUDIO_RELEASE}" \
+  && curl -fsSL "$base/SHA256SUMS.txt" -o /tmp/dl/SHA256SUMS.txt \
+  && curl -fsSL "$base/DroneClean-Studio-web.tar.gz" -o /tmp/dl/DroneClean-Studio-web.tar.gz \
+  && (cd /tmp/dl && grep ' DroneClean-Studio-web.tar.gz$' SHA256SUMS.txt | sha256sum -c -) \
+  && tar -xz -C /srv/studio -f /tmp/dl/DroneClean-Studio-web.tar.gz \
   && test -f /srv/studio/index.html
 
 FROM caddy:2.8-alpine

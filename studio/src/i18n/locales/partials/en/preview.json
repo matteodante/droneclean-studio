@@ -47,7 +47,7 @@
       "mute": "Mute",
       "muteShort": "Mute Short",
       "muted": "Muted",
-      "percent": "Percent",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "Only affects local playback — exports use the project mix.",
       "thisDeviceOnly": "This Device Only",
       "title": "Preview audio",

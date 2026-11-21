@@ -58,11 +58,11 @@ function fakeTexture(width: number, height: number): GPUTexture {
   return { width, height, format: 'rgba16float', createView: () => ({}) } as unknown as GPUTexture
 }
 
-/** The renderer's stages, answering every frame with a staged picture of `size` */
-function fakeStages(size = { width: 320, height: 180 }) {
+/** The renderer's stages, answering every frame with a staged picture of `size` that stands for `natural` */
+function fakeStages(size = { width: 320, height: 180 }, natural = size) {
   const texture = fakeTexture(size.width, size.height)
-  const render = vi.fn(async () => ({ texture, ...size, kind: 'fresh' as const }))
-  const stageImage = vi.fn(async () => ({ texture, ...size, kind: 'fresh' as const }))
+  const render = vi.fn(async () => ({ texture, ...size, natural, kind: 'fresh' as const }))
+  const stageImage = vi.fn(async () => ({ texture, ...size, natural, kind: 'fresh' as const }))
   const stages: RendererStages = {
     mode: 'preview',
     device: async () => ({}) as GPUDevice,
@@ -118,7 +118,32 @@ describe('a staged clip’s source in the participant path', () => {
     expect(domVideoElementProvider).not.toHaveBeenCalled()
     expect(captureFrame).not.toHaveBeenCalled()
     expect(prepared?.media).toMatchObject({ kind: 'staged', texture })
-    expect(render).toHaveBeenCalledWith(item, 5)
+    // ... asked for in the box the clip is shown in, its transform's in the canvas's pixels (design 8.10)
+    expect(render).toHaveBeenCalledWith(item, 5, { width: 320, height: 180 })
+  })
+
+  it('is laid out at the size it stands for when a preview draws it smaller (design 8.10)', async () => {
+    const { stages } = fakeStages({ width: 80, height: 45 }, { width: 320, height: 180 })
+    const item = video({ stabilization: STABILIZATION })
+    const { rctx } = rig('preview', stages)
+
+    const prepared = await prepareGpuMediaParticipant(participant(item), 5, rctx)
+
+    expect(prepared?.media.sourceWidth).toBe(320)
+    expect(prepared?.media.sourceHeight).toBe(180)
+  })
+
+  it('is asked for with no box when a corner pin may stretch it past its box', async () => {
+    const { stages, render } = fakeStages()
+    const item = video({
+      stabilization: STABILIZATION,
+      cornerPin: { topLeft: [0, 0], topRight: [0, 0], bottomRight: [0, 0], bottomLeft: [0, 0] },
+    } as Partial<VideoItem>)
+    const { rctx } = rig('preview', stages)
+
+    await prepareGpuMediaParticipant(participant(item), 5, rctx)
+
+    expect(render).toHaveBeenCalledWith(item, 5, undefined)
   })
 
   it('is laid out at the staged size, not the file’s', async () => {

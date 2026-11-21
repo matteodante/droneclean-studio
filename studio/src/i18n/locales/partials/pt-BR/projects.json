@@ -364,8 +364,8 @@
             "blurb": "Criação, remoção e navegação de marcadores."
           },
           "keyframes": {
-            "title": "Quadros-chave",
-            "blurb": "Ações do editor de quadros-chave e troca de visualização."
+            "title": "Keyframes",
+            "blurb": "Ações do editor de keyframes e troca de visualização."
           },
           "sourceMonitor": {
             "title": "Monitor de origem",
@@ -411,22 +411,22 @@
           "toggleCanvasSnap": "Alternar ajuste da tela (gizmo)",
           "editWorkspace": "Mudar para o espaço de trabalho de Edição",
           "colorWorkspace": "Mudar para o espaço de trabalho de Cor",
-          "copy": "Copiar itens ou quadros-chave selecionados",
-          "cut": "Recortar itens ou quadros-chave selecionados",
-          "paste": "Colar itens ou quadros-chave",
+          "copy": "Copiar itens ou keyframes selecionados",
+          "cut": "Recortar itens ou keyframes selecionados",
+          "paste": "Colar itens ou keyframes",
           "addMarker": "Adicionar marcador no cabeçote de reprodução",
           "removeMarker": "Remover marcador selecionado",
           "previousMarker": "Ir para o marcador anterior",
           "nextMarker": "Ir para o próximo marcador",
-          "clearKeyframes": "Limpar todos os quadros-chave dos itens selecionados",
-          "keyframeEditorGraph": "Alternar o editor de quadros-chave para a visualização de gráfico",
-          "keyframeEditorDopesheet": "Alternar o editor de quadros-chave para a visualização de folha de tempos",
-          "keyframeEditorSplit": "Alternar o editor de quadros-chave para a visualização dividida",
-          "editKeyframeAdd": "Adicionar quadro-chave no indicador de reprodução para a camada de Edição selecionada",
-          "keyframePrevious": "Ir para o quadro-chave anterior da propriedade",
-          "keyframeNext": "Ir para o próximo quadro-chave da propriedade",
+          "clearKeyframes": "Limpar todos os keyframes dos itens selecionados",
+          "keyframeEditorGraph": "Alternar o editor de keyframes para a visualização de gráfico",
+          "keyframeEditorDopesheet": "Alternar o editor de keyframes para a visualização de folha de tempos",
+          "keyframeEditorSplit": "Alternar o editor de keyframes para a visualização dividida",
+          "editKeyframeAdd": "Adicionar keyframe no indicador de reprodução para a camada de Edição selecionada",
+          "keyframePrevious": "Ir para o keyframe anterior da propriedade",
+          "keyframeNext": "Ir para o próximo keyframe da propriedade",
           "keyframeToggleAuto": "Alternar chave automática da propriedade ativa",
-          "keyframeFit": "Ajustar quadros-chave selecionados à visualização",
+          "keyframeFit": "Ajustar keyframes selecionados à visualização",
           "markIn": "Marcar ponto de entrada",
           "markOut": "Marcar ponto de saída",
           "clearInOut": "Limpar pontos de entrada/saída",
@@ -452,7 +452,7 @@
           "unassigned": "Não atribuído"
         },
         "scopes": {
-          "keyframes": "Ativo quando o editor de quadros-chave está em foco",
+          "keyframes": "Ativo quando o editor de keyframes está em foco",
           "sourceMonitor": "Ativo quando o monitor de origem está em foco"
         },
         "scopedBadge": "Contextual",

@@ -110,9 +110,19 @@ export function createBoundedMotionStore(
           delete index[victim]
           total -= entry.size
         }
-        await backend.write(name, data)
-        index[name] = { size: data.byteLength, used: now() }
-        await backend.writeIndex(index)
+        // The entry is recorded only once the data is whole. A write that fails half way leaves no partial file
+        // under the name, and the index (without the entry, and without the blobs evicted for it) is still written,
+        // so it never names a file that is gone nor leaves a file it does not name.
+        try {
+          await backend.write(name, data)
+          index[name] = { size: data.byteLength, used: now() }
+          await backend.writeIndex(index)
+        } catch (error) {
+          delete index[name]
+          await backend.remove(name).catch(() => {})
+          await backend.writeIndex(index).catch(() => {})
+          throw error
+        }
       }),
   }
 }
@@ -135,9 +145,12 @@ function opfsBackend(): MotionBlobBackend | null {
       const writable = await handle.createWritable()
       try {
         await writable.write(data)
-      } finally {
-        await writable.close()
+      } catch (error) {
+        // `close()` would commit the half-written swap file over the name; `abort()` throws it away
+        await writable.abort().catch(() => {})
+        throw error
       }
+      await writable.close()
     },
     async remove(name) {
       await (await folder()).removeEntry(name).catch(() => {})

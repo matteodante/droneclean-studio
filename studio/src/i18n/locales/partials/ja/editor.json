@@ -114,6 +114,10 @@
       "noClip": "アニメーション対象のクリップがありません",
       "animatedClip": "アニメーション付き"
     },
+    "colorTimeline": {
+      "label": "カラータイムライン",
+      "noClip": "カラー調整するクリップがありません"
+    },
     "animatePresets": {
       "title": "モーションライブラリ",
       "animationsHeading": "アニメーション",

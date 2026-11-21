@@ -47,7 +47,7 @@
       "mute": "Silenzia",
       "muteShort": "Muto",
       "muted": "Silenziato",
-      "percent": "Percentuale",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "Riguarda solo la riproduzione locale: l'esportazione usa il mix del progetto.",
       "thisDeviceOnly": "Solo questo dispositivo",
       "title": "Audio dell'anteprima",

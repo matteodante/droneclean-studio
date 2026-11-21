@@ -79,6 +79,75 @@ function dropObjectUrl(path: string, url: string): void {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * The URL of a piece file that was just written (a clean that finished, or a re-download):
+ * the same one URL per path that a project open hands out, so the file is never given a second
+ * URL that nothing would revoke. A URL this path already had belonged to the file this one
+ * replaces, so it is revoked; every clip using the path gets the returned URL as its `src`.
+ */
+export function registerSavedPieceUrl(path: string, blob: Blob): string {
+  const previous = objectUrlByPath.get(path)
+  const file = new Blob([blob], { type: blob.type || 'video/mp4' })
+  const url = URL.createObjectURL(file)
+  registerObjectUrl(url, file)
+  objectUrlByPath.set(path, url)
+  if (previous !== undefined) {
+    unregisterObjectUrl(previous)
+    URL.revokeObjectURL(previous)
+  }
+  return url
+}
+
+/**
+ * Revokes the URL of every piece file whose path is not in `referenced`: the pieces of a
+ * project that is no longer open. A path a clip still records keeps its URL, so nothing that
+ * plays loses its file.
+ */
+export function releaseUnreferencedPieceUrls(referenced: ReadonlySet<string>): void {
+  for (const [path, url] of [...objectUrlByPath]) {
+    if (referenced.has(path)) continue
+    dropObjectUrl(path, url)
+  }
+}
+
+/** The piece paths that the open timeline (its clips and its compositions) records. */
+async function openPiecePaths(): Promise<Set<string>> {
+  const [{ useItemsStore }, { useCompositionsStore }] = await Promise.all([
+    import('@/features/timeline/stores/items-store'),
+    import('@/features/timeline/stores/compositions-store'),
+  ])
+  const paths = new Set<string>()
+  const add = (items: readonly TimelineItem[]) => {
+    for (const item of items) {
+      if (!hasShadowPieces(item)) continue
+      for (const piece of item.shadowRemoval.pieces) paths.add(piece.path)
+    }
+  }
+  add(useItemsStore.getState().items)
+  for (const composition of useCompositionsStore.getState().compositions) add(composition.items)
+  return paths
+}
+
+let watchingProject = false
+
+/**
+ * Once, the first time a project's pieces are opened: when the open project changes or closes,
+ * the URLs of pieces that no clip records any more are revoked (the new project's clips are
+ * already loaded when it becomes the open one, so its own pieces keep theirs).
+ */
+async function releasePiecesWhenProjectChanges(): Promise<void> {
+  if (watchingProject) return
+  watchingProject = true
+  const { useProjectStore } = await import('@/features/projects/stores/project-store')
+  let openId = useProjectStore.getState().currentProject?.id ?? null
+  useProjectStore.subscribe((state) => {
+    const id = state.currentProject?.id ?? null
+    if (id === openId) return
+    openId = id
+    void openPiecePaths().then((paths) => releaseUnreferencedPieceUrls(paths))
+  })
+}
+
 function hasShadowPieces(
   item: TimelineItem,
 ): item is TimelineItem & { type: 'video'; shadowRemoval: ShadowRemoval } {
@@ -128,6 +197,7 @@ async function hydrateItem(
 export async function hydrateShadowPieces(items: TimelineItem[]): Promise<TimelineItem[]> {
   if (!items.some(hasShadowPieces)) return items
   const { readWorkspaceBlob } = await import('@/infrastructure/storage/workspace-fs/cache-mirror')
+  void releasePiecesWhenProjectChanges()
   return Promise.all(items.map((item) => hydrateItem(item, readWorkspaceBlob)))
 }
 

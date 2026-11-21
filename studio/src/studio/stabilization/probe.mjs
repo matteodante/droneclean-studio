@@ -42,6 +42,12 @@ const scratch = join(tmpdir(), 'opencode', 'gyro-stage-probe')
 await mkdir(scratch, { recursive: true })
 const outPath = process.argv[2] || join(scratch, 'stage.json')
 const TARGET_PSNR_DB = 45
+/**
+ * A preview's reduced warp against the full-size CPU warp box-reduced (design 8.10): a point at each block's centre
+ * against the block's mean, so not the full-size target. The first run (21 Nov 2026, M4): 47.30 dB at a half, 38.95 dB
+ * at a quarter (39.42 from a frame reduced as the preview reduces it); the target is a few dB under the quarter
+ */
+const TARGET_REDUCED_PSNR_DB = 36
 
 // The frame the CPU warp is compared on, and its presentation time: the numbers the module's reference recorded for
 // clip 0020 (gyroflow/wasm/test/reference/clip-0020.json), so the frame identity is checked, not assumed
@@ -266,6 +272,23 @@ try {
     `the stage's cost: ${timing.msPerFrame.toFixed(2)} ms per frame over ${timing.frames} frames ` +
       `(rgba16float, the matrices uploaded every frame)`,
   )
+
+  // The preview's reduced stages (design 8.10): the stage drawing a half and a quarter of the stabilized picture, from
+  // the full frame and from the frame reduced as the preview reduces it, against the CPU warp reduced the same way
+  record.reduced = {}
+  for (const factor of [2, 4]) {
+    for (const reducedInput of [false, true]) {
+      const reduced = await withTimeout(call('warpReduced', factor, reducedInput), 300_000, `warpReduced ${factor}`)
+      const key = `1/${factor}${reducedInput ? ' from a reduced frame' : ''}`
+      record.reduced[key] = reduced
+      say(
+        `${key} (${reduced.size}): ${reduced.psnrDb.toFixed(2)} dB against the CPU warp reduced, rms ` +
+          `${reduced.rms.toFixed(3)} levels, ${reduced.msPerFrame.toFixed(2)} ms per frame`,
+      )
+      if (!(reduced.psnrDb >= TARGET_REDUCED_PSNR_DB))
+        problems.push(`${key} is ${reduced.psnrDb.toFixed(2)} dB, under ${TARGET_REDUCED_PSNR_DB}`)
+    }
+  }
 
   // The transforms must assemble and compile for every lens model, not just this clip's
   const poly3 = await withTimeout(call('compileModel', 'poly3'), 120_000, 'compileModel poly3')

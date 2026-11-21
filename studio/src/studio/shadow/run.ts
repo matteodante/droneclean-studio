@@ -29,7 +29,6 @@
 // Everything the flow needs from its shell is passed in (`ShadowCleanDeps`), so the whole run is
 // exercised against a fake cloud in a jsdom test with no network.
 
-import { registerObjectUrl } from '@/infrastructure/browser/object-url-registry'
 import { requireWorkspaceRoot } from '@/infrastructure/storage/workspace-fs/root'
 import { writeBlob } from '@/infrastructure/storage/workspace-fs/fs-primitives'
 import { mediaDir } from '@/infrastructure/storage/workspace-fs/paths'
@@ -51,6 +50,7 @@ import {
   type VideoMeta,
 } from './api/types'
 import type { ShadowCutWindow } from './cut/interface'
+import { registerSavedPieceUrl } from './hydrate'
 import {
   validateShadowRemoval,
   type ShadowPendingClean,
@@ -351,10 +351,7 @@ export async function waitForJob(
  */
 export async function savePieceInWorkspace(path: string[], blob: Blob): Promise<string> {
   await writeBlob(requireWorkspaceRoot(), path, blob)
-  const file = new Blob([blob], { type: blob.type || 'video/mp4' })
-  const url = URL.createObjectURL(file)
-  registerObjectUrl(url, file)
-  return url
+  return registerSavedPieceUrl(path.join('/'), blob)
 }
 
 /**

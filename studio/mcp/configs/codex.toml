@@ -3,7 +3,7 @@
 # APP is the app's wrapper: on macOS
 # /Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp
 # (Windows: ...\DroneClean Studio\resources\mcp\droneclean-mcp.cmd).
-# The app needs Settings → Agent access switched on once.
+# Agent access is on by default; Settings → Agent access switches it off.
 
 [mcp_servers.droneclean]
 command = "APP"

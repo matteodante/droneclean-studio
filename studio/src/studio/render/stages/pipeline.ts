@@ -18,6 +18,12 @@
 //            drawn from its source frame with the stages that can draw (`partial`), never silently: its state says
 //            what is missing. A render that `destroy` overtook (its renderer disposed while the frame was drawn, its
 //            provider's inputs disposed under the decode) says nothing and rejects as destroyed: it is not the clip's.
+//
+// A preview render given the box the clip is shown in (design 8.10) reduces every picture of the clip's chain to the
+// pixel scale it is shown at (`preview-size.ts`): each decoded frame is reduced as it comes from the provider
+// (`reduce-frame.ts`), so the stages, the optical flow and the gathers all run on the smaller pictures, and each stage's
+// output is the reduced size of the natural size it would have had. The staged picture says the size it stands for
+// (`natural`), which is what FreeCut's layout places. An export, and a preview render with no box, reduce nothing.
 
 import {
   createMotionBlurStage,
@@ -48,6 +54,8 @@ import type { ClipStageState } from './failure'
 import type { SourceFramePlan, SourceSample } from './plan'
 import { sourceStageFingerprint } from './predicates'
 import type { Preparer } from './preparer'
+import { naturalOf, previewReducer, type PreviewBox, type ReducedSize } from './preview-size'
+import { createFrameReducer } from './reduce-frame'
 import type { StageRegistry } from './registry'
 import {
   isNotReady,
@@ -127,6 +135,11 @@ export interface StagedFrame {
   readonly width: number
   readonly height: number
   /**
+   * The size the picture stands for: the staged picture's natural size, which FreeCut's layout places. The texture's
+   * own (`width`, `height`) is that size in an export, and may be smaller in a preview (design 8.10).
+   */
+  readonly natural: Size
+  /**
    * `fresh`: every active stage drew this frame. `held`: the clip's last good staged frame (preview only).
    * `partial`: the source frame with the stages that could draw, for a clip with no good frame yet (preview only).
    */
@@ -170,12 +183,15 @@ export interface StagePipeline {
    * (motion blur on, design 9.2) blurs each sample along each pixel's motion, measured by the optical flow between the
    * staged frames around it, over its extent, and adds them with their weights.
    *
+   * `box`, in a preview, is the box the clip's staged picture is shown in, in the preview canvas's pixels: the clip's
+   * pictures are then reduced to that scale (design 8.10). An export ignores it.
+   *
    * @throws StageError in an export, when an active stage cannot draw the frame.
    * @throws Error "destroyed while a frame was drawn" when `destroy` overtook the render; the clip's state is untouched.
    * @throws RangeError when a plan has no sample or a weight that is not in (0, 1], an extent that is not above 0, or
    *   a flow plan is not two consecutive frames with a phase in (0, 1).
    */
-  render(item: VideoItem, source: number | SourceFramePlan): Promise<StagedFrame>
+  render(item: VideoItem, source: number | SourceFramePlan, box?: PreviewBox): Promise<StagedFrame>
   /**
    * The preview's staged picture of a frame the caller decoded (FreeCut's own fast preview source, already in an
    * `rgba16float` texture): for a clip whose stages need no exact frame (input colour, a look). Same failure policy as
@@ -203,7 +219,31 @@ interface ClipPicture {
   texture: GPUTexture
   width: number
   height: number
+  natural: Size
   good: boolean
+}
+
+/**
+ * A source frame of a preview with a box (design 8.10): its natural size, and how every size of its chain is reduced.
+ * Its texture is the reduced frame, or the provider's own when the frame needs no reduction.
+ */
+interface ReducedFrame extends SourceFrame {
+  readonly natural: Size
+  readonly reduce: (size: Size) => ReducedSize
+}
+
+/** The reduction a size carries: a reduced frame's, or none */
+function reductionOf(size: Size): Pick<ReducedFrame, 'natural' | 'reduce'> | Record<string, never> {
+  const reduced = size as Partial<ReducedFrame>
+  return reduced.reduce !== undefined && reduced.natural !== undefined
+    ? { natural: reduced.natural, reduce: reduced.reduce }
+    : {}
+}
+
+/** The natural size a size carries, as a field to spread (none when it carries none) */
+function naturalField(size: Size): { natural?: Size } {
+  const { natural } = size as ReducedSize
+  return natural === undefined ? {} : { natural }
 }
 
 function clipName(item: VideoItem): string {
@@ -304,7 +344,7 @@ function settledWithin(waits: readonly Promise<void>[], ms: number): Promise<boo
 
 /** Creates the pipeline of one renderer instance, on its device. */
 export function createStagePipeline(options: StagePipelineOptions): StagePipeline {
-  const { device, mode, registry, preparer, provider } = options
+  const { device, mode, registry, preparer } = options
   const arena = new FrameArena(device)
   const env: StageEnv = { device, mode, arena }
   const clips = new Map<string, ClipPicture>()
@@ -312,6 +352,68 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   const awaitingReady = new Set<string>()
   let destroyed = false
   let gpuClock: GpuStageClock | undefined
+
+  // --- The preview's reduction (design 8.10): the provider's frames, reduced to the scale the clip is shown at ---------
+
+  /** The box each clip was last asked for in, by clip: the decoded frames of its render are reduced to it */
+  const boxes = new Map<string, PreviewBox>()
+  const reducer = createFrameReducer(device)
+  /** What each frame handed out stands for: the provider's frame it is (a box with no reduction), or a reduced texture */
+  const handedOut = new WeakMap<SourceFrame, { readonly original: SourceFrame } | { readonly reduced: GPUTexture }>()
+
+  /** The natural size of the clip's staged picture from a frame of natural size `frame`: what every stage that can size it makes */
+  const stagedNatural = (item: VideoItem, frame: Size): Size => {
+    let size = frame
+    for (const stage of registry.activeStages(item)) {
+      try {
+        const out = stage.outputSize(item, size)
+        if (!isNotReady(out)) size = out
+      } catch {
+        // The render asks again, and reports the stage's failure
+      }
+    }
+    return size
+  }
+
+  /**
+   * The renderer's provider, seen through the preview's reduction: a frame of a clip with a box is reduced to the
+   * scale the clip is shown at (one pass, the provider's frame given back at once), or handed out as it is with the
+   * reduction its chain follows; any other frame is the provider's. `release` gives back whichever it was.
+   */
+  const provider = {
+    async frameAt(item: VideoItem, sourceIndex: number): Promise<SourceFrame> {
+      const box = mode === 'preview' ? boxes.get(item.id) : undefined
+      if (box === undefined) return options.provider.frameAt(item, sourceIndex)
+      const reducerOf = (natural: Size) => previewReducer(stagedNatural(item, natural), box)
+      // The provider asks for the frame at its reduced size once it knows the file's size: a backend that can upload
+      // straight to it does (`webcodecs.ts`); a frame that comes at the file's size is reduced here
+      const frame = await options.provider.frameAt(item, sourceIndex, (natural) => reducerOf(natural)(natural))
+      const natural = frame.natural ?? { width: frame.width, height: frame.height }
+      const reduce = reducerOf(natural)
+      const size = reduce(natural)
+      if (size.width === frame.width && size.height === frame.height) {
+        const same: ReducedFrame = { ...frame, natural, reduce }
+        handedOut.set(same, { original: frame })
+        return same
+      }
+      let texture: GPUTexture
+      try {
+        texture = timedStage('reduce', () => reducer.reduce(frame.texture, size))
+      } finally {
+        options.provider.release(frame)
+      }
+      const reduced: ReducedFrame = { ...frame, texture, width: size.width, height: size.height, natural, reduce }
+      handedOut.set(reduced, { reduced: texture })
+      return reduced
+    },
+    release(frame: SourceFrame): void {
+      const owner = handedOut.get(frame)
+      if (owner === undefined) options.provider.release(frame)
+      else if ('original' in owner) options.provider.release(owner.original)
+      else reducer.release(owner.reduced)
+      handedOut.delete(frame)
+    },
+  }
 
   /**
    * A preview clip's visible state, said by a live pipeline only. A render that `destroy` overtook belongs to a renderer
@@ -378,15 +480,20 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
   }
 
-  /** The output size of each stage of `run`, from the source's; a stage still waiting for its size is a `Check` */
+  /**
+   * The output size of each stage of `run`, from the source's; a stage still waiting for its size is a `Check`. A
+   * reduced source (design 8.10) is sized from its natural size, and each output is the reduced size of the natural
+   * size the stage gives, carrying that natural size.
+   */
   const chainSizes = (
     item: VideoItem,
     run: readonly SourceStage[],
     source: Size,
     sourceIndex: number,
-  ): Size[] | Exclude<Check, { kind: 'ok' }> => {
-    const sizes: Size[] = []
-    let size = source
+  ): ReducedSize[] | Exclude<Check, { kind: 'ok' }> => {
+    const { reduce } = reductionOf(source)
+    const sizes: ReducedSize[] = []
+    let size = naturalOf(source)
     for (const stage of run) {
       let out: Size | ReturnType<SourceStage['outputSize']>
       try {
@@ -395,7 +502,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         return { kind: 'fail', stage: stage.id, error: asStageError(error, item, stage, sourceIndex) }
       }
       if (isNotReady(out)) return { kind: 'wait', stage: stage.id, ready: out.ready }
-      sizes.push(out)
+      sizes.push(reduce === undefined ? out : reduce(out))
       size = out
     }
     return sizes
@@ -420,11 +527,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     return createTexture(size, 'staged-picture')
   }
 
-  const remember = (item: VideoItem, texture: GPUTexture, size: Size, good: boolean): void => {
+  const remember = (item: VideoItem, texture: GPUTexture, size: ReducedSize, good: boolean): void => {
     const previous = clips.get(item.id)
     if (previous && previous.texture !== texture) previous.texture.destroy()
     clips.delete(item.id)
-    clips.set(item.id, { texture, width: size.width, height: size.height, good })
+    clips.set(item.id, { texture, width: size.width, height: size.height, natural: naturalOf(size), good })
     while (clips.size > HELD_CLIPS) {
       const [oldestId, oldest] = clips.entries().next().value as [string, ClipPicture]
       oldest.texture.destroy()
@@ -439,14 +546,18 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     run: readonly SourceStage[],
     sizes: readonly Size[],
     sourceIndex: number,
-  ): { texture: GPUTexture; size: Size } => {
-    const size = sizes.at(-1) ?? { width: frame.width, height: frame.height }
+  ): { texture: GPUTexture; size: ReducedSize } => {
+    const size: ReducedSize = sizes.at(-1) ?? { width: frame.width, height: frame.height, ...naturalField(frame) }
     const target = targetFor(item, size)
     const taken: GPUTexture[] = []
     const encoder = device.createCommandEncoder({ label: 'source stages' })
     // Timings on (the bench): each stage is submitted alone and timed to completion; off, one encoder, one submit.
     const timed = stageTimingsEnabled()
-    if (timed) gpuClock ??= gpuStageClock(device.queue)
+    if (timed) {
+      gpuClock ??= gpuStageClock(device.queue)
+      // What the queue still holds for the frame (its upload, a preview's reduction) is its own figure, not the first stage's
+      gpuClock.submitted('source.gpu')
+    }
     arena.beginFrame()
     try {
       let input = frame.texture
@@ -558,7 +669,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       })
       const { texture, size } = record(item, frame, stages, sizes, sourceIndex)
       remember(item, texture, size, true)
-      return { texture, width: size.width, height: size.height, kind: 'fresh' }
+      return { texture, width: size.width, height: size.height, natural: naturalOf(size), kind: 'fresh' }
     } finally {
       source.release(frame)
     }
@@ -696,7 +807,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         remember(item, answer.texture, answer.size, fresh)
         if (fresh) publish(item, null)
         const { width, height } = answer.size
-        return { texture: answer.texture, width, height, kind: fresh ? 'fresh' : 'partial' }
+        return { texture: answer.texture, width, height, natural: naturalOf(answer.size), kind: fresh ? 'fresh' : 'partial' }
       }
       const heldNow = blocked(item, [answer])
       if (heldNow) return heldNow
@@ -711,7 +822,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     run: readonly SourceStage[],
     sizes: readonly Size[],
     sourceIndex: number,
-  ): { texture: GPUTexture; size: Size } | Extract<Check, { kind: 'fail' }> {
+  ): { texture: GPUTexture; size: ReducedSize } | Extract<Check, { kind: 'fail' }> {
     try {
       return record(item, frame, run, sizes, sourceIndex)
     } catch (error) {
@@ -833,21 +944,22 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
 
   /**
    * The clip's staged picture from the gather's last pass: `write` records that pass into the texture it is given (the
-   * clip's picture, or an intermediate the output-frame stages then run on).
+   * clip's picture, or an intermediate the output-frame stages then run on). `gathered` is the size the gather draws
+   * (its input's, carrying the natural size).
    */
   const recordFinal = (
     item: VideoItem,
-    gather: { readonly size: Size },
+    gathered: ReducedSize,
     run: readonly SourceStage[],
-    sizes: readonly Size[],
+    sizes: readonly ReducedSize[],
     sourceIndex: number,
     write: (into: GPUTextureView) => void,
-  ): { texture: GPUTexture; size: Size } => {
-    const size = sizes.at(-1) ?? gather.size
+  ): { texture: GPUTexture; size: ReducedSize } => {
+    const size = sizes.at(-1) ?? gathered
     const target = targetFor(item, size)
     const taken: GPUTexture[] = []
     try {
-      const into = run.length === 0 ? target : takeTemp(gather.size, taken)
+      const into = run.length === 0 ? target : takeTemp(gathered, taken)
       write(into.createView())
       if (run.length > 0) {
         const encoder = device.createCommandEncoder({ label: 'output stages' })
@@ -917,10 +1029,10 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     samples: readonly SourceSample[],
     sourceRun: readonly SourceStage[],
     outputRun: readonly SourceStage[],
-    sizes: { source: readonly Size[]; output: readonly Size[] },
+    sizes: { source: readonly ReducedSize[]; output: readonly ReducedSize[] },
     first: SourceFrame,
     gather: MotionBlurStage,
-  ): Promise<{ texture: GPUTexture; size: Size }> {
+  ): Promise<{ texture: GPUTexture; size: ReducedSize }> {
     const groups = groupsOf(samples)
     for (const [groupIndex, { group, step }] of groups.entries()) {
       const frames: SourceFrame[] = []
@@ -934,7 +1046,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
           record()
           continue
         }
-        const done = recordFinal(item, gather, outputRun, sizes.output, samples[0]!.index, record)
+        const done = recordFinal(item, sizes.source.at(-1) ?? first, outputRun, sizes.output, samples[0]!.index, record)
         // Marked runs only: how long the queue takes to finish the frame's passes after the last submit
         if (stageTimingsEnabled()) {
           await timedStageAsync('gather.gpu', () => device.queue.onSubmittedWorkDone())
@@ -964,12 +1076,11 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     outputRun: readonly SourceStage[],
     frame: Size,
     sourceIndex: number,
-  ): { source: Size[]; output: Size[] } | Exclude<Check, { kind: 'ok' }> => {
-    const source = chainSizes(item, sourceRun, frame, sourceIndex)
-    if (!Array.isArray(source)) return source
-    const output = chainSizes(item, outputRun, source.at(-1) ?? frame, sourceIndex)
-    if (!Array.isArray(output)) return output
-    return { source, output }
+  ): { source: ReducedSize[]; output: ReducedSize[] } | Exclude<Check, { kind: 'ok' }> => {
+    // One chain: the output-frame stages start from the last source-frame stage's natural size, reduced the same way
+    const sizes = chainSizes(item, [...sourceRun, ...outputRun], frame, sourceIndex)
+    if (!Array.isArray(sizes)) return sizes
+    return { source: sizes.slice(0, sourceRun.length), output: sizes.slice(sourceRun.length) }
   }
 
   async function renderGatheredExport(
@@ -986,7 +1097,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     const first = await decoded(item, 'motion-blur', firstIndex, () =>
       provider.frameAt(item, firstIndex),
     )
-    let sizes = { source: [] as Size[], output: [] as Size[] }
+    let sizes = { source: [] as ReducedSize[], output: [] as ReducedSize[] }
     let gather: MotionBlurStage
     try {
       await untilReady(item, firstIndex, () => {
@@ -1002,7 +1113,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
     const { texture, size } = await runGather(item, samples, sourceRun, outputRun, sizes, first, gather)
     remember(item, texture, size, true)
-    return { texture, width: size.width, height: size.height, kind: 'fresh' }
+    return { texture, width: size.width, height: size.height, natural: naturalOf(size), kind: 'fresh' }
   }
 
   /** A stage's answer over every sample it runs on: the first that is not ok */
@@ -1075,7 +1186,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         const fresh = sourceRun.length + outputRun.length === activeCount
         remember(item, texture, size, fresh)
         if (fresh) publish(item, null)
-        return { texture, width: size.width, height: size.height, kind: fresh ? 'fresh' : 'partial' }
+        return { texture, width: size.width, height: size.height, natural: naturalOf(size), kind: fresh ? 'fresh' : 'partial' }
       }
       const heldNow = blocked(item, [answer])
       if (heldNow) {
@@ -1169,7 +1280,8 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         // Kept only once its commands are submitted: a gap whose recording failed holds no flow
         if (measured !== undefined) gapFlows.set(key, item.id, first, measured)
         measured = undefined
-        return { texture: output, index: first + phase, width: a.width, height: a.height, origin: a.origin }
+        // A reduced pair (design 8.10) gives a reduced frame: the stages size it from the pair's natural size
+        return { texture: output, index: first + phase, width: a.width, height: a.height, origin: a.origin, ...reductionOf(a) }
       } catch (error) {
         measured?.destroy()
         throw gatherError(item, first, error)
@@ -1468,9 +1580,9 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     flowPhase: number | undefined,
     sourceRun: readonly SourceStage[],
     outputRun: readonly SourceStage[],
-    sizes: { source: readonly Size[]; output: readonly Size[] },
+    sizes: { source: readonly ReducedSize[]; output: readonly ReducedSize[] },
     first: SourceFrame,
-  ): Promise<{ texture: GPUTexture; size: Size }> {
+  ): Promise<{ texture: GPUTexture; size: ReducedSize }> {
     // the plan's first frame goes to the first sample's frames, which give it back; if that sample did not need it
     // (its picture held, its gaps cached) or never ran, it goes back here
     const frames = new Map<number, SourceFrame>()
@@ -1482,7 +1594,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       const flow = await flowFor(size)
       const vector = await vectorFor(size, flow.flowSize)
       const steps = vectorSteps(jobs.length)
-      let done: { texture: GPUTexture; size: Size } | undefined
+      let done: { texture: GPUTexture; size: ReducedSize } | undefined
       for (const [index, sample] of jobs.entries()) {
         frames.clear()
         const prepared = await prepareVectorSample(item, sample, flowPhase, sourceRun, size, index === 0 ? first : undefined, frames)
@@ -1491,7 +1603,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
             recordVectorSample(item, prepared, sourceRun, sizes.source, size, flow, vector, steps[index]!, into),
           )
         if (index < jobs.length - 1) record()
-        else done = recordFinal(item, vector, outputRun, sizes.output, jobs[0]!.index, record)
+        else done = recordFinal(item, size, outputRun, sizes.output, jobs[0]!.index, record)
         releaseAll(frames, index === 0 ? first : undefined)
       }
       if (stageTimingsEnabled()) await timedStageAsync('gather.gpu', () => device.queue.onSubmittedWorkDone())
@@ -1544,7 +1656,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       return [...checks.source, ...checks.output]
     })
     const first = await decoded(item, 'motion-blur', firstIndex, () => provider.frameAt(item, firstIndex))
-    let sizes = { source: [] as Size[], output: [] as Size[] }
+    let sizes = { source: [] as ReducedSize[], output: [] as ReducedSize[] }
     try {
       await untilReady(item, firstIndex, () => {
         const answer = gatherSizes(item, sourceRun, outputRun, first, firstIndex)
@@ -1558,7 +1670,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
     }
     const { texture, size } = await runVector(item, samples, flow?.phase, sourceRun, outputRun, sizes, first)
     remember(item, texture, size, true)
-    return { texture, width: size.width, height: size.height, kind: 'fresh' }
+    return { texture, width: size.width, height: size.height, natural: naturalOf(size), kind: 'fresh' }
   }
 
   async function renderVectorPreview(
@@ -1612,7 +1724,7 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
         const fresh = sourceRun.length + outputRun.length === activeCount
         remember(item, texture, size, fresh)
         if (fresh) publish(item, null)
-        return { texture, width: size.width, height: size.height, kind: fresh ? 'fresh' : 'partial' }
+        return { texture, width: size.width, height: size.height, natural: naturalOf(size), kind: fresh ? 'fresh' : 'partial' }
       }
       const heldNow = blocked(item, [answer])
       if (heldNow) {
@@ -1653,8 +1765,10 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
   }
 
   return {
-    render(item, source) {
+    render(item, source, box) {
       if (destroyed) return Promise.reject(new Error('stage pipeline: used after destroy'))
+      if (mode === 'preview' && box !== undefined) boxes.set(item.id, box)
+      else boxes.delete(item.id)
       return unlessDestroyed(renderSource(item, source))
     },
 
@@ -1683,6 +1797,8 @@ export function createStagePipeline(options: StagePipelineOptions): StagePipelin
       for (const texture of interpolated.values()) texture.destroy()
       interpolated.clear()
       destroyVectorBlur()
+      reducer.destroy()
+      boxes.clear()
       arena.destroy()
     },
   }

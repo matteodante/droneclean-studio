@@ -114,6 +114,10 @@
       "noClip": "Keine Clips zum Animieren",
       "animatedClip": "Animiert"
     },
+    "colorTimeline": {
+      "label": "Farb-Zeitleiste",
+      "noClip": "Keine Clips zum Farbkorrigieren"
+    },
     "animatePresets": {
       "title": "Motion-Bibliothek",
       "animationsHeading": "Animationen",
@@ -675,13 +679,13 @@
       "fadeIn": "Einblenden",
       "fadeOut": "Ausblenden",
       "playback": "Wiedergabe",
-      "resetCropBottom": "Unteren Zuschnitt zuruecksetzen",
-      "resetCropLeft": "Linken Zuschnitt zuruecksetzen",
-      "resetCropRight": "Rechten Zuschnitt zuruecksetzen",
-      "resetCropTop": "Oberen Zuschnitt zuruecksetzen",
-      "resetSoftness": "Weichheit zuruecksetzen",
-      "resetSpeed": "Geschwindigkeit zuruecksetzen",
-      "resetToZero": "Auf null zuruecksetzen",
+      "resetCropBottom": "Unteren Zuschnitt zurücksetzen",
+      "resetCropLeft": "Linken Zuschnitt zurücksetzen",
+      "resetCropRight": "Rechten Zuschnitt zurücksetzen",
+      "resetCropTop": "Oberen Zuschnitt zurücksetzen",
+      "resetSoftness": "Weichheit zurücksetzen",
+      "resetSpeed": "Geschwindigkeit zurücksetzen",
+      "resetToZero": "Auf null zurücksetzen",
       "speedCurve": "Kurve…",
       "softness": "Weichheit",
       "speed": "Geschwindigkeit",

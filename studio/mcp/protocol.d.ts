@@ -20,8 +20,9 @@
  *   values the test compares with the fixture.
  *
  * Transport (design §0 decision 1): **stdio only** in v1. The app listens on a
- * per-user socket — `mcp.sock` in Electron's `userData` folder (mode 0600), or
- * a named pipe on Windows — and `studio/mcp/launcher.mjs` pipes a client's
+ * per-user socket — `mcp.sock` in Electron's `userData` folder (mode 0600),
+ * `/tmp/droneclean-mcp-<uid>/<hash>.sock` when that path is too long for a Unix
+ * socket, or a named pipe on Windows — and `studio/mcp/launcher.mjs` pipes a client's
  * stdin/stdout to it. There is no HTTP listener, no port and no token: the
  * socket's file mode is the access control. The socket carries MCP over
  * newline-delimited JSON-RPC 2.0 (the SDK's stdio framing), and the first

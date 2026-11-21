@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Images de drone\u00a0: stabiliser, étalonner, accélérer, partager',
   description:
-    'Stabilisation gyro et cadrage, profil D-Log M, looks et ciel, rampes de vitesse avec lissage, flou de mouvement et ralenti fluide, marqueurs de temps forts, montage fluide en un clic, exportation Reel Instagram et accès des agents.',
+    'Stabilisation gyro et cadrage, profil D-Log M, looks et ciel, rampes de vitesse avec lissage, flou de mouvement et ralenti fluide, marqueurs de temps forts, montage fluide en un clic, exportation pour Instagram Reels, TikTok et YouTube Shorts, et accès des agents.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Exporter pour Instagram',
+      title: 'Exporter pour Instagram, TikTok et Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Le préréglage **Reel Instagram** suit la spécification Reel de Meta\u00a0: MP4 H.264 à la cadence d’images du projet, 1080x1920 (le cadre qu’Instagram affiche), 20 Mbit/s à 60 ips ou 12 Mbit/s à 30 ips, sous le maximum de 25 Mbit/s de Meta, avec du son AAC à 128 kbit/s, l’index au début du fichier et sans liste d’édition. Instagram réencode chaque envoi\u00a0; lui donner directement son cadre et sa taille évite une seconde mise à l’échelle.',
+          text: 'Le préréglage **Reel Instagram** suit la spécification Reel de Meta\u00a0: MP4 H.264 à la cadence d’images du projet, 20 Mbit/s à 60 ips ou 12 Mbit/s à 30 ips, sous le maximum de 25 Mbit/s de Meta, avec du son AAC à 128 kbit/s, l’index au début du fichier et sans liste d’édition. Dans un projet vertical (9:16), le cadre est de 1080x1920, celui qu’Instagram affiche\u00a0; dans tout autre projet, le préréglage garde la forme du projet (1920x1080 pour un 16:9) et ne l’étire jamais. Instagram réencode chaque envoi\u00a0; lui donner directement son cadre et sa taille évite une seconde mise à l’échelle.',
         },
         {
           kind: 'paragraph',
-          text: 'Les préréglages **TikTok** et **YouTube Shorts** produisent le même MP4 H.264 vertical en 1080x1920 à la fréquence d’images du projet (jusqu’à 60\u00a0fps). **YouTube Shorts** utilise les débits 1080p publiés par YouTube\u00a0: 12\u00a0Mbit/s à 60\u00a0fps ou 8\u00a0Mbit/s à 30\u00a0fps, avec un son AAC stéréo à 384\u00a0kbit/s. TikTok ne publie aucun débit, donc **TikTok** utilise 16\u00a0Mbit/s à 60\u00a0fps ou 10\u00a0Mbit/s à 30\u00a0fps, un choix de notre part, avec de l’AAC à 128\u00a0kbit/s. Les deux plateformes réencodent chaque envoi.',
+          text: 'Les préréglages **TikTok** et **YouTube Shorts** produisent le même MP4 H.264 à la fréquence d’images du projet (jusqu’à 60\u00a0fps)\u00a0: en 1080x1920 dans un projet vertical, à la forme du projet lui-même dans tout autre. **YouTube Shorts** utilise les débits 1080p publiés par YouTube\u00a0: 12\u00a0Mbit/s à 60\u00a0fps ou 8\u00a0Mbit/s à 30\u00a0fps, avec un son AAC stéréo à 384\u00a0kbit/s. TikTok ne publie aucun débit, donc **TikTok** utilise 16\u00a0Mbit/s à 60\u00a0fps ou 10\u00a0Mbit/s à 30\u00a0fps, un choix de notre part, avec de l’AAC à 128\u00a0kbit/s. Les deux plateformes réencodent chaque envoi. Pour une vidéo verticale, partez d’un projet vertical de 1080x1920\u00a0; le cadrage de la stabilisation choisit alors la partie de la prise de vue du drone à conserver.',
         },
       ],
     },

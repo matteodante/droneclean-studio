@@ -1,7 +1,7 @@
 {
   "media": {
     "card": {
-      "aiCaptionsCount": "YZ altyazı sayısı",
+      "aiCaptionsCount": "{{count}} YZ altyazısı",
       "analyzeWithAI": "YZ ile analiz et",
       "analyzingWithAI": "YZ ile analiz ediliyor",
       "cancelInterpolation": "Enterpolasyonu iptal et",
@@ -35,11 +35,11 @@
       "transcribeFailed": "Transkripsiyon başarısız",
       "transcribing": "Transkripsiyon yapılıyor",
       "transcriptDeleteFailed": "Transkript silinemedi",
-      "transcriptDeleteFailedFor": "\"{{name}}\" için transkript silinemedi",
+      "transcriptDeleteFailedFor": "{{total}} klipten {{failed}} tanesinin transkripti silinemedi",
       "transcriptDeletedFor": "\"{{name}}\" için transkript silindi",
       "transcriptProgressAria": "Transkript ilerlemesi",
       "transcriptReadyFor": "\"{{name}}\" için transkript hazır",
-      "transcriptionFailedFor": "\"{{name}}\" için transkripsiyon başarısız",
+      "transcriptionFailedFor": "{{total}} klipten {{failed}} tanesinin transkripsiyonu başarısız oldu",
       "transcriptsDeleted": "Transkriptler silindi",
       "transcriptsReady": "Transkriptler hazır",
       "menuUpscale": "Ölçekle",
@@ -60,10 +60,10 @@
     "compositions": {
       "compositionsGroup": "Kompozisyonlar",
       "compoundClipsGroup": "Bileşik Klipler",
-      "deleteBody": "Bu bileşik klip silinsin mi?",
+      "deleteBody": "“{{name}}” bileşik klibi silinsin mi? Bu işlem geri alınamaz.",
       "deleteInstancesDetail": "Bu bileşik klibi kullanan {{count}} zaman çizelgesi örneği de kaldırılacak.",
       "deleteInstancesTitle": "Bağlı örnekler kaldırılacak",
-      "deleteSequenceBody": "Bu sekans silinsin mi?",
+      "deleteSequenceBody": "“{{name}}” sekansı silinsin mi? Bu işlem geri alınamaz.",
       "deleteSequenceInstancesDetail": "Bu sekansı kullanan {{count}} zaman çizelgesi örneği de kaldırılacak.",
       "deleteSequenceTitle": "Sekansı sil",
       "deleteTitle": "Bileşik klibi sil",
@@ -94,7 +94,7 @@
       "badgeAutoPick": "Otomatik",
       "badgeDefault": "Varsayılan",
       "badgeForced": "Zorunlu",
-      "cuesCount": "İpucu sayısı",
+      "cuesCount": "{{count}} altyazı satırı",
       "desc": "Gömülü altyazı parçalarını seçin.",
       "descForFile": "\"{{name}}\" içindeki altyazıları seçin.",
       "empty": "Altyazı bulunamadı",
@@ -103,7 +103,7 @@
       "loadedFromCache": "Önbellekten yüklendi",
       "scanning": "Taranıyor",
       "title": "Gömülü altyazılar",
-      "trackInfo": "Parça bilgisi"
+      "trackInfo": "Parça {{n}} · {{lang}} · {{codec}}"
     },
     "grid": {
       "emptyHint": "Dosyaları buraya bırakın veya İçe Aktar'a tıklayın.",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "YZ analiz ilerlemesi",
       "allTypes": "Tüm türler",
-      "analyzingMultiple": "Seçili öğeler analiz ediliyor",
+      "analyzingMultiple": "{{total}} öğeden {{current}}. analiz ediliyor…",
       "analyzingSingle": "Öğe analiz ediliyor",
       "andJoiner": " ve ",
       "assetsCount": "{{count}} varlık",
@@ -162,7 +162,7 @@
       "dismiss": "Kapat",
       "dragDropUnsupported": "Sürükle bırak desteklenmiyor",
       "dropFilesHere": "Dosyaları buraya bırakın",
-      "filesRejected": "Dosyalar reddedildi",
+      "filesRejected": "Bazı dosyalar eklenemedi.",
       "downloadingInterpolationModel": "Enterpolasyon modeli indiriliyor",
       "generateProxiesForSelected": "{{count}} seçili öğe için proxy oluştur",
       "generatingProxies": "Proxy'ler oluşturuluyor",
@@ -276,7 +276,7 @@
       "keepAsBroken": "Bozuk olarak tut",
       "removeAll": "Tümünü kaldır",
       "select": "Seç",
-      "selectReplacement": "Yedek seç",
+      "selectReplacement": "“{{name}}” için yedek seç",
       "title": "Eksik medya"
     },
     "picker": {
@@ -321,11 +321,11 @@
       "video": "Video"
     },
     "unsupportedCodec": {
-      "bodyMultiple": "Bazı dosyalar desteklenmeyen kodekler kullanıyor olabilir.",
-      "bodySingle": "Bu dosya desteklenmeyen bir kodek kullanıyor olabilir.",
+      "bodyMultiple": "{{count}} dosya, tarayıcının çözemediği kodekler kullanıyor. Düzgün oynatılmayabilirler.",
+      "bodySingle": "Bu dosya, tarayıcının çözemediği bir kodek kullanıyor. Düzgün oynatılmayabilir.",
       "cancelImport": "İçe aktarmayı iptal et",
       "importAnyway": "Yine de içe aktar",
-      "note": "Not",
+      "note": "Daha iyi uyumluluk için MP4 (H.264/AAC) ya da WebM biçimine dönüştür.",
       "title": "Desteklenmeyen codec"
     },
     "subclips": {

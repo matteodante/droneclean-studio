@@ -1,8 +1,6 @@
 {
   "comment": "May only shrink. See checks/i18n-keys.mjs. FreeCut keys used in code with no English text; value: the files using it.",
   "keys": {
-    "editor.colorTimeline.label": ["src/features/editor/components/color-timeline-navigator.tsx"],
-    "editor.colorTimeline.noClip": ["src/features/editor/components/color-timeline-navigator.tsx"],
     "editor.compose.nullObjectNonRendering": ["src/features/editor/components/compose-workspace/motion-layer-row-model.ts"],
     "editor.compose.parentForLayer": ["src/features/editor/components/compose-workspace/motion-layer-row-cells.tsx"],
     "editor.compose.parentPickWhipForLayer": ["src/features/editor/components/compose-workspace/motion-layer-row-cells.tsx"],

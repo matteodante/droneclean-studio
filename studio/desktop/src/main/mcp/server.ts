@@ -3,8 +3,10 @@
  * design §0 decision 1 and §4.1–§4.3).
  *
  * One per-user socket — `userData/mcp.sock` (mode 0600), a named pipe on
- * Windows — speaking MCP over the SDK's stdio framing; `studio/mcp/launcher.mjs`
- * connects a client's stdin/stdout to it. There is no HTTP listener, no port and
+ * Windows, or a socket in a private folder of `/tmp` when the profile's path is
+ * too long for one (`protocol.ts`, `socketPathFor`) — speaking MCP over the
+ * SDK's stdio framing; `studio/mcp/launcher.mjs` connects a client's
+ * stdin/stdout to it. There is no HTTP listener, no port and
  * no token in v1: the file mode is the access control, and the socket exists
  * only while "Allow AI agents" is on (on by default since 20 Nov 2026, `settings.ts`).
  *
@@ -46,9 +48,12 @@ import {
   SERVER_VERSION,
   agentAccessSettingsPath,
   agentLogDir,
+  currentUid,
+  shortSocketDirOf,
   socketPathFor,
 } from './protocol'
 import { isAgentAccessEnabledForUser, writeAgentAccessSettings } from './settings'
+import { preparePrivateSocketDir } from './socket-dir'
 import { createSearchTool } from './tools/search'
 import { exportTool } from './tools/export'
 import { frameTool } from './tools/frame'
@@ -83,7 +88,7 @@ export interface AgentAccessOptions {
 
 /** The object the shell (and, later, the Agent access panel) drives. */
 export interface AgentAccess {
-  /** `userData/mcp.sock`, or the Windows pipe. */
+  /** `userData/mcp.sock`, the Windows pipe, or the short path a too-long profile gets; the panel shows this one. */
   readonly socketPath: string
   /** Whether the socket is up right now. */
   status(): AgentAccessStatus
@@ -326,6 +331,7 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
   const logger = options.logger ?? ((message: string) => console.error(message))
   const settingsPath = agentAccessSettingsPath(options.userDataDir)
   const socketPath = socketPathFor(options.userDataDir)
+  const privateSocketDir = process.platform === 'win32' ? null : shortSocketDirOf(socketPath)
   const queue = createSerialQueue()
   const search = createSearchTool(options.loadDocuments)
   const connections = new Set<Socket>()
@@ -422,6 +428,8 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
 
   /** Listen on the socket, replacing a stale file left by a crashed launch. */
   async function listen(): Promise<void> {
+    // A socket moved out of the profile needs its folder, made private before anything is bound in it.
+    if (privateSocketDir !== null) preparePrivateSocketDir(privateSocketDir, currentUid())
     const server = net.createServer(handleConnection)
     const attempt = (): Promise<void> =>
       new Promise((resolve, reject) => {
@@ -435,7 +443,15 @@ export function createAgentAccess(options: AgentAccessOptions): AgentAccess {
         }
         server.once('error', onError)
         server.once('listening', onListening)
-        server.listen(socketPath)
+        // The socket file is created by `listen` with the process's umask, so it is made under 0o177: it has mode
+        // 0600 from its first moment, and no other user can connect in the gap before the chmod below. The umask
+        // is process-wide, so it is put back at once (the bind itself happens inside this call).
+        const previousUmask = process.platform === 'win32' ? null : process.umask(0o177)
+        try {
+          server.listen(socketPath)
+        } finally {
+          if (previousUmask !== null) process.umask(previousUmask)
+        }
       })
 
     try {

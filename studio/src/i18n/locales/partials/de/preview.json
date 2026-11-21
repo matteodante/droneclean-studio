@@ -47,7 +47,7 @@
       "mute": "Stummschalten",
       "muteShort": "Stumm",
       "muted": "Stummgeschaltet",
-      "percent": "{{value}} %",
+      "percent": "{{percent}} %",
       "previewOnlyNote": "Wirkt nur auf die lokale Wiedergabe — Exporte nutzen den Projektmix.",
       "thisDeviceOnly": "Nur dieses Gerät",
       "title": "Vorschau-Audio",

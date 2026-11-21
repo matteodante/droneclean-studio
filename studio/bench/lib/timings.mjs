@@ -10,6 +10,7 @@ const MARK_PREFIX = 'dc.'
 const STAGE_ORDER = [
   'decode',
   'upload',
+  'source.gpu',
   'stabilize',
   'input-colour',
   'look',
@@ -23,6 +24,7 @@ const STAGE_ORDER = [
 const STAGE_LABELS = {
   decode: 'decode (decoder hands over the frame)',
   upload: 'upload (frame into the renderer)',
+  'source.gpu': 'source on the GPU (the upload and widening the queue still held)',
   stabilize: 'stabilize (GPU, submit to done)',
   'input-colour': 'input colour (GPU, submit to done)',
   look: 'look (GPU, submit to done)',
@@ -32,7 +34,7 @@ const STAGE_LABELS = {
   write: 'write (muxer bytes to the file)',
 }
 
-const SOURCE_STAGES = ['decode', 'upload', 'stabilize', 'input-colour', 'look']
+const SOURCE_STAGES = ['decode', 'upload', 'source.gpu', 'stabilize', 'input-colour', 'look']
 
 /** The p-th percentile (0..100) by linear interpolation; null for no values. */
 export function percentile(values, p) {

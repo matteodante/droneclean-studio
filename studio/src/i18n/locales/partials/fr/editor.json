@@ -114,6 +114,10 @@
       "noClip": "Aucun clip à animer",
       "animatedClip": "Animé"
     },
+    "colorTimeline": {
+      "label": "Chronologie de couleur",
+      "noClip": "Aucun clip à étalonner"
+    },
     "animatePresets": {
       "title": "Bibliothèque de mouvements",
       "animationsHeading": "Animations",
@@ -675,13 +679,13 @@
       "fadeIn": "Fondu entrant",
       "fadeOut": "Fondu sortant",
       "playback": "Lecture",
-      "resetCropBottom": "Reinitialiser le recadrage bas",
-      "resetCropLeft": "Reinitialiser le recadrage gauche",
-      "resetCropRight": "Reinitialiser le recadrage droit",
-      "resetCropTop": "Reinitialiser le recadrage haut",
-      "resetSoftness": "Reinitialiser la douceur",
-      "resetSpeed": "Reinitialiser la vitesse",
-      "resetToZero": "Remettre a zero",
+      "resetCropBottom": "Réinitialiser le recadrage bas",
+      "resetCropLeft": "Réinitialiser le recadrage gauche",
+      "resetCropRight": "Réinitialiser le recadrage droit",
+      "resetCropTop": "Réinitialiser le recadrage haut",
+      "resetSoftness": "Réinitialiser la douceur",
+      "resetSpeed": "Réinitialiser la vitesse",
+      "resetToZero": "Remettre a zéro",
       "speedCurve": "Courbe…",
       "softness": "Douceur",
       "speed": "Vitesse",

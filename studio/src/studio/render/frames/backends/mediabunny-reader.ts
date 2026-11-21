@@ -3,9 +3,11 @@
 // opening as FreeCut's `VideoFrameExtractor.init` (the input source, the decodability check), and the same picture: the
 // sample is drawn on a 2D canvas (`sample.draw`), as FreeCut's `captureFrame` does, and that canvas is what
 // `copyExternalImageToTexture` takes. Handing it the `VideoFrame` instead lets the browser convert the frame's BT.709
-// transfer to sRGB on the way in: the golden frame `color-input-dlog-m` came out 10 to 14 levels brighter, the log
-// code values the input colour stage decodes were no longer the camera's, and a staged clip would not match the same
-// clip unstaged.
+// transfer to sRGB on the way in (10-bit frames): the golden frame `color-input-dlog-m` came out 10 to 14 levels
+// brighter, the log code values the input colour stage decodes were no longer the camera's, and a staged clip would not
+// match the same clip unstaged. The canvas picture is what exports use. The preview asks for the `VideoFrame` instead
+// (`videoFrame()`, a copy that costs nothing; the canvas draw and its upload were 10.4 ms of GPU a 4K frame on the M4)
+// and the backend (`webcodecs.ts`) checks its colour against the canvas picture before it trusts it.
 //
 // Why a stream (task 8.2's measurement): `getSample(t)` decodes from the key frame before `t` on every call, 47.65 ms a
 // frame on clip 0020 (p95 74 ms), against the 22 ms an export frame may take. Frames asked in order are read off the
@@ -185,14 +187,22 @@ export function createMediabunnySampleReader(): WebCodecsSampleReader {
       }
       const width = sample.displayWidth
       const height = sample.displayHeight
-      const drawn = canvasFor(width, height)
-      drawn.context.clearRect(0, 0, width, height)
-      sample.draw(drawn.context, 0, 0, width, height)
+      let drawn: OffscreenCanvas | null = null
       return {
         timestamp: sample.timestamp,
         width,
         height,
-        image: drawn.canvas,
+        // Drawn when first asked for: the preview's upload takes the frame itself and never draws
+        get image() {
+          if (drawn === null) {
+            const target = canvasFor(width, height)
+            target.context.clearRect(0, 0, width, height)
+            sample.draw(target.context, 0, 0, width, height)
+            drawn = target.canvas
+          }
+          return drawn
+        },
+        videoFrame: () => sample.toVideoFrame(),
         colour: opened.colour,
         // The stream owns its samples: it closes one when it moves past it
         close() {},

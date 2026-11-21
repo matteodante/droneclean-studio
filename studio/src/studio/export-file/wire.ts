@@ -42,6 +42,8 @@ export interface ExportFileBridge {
   choose(request: {
     readonly suggestedName: string
     readonly extension: string
+    /** The dialog's title in the interface language. */
+    readonly title?: string
     /** A native 10-bit export: the path is granted to the desktop's encoder, which writes the file itself. */
     readonly native?: true
   }): Promise<ShellAnswer<{ readonly id: string; readonly path: string; readonly name: string } | null>>

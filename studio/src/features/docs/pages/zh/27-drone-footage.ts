@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: '无人机素材：防抖、调色、变速、分享',
   description:
-    '陀螺仪防抖与取景、D-Log M 色彩配置、调色风格与天空、带缓动的变速、动态模糊与平滑慢动作、节拍标记、一键平滑剪辑、Instagram Reels 导出以及 AI 代理访问。',
+    '陀螺仪防抖与取景、D-Log M 色彩配置、调色风格与天空、带缓动的变速、动态模糊与平滑慢动作、节拍标记、一键平滑剪辑、面向 Instagram Reels、TikTok 和 YouTube Shorts 的导出以及 AI 代理访问。',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -109,15 +109,15 @@ const page = {
       ],
     },
     {
-      title: '为 Instagram 导出',
+      title: '为 Instagram、TikTok 和 Shorts 导出',
       blocks: [
         {
           kind: 'paragraph',
-          text: '**Instagram Reels** 预设遵循 Meta 的 Reels 规范：采用项目帧率的 H.264 MP4，1080x1920（Instagram 显示的画幅），60 fps 时为 20 Mbps、30 fps 时为 12 Mbps，低于 Meta 的 25 Mbps 上限，AAC 音频为 128 kbps，索引位于文件开头，且没有编辑列表。Instagram 会对每个上传的视频重新编码；给它专属的画幅和尺寸可以避免二次缩放。',
+          text: '**Instagram Reels** 预设遵循 Meta 的 Reels 规范：采用项目帧率的 H.264 MP4，60 fps 时为 20 Mbps、30 fps 时为 12 Mbps，低于 Meta 的 25 Mbps 上限，AAC 音频为 128 kbps，索引位于文件开头，且没有编辑列表。在竖屏（9:16）项目中，画幅为 1080x1920，也就是 Instagram 显示的画幅；在其他项目中，预设保持项目的画幅比例（16:9 项目为 1920x1080），不会拉伸。Instagram 会对每个上传的视频重新编码；给它专属的画幅和尺寸可以避免二次缩放。',
         },
         {
           kind: 'paragraph',
-          text: '**TikTok** 和 **YouTube Shorts** 预设输出相同的竖屏 1080x1920 H.264 MP4，帧率与项目一致（最高 60 fps）。**YouTube Shorts** 使用 YouTube 公布的 1080p 码率：60 fps 时 12 Mbps，30 fps 时 8 Mbps，音频为 384 kbps 的 AAC 立体声。TikTok 没有公布码率，所以 **TikTok** 使用我们选择的 60 fps 16 Mbps 或 30 fps 10 Mbps，音频为 128 kbps 的 AAC。两个平台都会对每次上传重新编码。',
+          text: '**TikTok** 和 **YouTube Shorts** 预设输出相同的 H.264 MP4，帧率与项目一致（最高 60 fps）：竖屏项目为 1080x1920，其他项目则保持项目本身的画幅比例。**YouTube Shorts** 使用 YouTube 公布的 1080p 码率：60 fps 时 12 Mbps，30 fps 时 8 Mbps，音频为 384 kbps 的 AAC 立体声。TikTok 没有公布码率，所以 **TikTok** 使用我们选择的 60 fps 16 Mbps 或 30 fps 10 Mbps，音频为 128 kbps 的 AAC。两个平台都会对每次上传重新编码。要制作竖屏视频，请从 1080x1920 的竖屏项目开始；防抖的取景会决定保留无人机画面的哪一部分。',
         },
       ],
     },

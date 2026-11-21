@@ -26,6 +26,7 @@ import { notifyStagedFrameReady, setClipStageState } from './failure'
 import type { SourceFramePlan } from './plan'
 import { createStagePipeline, type StagedFrame, type StagePipeline } from './pipeline'
 import type { Preparer } from './preparer'
+import type { PreviewBox } from './preview-size'
 import type { StageRegistry } from './registry'
 import { MAX_SAMPLES_PER_PASS } from '@/studio/motion-blur/stage'
 import { followPlayheadForStabilization, pagePreparer, setPreparerDevice, SOURCE_STAGES } from './session'
@@ -69,11 +70,12 @@ export interface RendererStages {
    */
   prepare(items: readonly TimelineItem[]): Promise<void>
   /**
-   * The clip's staged picture for source frame `sourceIndex` (the pipeline's `render`).
+   * The clip's staged picture for source frame `sourceIndex` (the pipeline's `render`). `box`, in a preview, is the box
+   * the picture is shown in on the preview canvas: its pictures are reduced to that scale (design 8.10).
    *
    * @throws StageError in an export, when an active stage cannot draw the frame.
    */
-  render(item: VideoItem, source: number | SourceFramePlan): Promise<StagedFrame>
+  render(item: VideoItem, source: number | SourceFramePlan, box?: PreviewBox): Promise<StagedFrame>
   /**
    * The preview's staged picture of a frame FreeCut's own fast source decoded (its `<video>` or its decoder), for a
    * clip whose stages need no exact frame (input colour, a look): the image is copied into an `rgba16float` texture and
@@ -189,10 +191,10 @@ export function createRendererStages(options: RendererStagesOptions): RendererSt
       else preparer.ensure(staged, device)
     },
 
-    async render(item, source) {
+    async render(item, source, box) {
       if (destroyed) throw new Error('The renderer was disposed while a staged clip was drawn')
       const { pipeline } = await build()
-      return pipeline.render(withRate(item, projectFps) as VideoItem, source)
+      return pipeline.render(withRate(item, projectFps) as VideoItem, source, box)
     },
 
     async stageImage(item, sourceIndex, image) {

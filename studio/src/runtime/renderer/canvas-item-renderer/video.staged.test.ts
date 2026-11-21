@@ -83,7 +83,13 @@ afterEach(() => {
 
 function rig(renderMode: 'export' | 'preview') {
   const texture = { width: 300, height: 170, createView: () => ({}) } as unknown as GPUTexture
-  const render = vi.fn(async () => ({ texture, width: 300, height: 170, kind: 'fresh' as const }))
+  const render = vi.fn(async () => ({
+    texture,
+    width: 300,
+    height: 170,
+    natural: { width: 300, height: 170 },
+    kind: 'fresh' as const,
+  }))
   const stages: RendererStages = {
     mode: renderMode,
     device: async () => device,

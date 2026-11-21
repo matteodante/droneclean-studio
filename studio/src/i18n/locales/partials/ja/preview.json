@@ -47,7 +47,7 @@
       "mute": "ミュート",
       "muteShort": "ミュート",
       "muted": "ミュート中",
-      "percent": "{{value}}%",
+      "percent": "{{percent}}%",
       "previewOnlyNote": "ローカル再生にのみ反映されます。書き出しはプロジェクトミックスを使用します。",
       "thisDeviceOnly": "このデバイスのみ",
       "title": "プレビュー音声",

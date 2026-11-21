@@ -1,7 +1,7 @@
 {
   "name": "droneclean-studio-desktop",
   "productName": "DroneClean Studio",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "Desktop shell of DroneClean Studio: Electron main process, preload and packaging for the editor in ../",
   "dependencies": {
@@ -19,7 +19,7 @@
     "test": "npm run build:main && node --test test/*.test.mjs",
     "package": "npm run build && node scripts/vendor-ffmpeg.mjs && electron-builder --publish never",
     "package:test": "npm run build && node scripts/vendor-ffmpeg.mjs && npm run package:electron:test",
-    "package:electron:test": "electron-builder --publish never -c.appId=com.droneclean.studio.test \"-c.productName=DroneClean Studio Test\" \"-c.extraMetadata.productName=DroneClean Studio Test\" -c.extraMetadata.droneCleanVariant=test -c.directories.output=dist/test-app -c.win.target=dir",
+    "package:electron:test": "electron-builder --publish never -c.appId=com.droneclean.studio.test \"-c.productName=DroneClean Studio Test\" \"-c.extraMetadata.productName=DroneClean Studio Test\" -c.extraMetadata.droneCleanVariant=test -c.directories.output=dist/test-app -c.win.target=dir -c.electronFuses.enableNodeCliInspectArguments=true",
     "e2e": "node test/e2e.mjs",
     "e2e:quick": "DRONECLEAN_E2E_MODE=main node test/e2e.mjs",
     "e2e:mcp": "node test/e2e-mcp.mjs",

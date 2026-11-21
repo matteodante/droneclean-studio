@@ -308,7 +308,7 @@
     "reverseConform": {
       "cancellingDescription": "正在取消...",
       "couldNotPrepare": "无法准备",
-      "progressDescription": "处理中...",
+      "progressDescription": "正在准备片段 {{current}}/{{total}}…",
       "titleCancelling": "正在取消",
       "titleFailed": "失败",
       "titlePreparing": "正在准备"

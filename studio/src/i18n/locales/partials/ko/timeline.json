@@ -312,7 +312,7 @@
     "reverseConform": {
       "cancellingDescription": "취소 중...",
       "couldNotPrepare": "준비할 수 없음",
-      "progressDescription": "처리 중...",
+      "progressDescription": "클립 {{current}}/{{total}} 준비 중…",
       "titleCancelling": "취소 중",
       "titleFailed": "실패",
       "titlePreparing": "준비 중"

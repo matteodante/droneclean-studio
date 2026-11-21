@@ -105,7 +105,7 @@ npm run package        # 构建编辑器、Gyroflow 的 wasm 和 FFmpeg，然后
 | `studio/web/` | 网页版编辑器的静态服务器。 |
 | `gyroflow/` | [Gyroflow](https://github.com/gyroflow/gyroflow)（GPL-3.0）的分支；`gyroflow/wasm/` 为编辑器构建它的引擎。 |
 
-本仓库由发布流程发布：每个版本是一次提交，这个版本的标签是 `v0.1.9`。
+本仓库由发布流程发布：每个版本是一次提交，这个版本的标签是 `v0.1.10`。
 
 ## 贡献与安全
 

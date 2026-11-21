@@ -71,9 +71,13 @@ function composition(): CompositionInputProps {
 }
 
 async function started(): Promise<FakeWorker> {
-  await vi.waitFor(() => {
-    expect(FakeWorker.made[0]?.sent.some((entry) => entry.message.type === 'start')).toBe(true)
-  })
+  // Ten seconds, not the default one: under a loaded unit run the worker starts later (22 tests flaked, 21 Nov 2026)
+  await vi.waitFor(
+    () => {
+      expect(FakeWorker.made[0]?.sent.some((entry) => entry.message.type === 'start')).toBe(true)
+    },
+    { timeout: 10_000 },
+  )
   return FakeWorker.made[0]!
 }
 

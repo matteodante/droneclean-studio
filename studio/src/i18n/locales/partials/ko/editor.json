@@ -114,6 +114,10 @@
       "noClip": "애니메이트할 클립이 없습니다",
       "animatedClip": "애니메이션 있음"
     },
+    "colorTimeline": {
+      "label": "컬러 타임라인",
+      "noClip": "컬러 보정할 클립이 없습니다"
+    },
     "animatePresets": {
       "title": "모션 라이브러리",
       "animationsHeading": "애니메이션",

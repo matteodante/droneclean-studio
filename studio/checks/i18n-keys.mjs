@@ -17,6 +17,10 @@
 //     `baselines/i18n-missing-english.json`, which may only shrink.
 //  2. A key built at runtime cannot be checked here. Each one (file and argument text) is listed, with its
 //     reason, in `baselines/i18n-dynamic-keys.json`; a new one, or a listed one that is gone, is an error.
+//  4. Interpolation (21 Nov 2026: sixteen strings showed no number, or "{{value}}%", because a language's
+//     placeholder was not the name the code passes, or English had none). A language whose string names a
+//     placeholder English does not, or lacks one English has, is an error; so is a static call whose options object
+//     passes none of a name the English string uses (a variable or a spread as the options cannot be read).
 //  3. A key English defines that another language lacks is an error when the fork uses the key (code in
 //     `src/studio/` or a file of `UPSTREAM_CHANGES.md`, including every key under the fixed start of a runtime
 //     key it builds). For the other keys, today's gaps are in `baselines/i18n-missing-translations.json`,
@@ -34,6 +38,7 @@ import {
   collectUses,
   definitions,
   isDefined,
+  keyPlaceholders,
   loadTree,
   missingByLanguage,
 } from './lib/i18n-scan.mjs'
@@ -118,7 +123,32 @@ export function measure(root) {
     const fork = forkKeys.has(key) || forkPrefixes.some((prefix) => key.startsWith(prefix))
     translationMissing.set(key, { languages, fork })
   }
-  return { englishMissing, dynamic, translationMissing }
+
+  // Rule 4: placeholders, per language against English, and English against what each static call passes
+  const placeholderMismatch = new Map()
+  for (const key of keys) {
+    const englishNames = keyPlaceholders(trees.en, key)
+    if (englishNames === null) continue
+    for (const language of LANGUAGES.filter((name) => name !== 'en')) {
+      const names = keyPlaceholders(trees[language], key)
+      if (names === null) continue
+      const extra = [...names].filter((name) => !englishNames.has(name))
+      const lacking = [...englishNames].filter((name) => !names.has(name))
+      if (extra.length > 0 || lacking.length > 0) {
+        if (!placeholderMismatch.has(key)) placeholderMismatch.set(key, [])
+        placeholderMismatch.get(key).push({ language, extra, lacking })
+      }
+    }
+  }
+  const unpassed = []
+  for (const use of uses) {
+    if (use.kind !== 'static' || !Array.isArray(use.values)) continue
+    const englishNames = keyPlaceholders(trees.en, use.key)
+    if (englishNames === null) continue
+    const missingNames = [...englishNames].filter((name) => !use.values.includes(name))
+    if (missingNames.length > 0) unpassed.push({ file: use.file, line: use.line, key: use.key, missing: missingNames })
+  }
+  return { englishMissing, dynamic, translationMissing, placeholderMismatch, unpassed }
 }
 
 const place = (entry) => `${entry.file}:${entry.line}`
@@ -204,6 +234,23 @@ export function judge(measured, baselines) {
           '(or no longer exists). Remove it (--shrink-baseline).',
       )
     }
+  }
+
+  // Rule 4: interpolation names.
+  for (const [key, languages] of [...(measured.placeholderMismatch ?? new Map())].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const { language, extra, lacking } of languages) {
+      const parts = [
+        extra.length > 0 ? `names ${extra.map((name) => `{{${name}}}`).join(', ')} that English does not` : '',
+        lacking.length > 0 ? `lacks ${lacking.map((name) => `{{${name}}}`).join(', ')}` : '',
+      ].filter(Boolean)
+      errors.push(`key '${key}' in ${language} ${parts.join(' and ')}: use the names the English string uses.`)
+    }
+  }
+  for (const entry of measured.unpassed ?? []) {
+    errors.push(
+      `${place(entry)}: '${entry.key}' uses ${entry.missing.map((name) => `{{${name}}}`).join(', ')} in English, ` +
+        'which this call does not pass: pass it, or write the English string with the names the call gives.',
+    )
   }
   return { errors, shrinkable: { english: staleEnglish, dynamic: staleDynamic, translations: staleTranslations } }
 }

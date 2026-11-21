@@ -1,7 +1,7 @@
 {
   "media": {
     "card": {
-      "aiCaptionsCount": "AI 字幕数",
+      "aiCaptionsCount": "{{count}} 条 AI 字幕",
       "analyzeWithAI": "用 AI 分析",
       "analyzingWithAI": "正在用 AI 分析",
       "cancelInterpolation": "取消插帧",
@@ -35,11 +35,11 @@
       "transcribeFailed": "转录失败",
       "transcribing": "正在转录",
       "transcriptDeleteFailed": "转录删除失败",
-      "transcriptDeleteFailedFor": "无法删除 \"{{name}}\" 的字幕",
+      "transcriptDeleteFailedFor": "{{total}} 个片段中有 {{failed}} 个的字幕无法删除",
       "transcriptDeletedFor": "已删除 \"{{name}}\" 的字幕",
       "transcriptProgressAria": "转录进度",
       "transcriptReadyFor": "\"{{name}}\" 的字幕已准备好",
-      "transcriptionFailedFor": "\"{{name}}\" 的字幕生成失败",
+      "transcriptionFailedFor": "{{total}} 个片段中有 {{failed}} 个字幕生成失败",
       "transcriptsDeleted": "转录已删除",
       "transcriptsReady": "转录已准备就绪",
       "menuUpscale": "超分辨率",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "AI 分析",
       "allTypes": "所有类型",
-      "analyzingMultiple": "正在分析 {{count}} 个片段…",
+      "analyzingMultiple": "正在分析 {{current}}/{{total}}…",
       "analyzingSingle": "正在分析…",
       "andJoiner": "和",
       "assetsCount": "{{count}} 个素材",

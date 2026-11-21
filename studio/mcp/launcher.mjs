@@ -89,11 +89,59 @@ export function pipeUserPart(userName) {
   return crypto.createHash('sha256').update(userName.toLowerCase()).digest('hex').slice(0, 16)
 }
 
-/** The listener the app opens: a socket file, or a named pipe per user on Windows. */
-export function socketPathFor(userDataDir, platform = process.platform, userName = os.userInfo().username) {
-  return platform === 'win32'
-    ? `${windowsPipePrefix}${pipeUserPart(userName)}`
-    : path.join(userDataDir, socketFileName)
+/** The longest socket path `connect` takes, in bytes; the same rule as `main/mcp/protocol.ts`'s `maxSocketPathBytes`. */
+export function maxSocketPathBytes(platform) {
+  return platform === 'linux' ? 107 : 103
+}
+
+function currentUid() {
+  return typeof process.getuid === 'function' ? process.getuid() : -1
+}
+
+/** The per-user folder of a too-long profile's socket; the same as `main/mcp/protocol.ts`'s `shortSocketDirFor`. */
+export function shortSocketDirFor(uid = currentUid()) {
+  return path.posix.join('/tmp', `droneclean-mcp-${uid}`)
+}
+
+/**
+ * The listener the app opens: a socket file, or a named pipe per user on Windows. A socket path in the profile that
+ * is too long for the platform moves to `shortSocketDirFor(uid)`, named by the profile path's hash; the same rule as
+ * `main/mcp/protocol.ts`'s `socketPathFor`.
+ */
+export function socketPathFor(
+  userDataDir,
+  platform = process.platform,
+  userName = os.userInfo().username,
+  uid = currentUid(),
+) {
+  if (platform === 'win32') return `${windowsPipePrefix}${pipeUserPart(userName)}`
+  const inProfile = path.join(userDataDir, socketFileName)
+  if (Buffer.byteLength(inProfile) <= maxSocketPathBytes(platform)) return inProfile
+  const profile = crypto.createHash('sha256').update(userDataDir).digest('hex').slice(0, 16)
+  return path.posix.join(shortSocketDirFor(uid), `${profile}.sock`)
+}
+
+/**
+ * Whether the launcher may connect to `socketPath`: `profile` for a socket in the profile (or a pipe), whose own
+ * permissions keep other users out; for one in the short folder, `private` when that folder is this user's, not a link
+ * and closed to everyone else (how the app makes it, `main/mcp/socket-dir.ts`), `missing` before the app made it, and
+ * `foreign` otherwise: anyone may create a folder in `/tmp`, and a socket there is not trusted for its name.
+ */
+export function socketFolderState(socketPath, uid = currentUid()) {
+  const folder = shortSocketDirFor(uid)
+  if (path.posix.dirname(socketPath) !== folder) return 'profile'
+  let stats
+  try {
+    stats = fs.lstatSync(folder)
+  } catch {
+    return 'missing'
+  }
+  return isPrivateFolderOf(stats, uid) ? 'private' : 'foreign'
+}
+
+/** `lstat`'s answer for a folder that is `uid`'s own and closed to everyone else; a link is not a folder. */
+function isPrivateFolderOf(stats, uid) {
+  return stats.isDirectory() && stats.uid === uid && (stats.mode & 0o077) === 0
 }
 
 /** `userData/agent-access.json`. */
@@ -234,8 +282,18 @@ class LauncherError extends Error {
   }
 }
 
-/** Resolve to a connected socket, or null when nothing answers this time. */
+/** Resolve to a connected socket, or null when nothing answers this time; reject for a folder that is not the user's. */
 function connectOnce(socketPath, timeoutMs = 1000) {
+  const folder = socketFolderState(socketPath)
+  if (folder === 'missing') return Promise.resolve(null)
+  if (folder === 'foreign') {
+    return Promise.reject(
+      new LauncherError(
+        exitAppUnreachable,
+        `DroneClean Studio: ${path.posix.dirname(socketPath)} is not a private folder of this user, so the launcher does not connect there. Remove it and open the app again.`,
+      ),
+    )
+  }
   return new Promise((resolve) => {
     const socket = net.connect(socketPath)
     let settled = false

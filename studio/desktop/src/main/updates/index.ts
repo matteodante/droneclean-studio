@@ -156,19 +156,32 @@ export function installUpdatesIpc(
   )
 }
 
-/** Check once, `delayMs` after the window is ready to show, and tell the page if a newer version exists. */
+/** The time between the checks of an app left open: a day and a minute, so the day's rule (`check`) is always over. */
+export const UPDATE_RECHECK_MS = UPDATE_DAY_MS + 60_000
+
+/**
+ * Check `delayMs` after the window is ready to show, and then again every day for as long as the window lives, so an
+ * app left open for days still asks once a day at most (`check` itself refuses a second request inside 24 hours, and
+ * makes none while the switch is off). A newer version is told to the page. The timers are cleared with the window.
+ */
 export function scheduleUpdateCheck(
   window: BrowserWindow,
   checker: UpdateChecker,
   delayMs: number = UPDATE_CHECK_DELAY_MS,
 ): void {
+  const run = (): void => {
+    void checker.check().then((notice) => {
+      if (notice !== null && !window.isDestroyed()) window.webContents.send(UPDATE_CHANNELS.available, notice)
+    })
+  }
   window.once('ready-to-show', () => {
-    const timer = setTimeout(() => {
-      void checker.check().then((notice) => {
-        if (notice !== null && !window.isDestroyed()) window.webContents.send(UPDATE_CHANNELS.available, notice)
-      })
-    }, delayMs)
-    timer.unref()
-    window.once('closed', () => clearTimeout(timer))
+    const first = setTimeout(run, delayMs)
+    const daily = setInterval(run, UPDATE_RECHECK_MS)
+    first.unref()
+    daily.unref()
+    window.once('closed', () => {
+      clearTimeout(first)
+      clearInterval(daily)
+    })
   })
 }

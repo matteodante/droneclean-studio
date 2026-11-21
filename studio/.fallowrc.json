@@ -25,6 +25,8 @@
     "src/studio/shadow/cut/proof/proof.mjs",
     "src/studio/shadow/cut/proof/page.ts",
     "checks/network-origins.mjs",
+    "checks/gpu-passes.mjs",
+    "checks/gpu-passes-page.ts",
     "checks/upstream-rows.mjs",
     "checks/fork-folders.mjs",
     "checks/shadow-contract-snapshot.mjs",

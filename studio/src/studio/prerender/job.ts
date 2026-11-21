@@ -199,21 +199,7 @@ export async function runPrerender(range: FrameRange): Promise<PrerenderOutcome>
   running = true
   cancelRequested = false
   const startedAt = performance.now()
-  usePlaybackStore.getState().pause()
-  watchPrerenderState()
-
-  const input = collectRenderInput(host)
-  const fps = input.fps > 0 ? input.fps : 30
-  const hashes = frameHashes(fingerprintInputFor(input, host), range)
-  const missing = subtractRanges(range, prerenderCache.validRanges())
-  const total = missing.reduce((sum, stretch) => sum + stretch.end - stretch.start, 0)
   let done = 0
-  const publishProgress = () =>
-    usePrerenderStore.setState({
-      job: { startFrame: range.start, endFrame: range.end, done, total },
-    })
-  publishProgress()
-
   const finish = (
     status: PrerenderOutcome['status'],
     reason?: PrerenderStopReason,
@@ -233,17 +219,69 @@ export async function runPrerender(range: FrameRange): Promise<PrerenderOutcome>
     usePrerenderStore.setState({ job: null, lastOutcome: outcome })
     return outcome
   }
+  // Everything after `running` is set goes through `finish`, a failure included: a throw here once left the job
+  // "running" for good, every later pre-render refused as busy and the progress bar on screen
+  try {
+    return await renderRange(range, host, finish, (frames) => {
+      done = frames
+    })
+  } catch (error) {
+    return finish('stopped', 'error', errorText(error))
+  }
+}
 
+type Finish = (status: PrerenderOutcome['status'], reason?: PrerenderStopReason, detail?: string) => PrerenderOutcome
+
+/** What a job draws: the composition, the frames the cache lacks with their hashes, and the codec */
+interface RangePlan {
+  readonly input: CompositionInputProps
+  readonly fps: number
+  readonly hashes: Float64Array
+  readonly missing: FrameRange[]
+  readonly total: number
+  readonly codec: PrerenderCodec
+}
+
+/** The job's plan, or its outcome when it has nothing to draw or cannot draw: the progress starts at 0 of the total */
+async function planRange(
+  range: FrameRange,
+  host: NonNullable<ReturnType<typeof getPrerenderHost>>,
+  finish: Finish,
+): Promise<RangePlan | PrerenderOutcome> {
+  const input = collectRenderInput(host)
+  const fps = input.fps > 0 ? input.fps : 30
+  const hashes = frameHashes(fingerprintInputFor(input, host), range)
+  const missing = subtractRanges(range, prerenderCache.validRanges())
+  const total = missing.reduce((sum, stretch) => sum + stretch.end - stretch.start, 0)
+  usePrerenderStore.setState({ job: { startFrame: range.start, endFrame: range.end, done: 0, total } })
   if (total === 0) return finish('done')
   const unloaded = clipsWithoutMedia(input, range)
   if (unloaded.length > 0) {
     return finish('stopped', 'error', `media not loaded yet: ${unloaded.slice(0, 3).join(', ')}`)
   }
-
   const support = browserCodecSupport()
   const codec = support === null ? null : await pickPrerenderCodec(support, host.renderSize, fps)
-  if (codec === null || typeof OffscreenCanvas === 'undefined')
-    return finish('stopped', 'unsupported')
+  if (codec === null || typeof OffscreenCanvas === 'undefined') return finish('stopped', 'unsupported')
+  return { input, fps, hashes, missing, total, codec }
+}
+
+/** The job's work once it holds `running`: every way out is `finish` */
+async function renderRange(
+  range: FrameRange,
+  host: NonNullable<ReturnType<typeof getPrerenderHost>>,
+  finish: Finish,
+  setDone: (frames: number) => void,
+): Promise<PrerenderOutcome> {
+  usePlaybackStore.getState().pause()
+  watchPrerenderState()
+  const plan = await planRange(range, host, finish)
+  if ('status' in plan) return plan
+  const { input, fps, hashes, missing, total, codec } = plan
+  let done = 0
+  const publishProgress = () =>
+    usePrerenderStore.setState({
+      job: { startFrame: range.start, endFrame: range.end, done, total },
+    })
 
   // The size the codec was configured at (even); the renderer draws at it
   const width = codec.encoder.width
@@ -286,6 +324,7 @@ export async function runPrerender(range: FrameRange): Promise<PrerenderOutcome>
         isStale,
         onFrame: () => {
           done += 1
+          setDone(done)
           publishProgress()
         },
       })

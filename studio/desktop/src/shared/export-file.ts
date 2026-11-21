@@ -39,6 +39,8 @@ export interface ExportFileChooseRequest {
   readonly suggestedName: string
   /** The extension without its dot (`mp4`). */
   readonly extension: string
+  /** The dialog's title in the interface language; the shell shows `Export` when it is absent or not a short plain string. */
+  readonly title?: string
   /**
    * A native 10-bit export: the path is granted to the desktop's encoder, which writes the file itself (through its
    * own hidden temporary file); nothing is opened here and no bytes are POSTed. `commit` then answers the file's size.
@@ -61,10 +63,14 @@ export interface ExportFileCommitRequest {
   readonly sidecar?: { readonly content: string }
 }
 
-/** What a commit answers: the size of the finished file. */
+/**
+ * What a commit answers: the size of the finished file and, when a subtitle file was written beside it, where. That
+ * is `<name>.srt`, or `<name> (2).srt` when the user already had a file of that name (it is never replaced).
+ */
 export interface ExportFileCommitted {
   readonly path: string
   readonly size: number
+  readonly sidecarPath?: string
 }
 
 /** An `invoke`'s answer: the value, or the sentence that says why not (kept verbatim for the dialog). */
@@ -98,4 +104,22 @@ export function parseExportFileUrl(href: string): ParsedExportFileUrl {
     return { ok: false, reason: `invalid write position: ${JSON.stringify(raw)}` }
   }
   return { ok: true, id, operation, position: Number(raw) }
+}
+
+/** The save dialog's title when the page sent none, or one that is not a short plain string. */
+export const EXPORT_FILE_DEFAULT_TITLE = 'Export'
+
+/** The longest title the page may send: the interface's own word for "Export" is a few characters. */
+const EXPORT_FILE_TITLE_MAX = 40
+
+/** A title the dialog may show: one short line without control characters; anything else is `undefined` (the default is used). */
+export function exportDialogTitle(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined
+  const title = raw.trim()
+  if (title === '' || title.length > EXPORT_FILE_TITLE_MAX) return undefined
+  for (const character of title) {
+    const code = character.codePointAt(0) ?? 0
+    if (code < 0x20 || code === 0x7f) return undefined
+  }
+  return title
 }

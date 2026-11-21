@@ -29,6 +29,12 @@
 // the frame row its source position falls on - and reads the texture through Gyroflow's source rect, as Gyroflow does
 // for an input buffer of another size than the video (`stabilization/mod.rs:302`, `HAS_SOURCE_RECT`). Scaling `f`, `c`
 // and the size to the texture instead would zoom the output plane and pick the wrong row's matrix.
+//
+// The output texture may be any size of the stabilized picture's shape too (design 8.10: the preview draws the warp at
+// the size it shows, a quarter of the pixels or fewer). The kernel again keeps the frame's own geometry and writes the
+// texture through Gyroflow's output rect, as Gyroflow does for an output buffer of another size than its output
+// (`stabilization/mod.rs:303`, `HAS_OUTPUT_RECT`): every output pixel's position is mapped onto the full-size output
+// plane before its ray is made, so the picture is the full-size warp sampled at the smaller texture's pixel centres.
 
 import { assembleKernel, type KernelAssets } from './kernel'
 import { applyFraming, type Framing } from './reframe'
@@ -43,16 +49,24 @@ const HEIGHT = 4
 const STRIDE = 8
 const OUTPUT_WIDTH = 12
 const OUTPUT_HEIGHT = 16
+/** The output buffer's row length in bytes; the texture path does not read it, Gyroflow writes it for the output it has */
+const OUTPUT_STRIDE = 20
 /** How many row matrices the frame has; `matrix_count * 16` floats of `matrices` */
 const MATRIX_COUNT = 24
 const FLAGS = 36
 const BYTES_PER_PIXEL = 40
 /** The lens centre in the frame's pixels, two floats: added last to a ray's source position (`rotate_and_distort`) */
 const LENS_CENTRE = 72
+/** The pan of the output window in the full-size output's pixels, two floats: added to a pixel's mapped position */
+const TRANSLATION_2D = 216
 /** Where the frame is in the input, four integers (x, y, w, h): the whole buffer unless the engine crops */
 const SOURCE_RECT = 240
 /** `KernelParamsFlags::HAS_SOURCE_RECT`: the shader maps a source position from the frame onto `SOURCE_RECT` */
 const HAS_SOURCE_RECT = 32
+/** Where the output is in the output texture, four integers (x, y, w, h) */
+const OUTPUT_RECT = 256
+/** `KernelParamsFlags::HAS_OUTPUT_RECT`: the shader maps an output position from the texture onto the full-size output */
+const HAS_OUTPUT_RECT = 64
 /** A normalized texture's values: the two floats that make the shader read one (`cpu_undistort.rs`'s are 255) */
 const MAX_PIXEL_VALUE = 352
 const PIXEL_VALUE_LIMIT = 364
@@ -110,7 +124,8 @@ export interface StageUploads {
 export interface StabilizationStage {
   /**
    * Records one full-screen draw into `encoder`: `input` is the source frame at any size (the file's own, or a proxy's),
-   * `output` the stabilized picture at the size the frame's kernel parameters name. The caller submits the encoder.
+   * `output` the stabilized picture at the size the frame's kernel parameters name or any smaller or larger size of its
+   * shape (within a pixel on each axis: a preview's). The caller submits the encoder.
    * With `uploads` the frame's data goes into the caller's arena (any number of warps can share one encoder); without,
    * the stage allocates the buffers of this one warp.
    */
@@ -163,8 +178,9 @@ export const NORMALIZED_FORMATS: readonly GPUTextureFormat[] = [
 /** One frame's data as the GPU takes it: fresh copies in the caller's own arrays, never views into the wasm memory */
 export interface PreparedFrame {
   /**
-   * `params`, copied, with `max_pixel_value` and `pixel_value_limit` set to 1.0, and the source rect, stride and lens
-   * centre of a source texture that is not the frame's own size
+   * `params`, copied, with `max_pixel_value` and `pixel_value_limit` set to 1.0, the source rect, stride and lens
+   * centre of a source texture that is not the frame's own size, and the output rect, output stride and pan of an
+   * output texture that is not the stabilized picture's own size
    */
   params: Uint8Array
   /** `matrices`, copied */
@@ -173,7 +189,7 @@ export interface PreparedFrame {
   mesh: Float32Array
   /** The source frame's own size, as the kernel parameters state it: the frame's geometry, whatever the texture's */
   inputSize: [number, number]
-  /** The stabilized frame's size, as the kernel parameters state it */
+  /** The stabilized frame's size, as the kernel parameters state it (the output texture's may be another, `output`) */
   outputSize: [number, number]
 }
 
@@ -183,12 +199,15 @@ export interface PreparedFrame {
  * count against the matrices' length. With `source`, the size of the texture the frame is read from: when it is not
  * the frame's own size the texture is read through the source rect (`readThroughSourceRect`); at the frame's own size,
  * or without `source`, nothing else changes. With `framing` the window is moved inside the source picture
- * (`reframe.ts`); without it, or at 0 and 0, the bytes are what they were.
+ * (`reframe.ts`); without it, or at 0 and 0, the bytes are what they were. With `output`, the size of the texture the
+ * picture is drawn into: when it is not the stabilized picture's own size it is written through the output rect
+ * (`drawThroughOutputRect`).
  */
 export function prepareFrame(
   frame: StabilizationFrame,
   source?: { width: number; height: number },
   framing?: Framing,
+  output?: { width: number; height: number },
 ): PreparedFrame {
   const { matrices, params, mesh } = frame
   if (params.byteLength !== KERNEL_PARAMS_BYTES) {
@@ -217,13 +236,67 @@ export function prepareFrame(
   if (source && (source.width !== inputSize[0] || source.height !== inputSize[1])) {
     readThroughSourceRect(view, inputSize, source)
   }
+  const outputSize: [number, number] = [view.getInt32(OUTPUT_WIDTH, true), view.getInt32(OUTPUT_HEIGHT, true)]
+  if (output && (output.width !== outputSize[0] || output.height !== outputSize[1])) {
+    drawThroughOutputRect(view, outputSize, output)
+  }
   return {
     params: uniform,
     matrices: new Float32Array(matrices),
     mesh: new Float32Array(mesh),
     inputSize,
-    outputSize: [view.getInt32(OUTPUT_WIDTH, true), view.getInt32(OUTPUT_HEIGHT, true)],
+    outputSize,
   }
+}
+
+/**
+ * Makes the kernel draw the stabilized picture into a texture of another size, keeping the frame's own geometry:
+ *
+ * - the output rect (where the output is in the texture) is the whole texture, and `HAS_OUTPUT_RECT` is set, so the
+ *   shader maps each pixel's position from the texture's pixels onto the full-size output's before it makes the ray
+ *   (`undistort_coord`): the output plane, the pan, the room of a framing and the bounds test stay the full size's;
+ * - the output stride is the texture's row, as Gyroflow writes it for its output buffer (the texture path does not read
+ *   it);
+ * - the pan moves by `0.5 * s - 0.5` on each axis, `s` the full size over the texture's: the rect maps pixel corners
+ *   (0..w onto 0..width) while the kernel indexes pixel centres, so without it each texture pixel would show the
+ *   full-size picture `0.5 * s - 0.5` pixels up and to the left of its centre (1.5 full-size pixels at a quarter). The
+ *   pan is only ever added to the mapped position (`out_pos += params.translation2d`), so nothing else moves.
+ *
+ * The texture keeps the picture's shape: each axis is within a pixel of the full size scaled by the same factor, so a
+ * preview's rounding passes and a wrong size (a stretched or a swapped picture) is refused.
+ */
+function drawThroughOutputRect(
+  view: DataView,
+  [outputWidth, outputHeight]: [number, number],
+  output: { width: number; height: number },
+): void {
+  if (!(output.width >= 1) || !(output.height >= 1) || !(outputWidth > 0) || !(outputHeight > 0)) {
+    throw new Error(
+      `a ${output.width}x${output.height} output texture cannot be drawn for a ${outputWidth}x${outputHeight} picture`,
+    )
+  }
+  const scaleX = outputWidth / output.width
+  const scaleY = outputHeight / output.height
+  // Within a pixel of the shape: the texture's height for the width's scale, and its width for the height's
+  if (Math.abs(outputHeight / scaleX - output.height) > 1 || Math.abs(outputWidth / scaleY - output.width) > 1) {
+    throw new Error(
+      `the output is ${output.width}x${output.height}, which is not the shape of the frame's stabilized ` +
+        `${outputWidth}x${outputHeight} picture`,
+    )
+  }
+  const flags = view.getInt32(FLAGS, true)
+  if ((flags & HAS_OUTPUT_RECT) !== 0) {
+    throw new Error(
+      "the frame's kernel parameters already map the output through a rect: it cannot be drawn at another size",
+    )
+  }
+  for (const [index, value] of [0, 0, output.width, output.height].entries()) {
+    view.setInt32(OUTPUT_RECT + index * 4, value, true)
+  }
+  view.setInt32(OUTPUT_STRIDE, output.width * view.getInt32(BYTES_PER_PIXEL, true), true)
+  view.setInt32(FLAGS, flags | HAS_OUTPUT_RECT, true)
+  view.setFloat32(TRANSLATION_2D, view.getFloat32(TRANSLATION_2D, true) + 0.5 * scaleX - 0.5, true)
+  view.setFloat32(TRANSLATION_2D + 4, view.getFloat32(TRANSLATION_2D + 4, true) + 0.5 * scaleY - 0.5, true)
 }
 
 /**
@@ -387,13 +460,7 @@ export async function createStabilizationStage(
 
   return {
     warp(encoder, input, output, frame, uploads = ownUploads(), framing) {
-      const prepared = prepareFrame(frame, input, framing)
-      if (output.width !== prepared.outputSize[0] || output.height !== prepared.outputSize[1]) {
-        throw new Error(
-          `the output is ${output.width}x${output.height}, but the frame's kernel parameters are for a stabilized ` +
-            `${prepared.outputSize[0]}x${prepared.outputSize[1]} picture`,
-        )
-      }
+      const prepared = prepareFrame(frame, input, framing, output)
       if (output.format !== formats.output) {
         throw new Error(`the stage draws ${formats.output} textures, not ${output.format}`)
       }

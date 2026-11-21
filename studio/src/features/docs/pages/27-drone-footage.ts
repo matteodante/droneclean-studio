@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Drone footage: stabilize, grade, speed, share',
   description:
-    'Gyro stabilization and framing, the D-Log M profile, looks and the sky, speed ramps with easing, motion blur and smooth slow motion, beat markers, the smooth edit in one click, the Instagram Reel export and agent access.',
+    'Gyro stabilization and framing, the D-Log M profile, looks and the sky, speed ramps with easing, motion blur and smooth slow motion, beat markers, the smooth edit in one click, the export for Instagram Reels, TikTok and YouTube Shorts, and agent access.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Export for Instagram',
+      title: 'Export for Instagram, TikTok and Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'The **Instagram Reel** preset follows Meta’s Reel specification: H.264 MP4 at the project’s frame rate, 1080x1920 (the frame Instagram shows), 20 Mbps at 60 fps or 12 Mbps at 30 fps, under Meta’s 25 Mbps maximum, with AAC sound at 128 kbps, the index at the start of the file and no edit list. Instagram re-encodes every upload; giving it its own frame and size avoids a second scaling.',
+          text: 'The **Instagram Reel** preset follows Meta’s Reel specification: H.264 MP4 at the project’s frame rate, 20 Mbps at 60 fps or 12 Mbps at 30 fps, under Meta’s 25 Mbps maximum, with AAC sound at 128 kbps, the index at the start of the file and no edit list. In a vertical (9:16) project the frame is 1080x1920, the one Instagram shows; in any other project the preset keeps the project’s shape (1920x1080 for a 16:9 one) and never stretches it. Instagram re-encodes every upload; giving it its own frame and size avoids a second scaling.',
         },
         {
           kind: 'paragraph',
-          text: 'The **TikTok** and **YouTube Shorts** presets are the same vertical 1080x1920 H.264 MP4 at the project’s frame rate (up to 60 fps). **YouTube Shorts** uses YouTube’s published 1080p rates: 12 Mbps at 60 fps or 8 Mbps at 30 fps, with AAC stereo at 384 kbps. TikTok publishes no bitrate, so **TikTok** uses 16 Mbps at 60 fps or 10 Mbps at 30 fps, our choice, with AAC at 128 kbps. Both platforms re-encode every upload.',
+          text: 'The **TikTok** and **YouTube Shorts** presets are the same H.264 MP4 at the project’s frame rate (up to 60 fps): 1080x1920 in a vertical project, the project’s own shape in any other. **YouTube Shorts** uses YouTube’s published 1080p rates: 12 Mbps at 60 fps or 8 Mbps at 30 fps, with AAC stereo at 384 kbps. TikTok publishes no bitrate, so **TikTok** uses 16 Mbps at 60 fps or 10 Mbps at 30 fps, our choice, with AAC at 128 kbps. Both platforms re-encode every upload. For a vertical video, start from a vertical project of 1080x1920; the stabilization’s Framing then picks the part of the drone shot to keep.',
         },
       ],
     },

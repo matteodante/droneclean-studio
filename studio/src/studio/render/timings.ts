@@ -6,6 +6,10 @@
 // The stages (names are the contract with the bench's collector):
 //   decode       the decoder gives the next frame (waiting for the decoder counts)
 //   upload       the decoded frame enters the renderer (a canvas draw, or a copy into a GPU texture and the widening blit)
+//   source.gpu   what the queue still had to do for the source frame when its stages were recorded: the decoder's
+//                upload and widening, and a preview's reduction (design 8.10); without it the first stage's figure
+//                carried that work too (21 Nov 2026: a 4K frame's widening was most of the 12 ms first read as the warp's)
+//   reduce       a preview's reduction of the decoded frame, recorded (its GPU time is in `source.gpu`)
 //   stabilize, input-colour, look
 //                one source stage's GPU time: its own command buffer is submitted alone and timed to completion, so
 //                the figure is the time the queue took for that stage (see `gpuStageClock`)

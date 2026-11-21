@@ -530,9 +530,12 @@ export class WorkspaceOwnerLock {
   }
 }
 
-/** The origin the preload is scoped to, as `index.ts` scopes the agent switch's. */
-function editorOrigin(): string {
-  const devUrl = process.env.DRONECLEAN_DEV_URL
+/**
+ * The origin the preload is scoped to, as `index.ts` scopes the agent switch's. `devUrl` is the launch environment's
+ * answer (`resolveLaunchEnvironment`: null in a packaged app), never `process.env`, so an installed app that finds
+ * `DRONECLEAN_DEV_URL` in its environment still scopes the preload to its own origin.
+ */
+export function editorOrigin(devUrl: string | null): string {
   if (devUrl) {
     try {
       return new URL(devUrl).origin
@@ -688,7 +691,7 @@ function showBlockedWindow(event: IpcMainInvokeEvent): void {
  * Register the lock's IPC and its preload. Called once from `index.ts`, before
  * the window exists, and answers the page's calls from then on.
  */
-export function installWorkspaceOwnerLock(target: Session): WorkspaceOwnerHost {
+export function installWorkspaceOwnerLock(target: Session, devUrl: string | null = null): WorkspaceOwnerHost {
   const host = new WorkspaceOwnerHost()
   installedHost = host
 
@@ -696,7 +699,7 @@ export function installWorkspaceOwnerLock(target: Session): WorkspaceOwnerHost {
     id: 'droneclean-workspace-owner',
     type: 'frame',
     filePath: path.join(__dirname, '../preload/workspace-owner.js'),
-    includeGlobs: [`${editorOrigin()}/*`],
+    includeGlobs: [`${editorOrigin(devUrl)}/*`],
   })
 
   const answer = (event: IpcMainInvokeEvent, status: WorkspaceOwnerStatus): WorkspaceOwnerStatus => {

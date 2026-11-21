@@ -101,9 +101,10 @@ export class ExportFiles {
     if (written === null || !written.isFile()) {
       throw new Error(`export: the encoder left no file at ${JSON.stringify(native.finalPath)}`)
     }
+    let sidecarPath: string | undefined
     if (sidecar !== undefined) {
       try {
-        await writeSidecar(native.finalPath, sidecar.content)
+        sidecarPath = await writeSidecar(native.finalPath, sidecar.content)
       } catch (error) {
         throw new Error(
           `the video was saved, but its subtitle file could not be written: ${
@@ -112,7 +113,7 @@ export class ExportFiles {
         )
       }
     }
-    return { path: native.finalPath, size: written.size }
+    return { path: native.finalPath, size: written.size, ...(sidecarPath !== undefined && { sidecarPath }) }
   }
 
   /**
@@ -183,9 +184,10 @@ export class ExportFiles {
       throw error
     }
     this.exports.delete(id)
+    let sidecarPath: string | undefined
     if (sidecar !== undefined) {
       try {
-        await writeSidecar(open.finalPath, sidecar.content)
+        sidecarPath = await writeSidecar(open.finalPath, sidecar.content)
       } catch (error) {
         throw new Error(
           `the video was saved, but its subtitle file could not be written: ${
@@ -194,7 +196,7 @@ export class ExportFiles {
         )
       }
     }
-    return { path: open.finalPath, size: open.size }
+    return { path: open.finalPath, size: open.size, ...(sidecarPath !== undefined && { sidecarPath }) }
   }
 
   /** A failure, a cancel or a closed window: the temporary file is removed. A second call, or one for an unknown id, does nothing. */
@@ -255,9 +257,24 @@ export async function checkExportPath(file: string, platform: NodeJS.Platform = 
   }
 }
 
-/** `<video without its extension>.srt`, written through a temporary file like the video. */
-async function writeSidecar(videoPath: string, content: string): Promise<void> {
-  const target = path.join(path.dirname(videoPath), `${path.basename(videoPath, path.extname(videoPath))}.srt`)
+/**
+ * Where the subtitle file goes: `<video without its extension>.srt`, or `<name> (2).srt`, `(3)`... when a file of that
+ * name is already there. The save dialog asked about the video's name only, so a subtitle file the user had is never
+ * replaced (review finding F7).
+ */
+export async function freeSidecarPath(videoPath: string): Promise<string> {
+  const folder = path.dirname(videoPath)
+  const stem = path.basename(videoPath, path.extname(videoPath))
+  for (let attempt = 1; attempt <= 1000; attempt += 1) {
+    const candidate = path.join(folder, attempt === 1 ? `${stem}.srt` : `${stem} (${attempt}).srt`)
+    if ((await fs.lstat(candidate).catch(() => null)) === null) return candidate
+  }
+  throw new Error(`no free name for the subtitle file beside ${JSON.stringify(videoPath)}`)
+}
+
+/** The subtitle file beside the video, written through a temporary file like the video; answers the path it took. */
+async function writeSidecar(videoPath: string, content: string): Promise<string> {
+  const target = await freeSidecarPath(videoPath)
   const partial = partialPathFor(target)
   try {
     await fs.writeFile(partial, content, 'utf8')
@@ -266,4 +283,5 @@ async function writeSidecar(videoPath: string, content: string): Promise<void> {
     await discardPartial(partial)
     throw error
   }
+  return target
 }

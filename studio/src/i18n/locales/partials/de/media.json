@@ -35,11 +35,11 @@
       "transcribeFailed": "Transkription fehlgeschlagen",
       "transcribing": "Wird transkribiert",
       "transcriptDeleteFailed": "Löschen des Transkripts fehlgeschlagen",
-      "transcriptDeleteFailedFor": "Transkript für „{{name}}\" konnte nicht gelöscht werden",
+      "transcriptDeleteFailedFor": "Transkripte von {{failed}} von {{total}} Clips konnten nicht gelöscht werden",
       "transcriptDeletedFor": "Transkript für „{{name}}\" gelöscht",
       "transcriptProgressAria": "Transkript-Fortschritt",
       "transcriptReadyFor": "Transkript für „{{name}}\" ist bereit",
-      "transcriptionFailedFor": "Transkription für „{{name}}\" fehlgeschlagen",
+      "transcriptionFailedFor": "Transkription für {{failed}} von {{total}} Clips fehlgeschlagen",
       "transcriptsDeleted": "Transkripte gelöscht",
       "transcriptsReady": "Transkripte bereit",
       "menuUpscale": "Hochskalieren",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "KI-Analyse",
       "allTypes": "Alle Typen",
-      "analyzingMultiple": "{{count}} Clips werden analysiert…",
+      "analyzingMultiple": "Analyse {{current}} von {{total}}…",
       "analyzingSingle": "Wird analysiert…",
       "andJoiner": " und ",
       "assetsCount": "{{count}} Assets",
@@ -206,7 +206,7 @@
       "showMediaLibrary": "Medienbibliothek anzeigen",
       "sortDate": "Nach Datum sortieren",
       "sortName": "Nach Name sortieren",
-      "sortSize": "Nach Groesse sortieren",
+      "sortSize": "Nach Größe sortieren",
       "transcriptGenerationProgress": "Transkript-Fortschritt",
       "url": "URL",
       "viewMissingMedia": "Fehlende Medien anzeigen",
@@ -222,7 +222,7 @@
       "sortShort": {
         "name": "NAME",
         "date": "DATUM",
-        "size": "GROESSE"
+        "size": "GRÖSSE"
       },
       "missingCount_one": "{{count}} fehlt",
       "missingCount_other": "{{count}} fehlen",

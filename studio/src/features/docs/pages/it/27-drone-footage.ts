@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Girato da drone: stabilizza, correggi il colore, velocità, condividi',
   description:
-    'Stabilizzazione con il giroscopio e inquadratura, il profilo D-Log M, i look e il cielo, rampe di velocità con andamento, sfocatura di movimento e slow motion fluido, marcatori sul ritmo, il montaggio fluido con un clic, l’esportazione Instagram Reel e l’accesso degli agenti.',
+    'Stabilizzazione con il giroscopio e inquadratura, il profilo D-Log M, i look e il cielo, rampe di velocità con andamento, sfocatura di movimento e slow motion fluido, marcatori sul ritmo, il montaggio fluido con un clic, l’esportazione per Instagram Reels, TikTok e YouTube Shorts e l’accesso degli agenti.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Esportare per Instagram',
+      title: 'Esportare per Instagram, TikTok e Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Il preset **Instagram Reel** segue la specifica Reel di Meta: MP4 H.264 alla frequenza fotogrammi del progetto, 1080x1920 (il fotogramma che Instagram mostra), 20 Mbps a 60 fps o 12 Mbps a 30 fps, sotto il massimo di 25 Mbps di Meta, con audio AAC a 128 kbps, l’indice all’inizio del file e nessuna edit list. Instagram ricodifica ogni caricamento; dargli il suo fotogramma e la sua dimensione evita un secondo ridimensionamento.',
+          text: 'Il preset **Instagram Reel** segue la specifica Reel di Meta: MP4 H.264 alla frequenza fotogrammi del progetto, 20 Mbps a 60 fps o 12 Mbps a 30 fps, sotto il massimo di 25 Mbps di Meta, con audio AAC a 128 kbps, l’indice all’inizio del file e nessuna edit list. In un progetto verticale (9:16) il fotogramma è di 1080x1920, quello che Instagram mostra; in qualsiasi altro progetto il preset mantiene la forma del progetto (1920x1080 per un 16:9) e non la deforma mai. Instagram ricodifica ogni caricamento; dargli il suo fotogramma e la sua dimensione evita un secondo ridimensionamento.',
         },
         {
           kind: 'paragraph',
-          text: 'I preset **TikTok** e **YouTube Shorts** producono lo stesso MP4 H.264 verticale 1080x1920 alla frequenza dei fotogrammi del progetto (fino a 60 fps). **YouTube Shorts** usa i valori 1080p pubblicati da YouTube: 12 Mbps a 60 fps o 8 Mbps a 30 fps, con audio AAC stereo a 384 kbps. TikTok non pubblica un bitrate, quindi **TikTok** usa 16 Mbps a 60 fps o 10 Mbps a 30 fps, scelti da noi, con AAC a 128 kbps. Entrambe le piattaforme ricodificano ogni caricamento.',
+          text: 'I preset **TikTok** e **YouTube Shorts** producono lo stesso MP4 H.264 alla frequenza dei fotogrammi del progetto (fino a 60 fps): 1080x1920 in un progetto verticale, la forma del progetto stesso in qualsiasi altro. **YouTube Shorts** usa i valori 1080p pubblicati da YouTube: 12 Mbps a 60 fps o 8 Mbps a 30 fps, con audio AAC stereo a 384 kbps. TikTok non pubblica un bitrate, quindi **TikTok** usa 16 Mbps a 60 fps o 10 Mbps a 30 fps, scelti da noi, con AAC a 128 kbps. Entrambe le piattaforme ricodificano ogni caricamento. Per un video verticale, parti da un progetto verticale di 1080x1920; l’inquadratura della stabilizzazione sceglie poi la parte del girato del drone da tenere.',
         },
       ],
     },

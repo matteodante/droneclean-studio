@@ -114,6 +114,10 @@
       "noClip": "Nessuna clip da animare",
       "animatedClip": "Animata"
     },
+    "colorTimeline": {
+      "label": "Timeline del colore",
+      "noClip": "Nessuna clip da correggere"
+    },
     "animatePresets": {
       "title": "Libreria Motion",
       "animationsHeading": "Animazioni",

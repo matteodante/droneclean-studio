@@ -102,6 +102,26 @@ function callTool(client, id, name, arguments_) {
 
 const textOf = (message) => JSON.parse(message.result.content[0].text)
 
+test('the socket is created with mode 0600, not chmod\'ed into it, and the umask is put back', { skip: process.platform === 'win32' }, async (t) => {
+  const dir = tempDir()
+  const access = makeAccess(dir)
+  const chmod = t.mock.method(fs, 'chmodSync', () => undefined)
+  const before = process.umask(0o022)
+  process.umask(before)
+  try {
+    await access.startIfEnabled()
+    assert.equal(access.status(), 'on')
+    assert.equal(chmod.mock.callCount() > 0, true, 'the chmod is still there as a second line')
+    assert.equal(fs.statSync(access.socketPath).mode & 0o777, 0o600, 'with the chmod a no-op, the umask did it')
+    const now = process.umask(before)
+    process.umask(now)
+    assert.equal(now, before, 'the process umask is what it was')
+  } finally {
+    await access.dispose()
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('on by default: with no settings file the app listens at startup (Matteo, 20 Nov 2026)', async () => {
   const dir = tempDir()
   const access = makeAccess(dir)

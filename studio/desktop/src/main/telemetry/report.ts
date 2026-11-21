@@ -33,7 +33,7 @@ interface StackFrame {
 
 /**
  * An absolute path: a POSIX one under a user or volume folder, a Windows drive path, a UNC path, or a file:// URL.
- * Folders may hold spaces (`/Volumes/SSD/Avata 2 - 15 novembre/`); the last part ends at a space.
+ * Folders may hold spaces (`/Volumes/My Drive/Flights - March 2026/`); the last part ends at a space.
  */
 const ABSOLUTE_PATH =
   /(?:(?:file:\/\/\/?)?\/(?:Users|home|Volumes|private|var|tmp|mnt|media|run|opt|root)(?:\/[^\/\n'"`)\]>,;]*(?=\/))*\/[^\s'"`)\]>,;]*|[A-Za-z]:(?:[\\\/][^\\\/\n'"`)\]>,;]*(?=[\\\/]))*[\\\/][^\s'"`)\]>,;]*|\\\\[^\s'"`)\]>,;]+)/g

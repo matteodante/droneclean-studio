@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Grabaciones de dron: estabilizar, etalonar, velocidad, compartir',
   description:
-    'Estabilización por giroscopio y encuadre, el perfil D-Log M, looks y cielo, rampas de velocidad con suavizado, desenfoque de movimiento y cámara lenta fluida, marcadores de beats, la edición suave en un clic, la exportación para Reel de Instagram y el acceso de agentes.',
+    'Estabilización por giroscopio y encuadre, el perfil D-Log M, looks y cielo, rampas de velocidad con suavizado, desenfoque de movimiento y cámara lenta fluida, marcadores de beats, la edición suave en un clic, la exportación para Reels de Instagram, TikTok y YouTube Shorts y el acceso de agentes.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Exportar para Instagram',
+      title: 'Exportar para Instagram, TikTok y Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'El preajuste **Reel de Instagram** sigue la especificación de Reels de Meta: MP4 H.264 a la velocidad de fotogramas del proyecto, 1080x1920 (el encuadre que muestra Instagram), 20 Mbps a 60 fps o 12 Mbps a 30 fps, por debajo del máximo de 25 Mbps de Meta, con sonido AAC a 128 kbps, el índice al principio del archivo y sin lista de edición. Instagram recodifica cada subida; darle su propio encuadre y tamaño evita un segundo reescalado.',
+          text: 'El preajuste **Reel de Instagram** sigue la especificación de Reels de Meta: MP4 H.264 a la velocidad de fotogramas del proyecto, 20 Mbps a 60 fps o 12 Mbps a 30 fps, por debajo del máximo de 25 Mbps de Meta, con sonido AAC a 128 kbps, el índice al principio del archivo y sin lista de edición. En un proyecto vertical (9:16) el encuadre es de 1080x1920, el que muestra Instagram; en cualquier otro proyecto el preajuste conserva la forma del proyecto (1920x1080 en uno de 16:9) y nunca la estira. Instagram recodifica cada subida; darle su propio encuadre y tamaño evita un segundo reescalado.',
         },
         {
           kind: 'paragraph',
-          text: 'Los preajustes **TikTok** y **YouTube Shorts** generan el mismo MP4 H.264 vertical de 1080x1920 a la velocidad de fotogramas del proyecto (hasta 60 fps). **YouTube Shorts** usa las tasas de 1080p que publica YouTube: 12 Mbps a 60 fps u 8 Mbps a 30 fps, con audio AAC estéreo a 384 kbps. TikTok no publica una tasa de bits, así que **TikTok** usa 16 Mbps a 60 fps o 10 Mbps a 30 fps, elegidos por nosotros, con AAC a 128 kbps. Ambas plataformas vuelven a codificar cada subida.',
+          text: 'Los preajustes **TikTok** y **YouTube Shorts** generan el mismo MP4 H.264 a la velocidad de fotogramas del proyecto (hasta 60 fps): de 1080x1920 en un proyecto vertical y con la forma del propio proyecto en cualquier otro. **YouTube Shorts** usa las tasas de 1080p que publica YouTube: 12 Mbps a 60 fps u 8 Mbps a 30 fps, con audio AAC estéreo a 384 kbps. TikTok no publica una tasa de bits, así que **TikTok** usa 16 Mbps a 60 fps o 10 Mbps a 30 fps, elegidos por nosotros, con AAC a 128 kbps. Ambas plataformas vuelven a codificar cada subida. Para un vídeo vertical, empieza con un proyecto vertical de 1080x1920; el encuadre de la estabilización elige entonces la parte de la toma del dron que se conserva.',
         },
       ],
     },

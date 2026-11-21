@@ -1,7 +1,7 @@
 {
   "media": {
     "card": {
-      "aiCaptionsCount": "Numero di didascalie IA",
+      "aiCaptionsCount": "{{count}} didascalie IA",
       "analyzeWithAI": "Analizza con IA",
       "analyzingWithAI": "Analisi con IA in corso",
       "cancelInterpolation": "Annulla interpolazione",
@@ -35,11 +35,11 @@
       "transcribeFailed": "Trascrizione non riuscita",
       "transcribing": "Trascrizione in corso",
       "transcriptDeleteFailed": "Eliminazione della trascrizione non riuscita",
-      "transcriptDeleteFailedFor": "Impossibile eliminare la trascrizione di \"{{name}}\"",
+      "transcriptDeleteFailedFor": "Impossibile eliminare le trascrizioni di {{failed}} clip su {{total}}",
       "transcriptDeletedFor": "Trascrizione di \"{{name}}\" eliminata",
       "transcriptProgressAria": "Avanzamento della trascrizione",
       "transcriptReadyFor": "Trascrizione di \"{{name}}\" pronta",
-      "transcriptionFailedFor": "Trascrizione di \"{{name}}\" non riuscita",
+      "transcriptionFailedFor": "Trascrizione non riuscita per {{failed}} clip su {{total}}",
       "transcriptsDeleted": "Trascrizioni eliminate",
       "transcriptsReady": "Trascrizioni pronte",
       "menuUpscale": "Upscale",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "Avanzamento analisi IA",
       "allTypes": "Tutti i tipi",
-      "analyzingMultiple": "Analisi di più elementi",
+      "analyzingMultiple": "Analisi {{current}} di {{total}}…",
       "analyzingSingle": "Analisi di un elemento",
       "andJoiner": " e ",
       "assetsCount": "{{count}} risorse",
@@ -162,7 +162,7 @@
       "dismiss": "Chiudi",
       "dragDropUnsupported": "Trascinamento non supportato",
       "dropFilesHere": "Trascina qui i file",
-      "filesRejected": "File rifiutati",
+      "filesRejected": "Alcuni file non sono stati aggiunti.",
       "downloadingInterpolationModel": "Download del modello di interpolazione",
       "generateProxiesForSelected": "Genera proxy per {{count}} elementi selezionati",
       "generatingProxies": "Generazione dei proxy",
@@ -276,7 +276,7 @@
       "keepAsBroken": "Mantieni come non valide",
       "removeAll": "Rimuovi tutto",
       "select": "Seleziona",
-      "selectReplacement": "Seleziona sostituto",
+      "selectReplacement": "Seleziona un sostituto per “{{name}}”",
       "title": "Media mancanti"
     },
     "picker": {
@@ -321,11 +321,11 @@
       "video": "Video"
     },
     "unsupportedCodec": {
-      "bodyMultiple": "Alcuni file usano codec non supportati",
-      "bodySingle": "Questo file usa un codec non supportato",
+      "bodyMultiple": "{{count}} file usano codec che il browser non può decodificare. Potrebbero non essere riprodotti correttamente.",
+      "bodySingle": "Questo file usa un codec che il browser non può decodificare. Potrebbe non essere riprodotto correttamente.",
       "cancelImport": "Annulla importazione",
       "importAnyway": "Importa comunque",
-      "note": "Nota",
+      "note": "Convertili in MP4 (H.264/AAC) o WebM per una migliore compatibilità.",
       "title": "Codec non supportato"
     },
     "subclips": {

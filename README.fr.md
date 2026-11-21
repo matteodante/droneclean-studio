@@ -138,7 +138,7 @@ nécessite Google Chrome et FFmpeg).
 | `studio/web/` | Le serveur statique de l'éditeur web. |
 | `gyroflow/` | Un fork de [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0) ; `gyroflow/wasm/` compile son moteur pour l'éditeur. |
 
-Ce dépôt est publié par le processus de publication : chaque version est un unique commit, étiqueté `v0.1.9` pour
+Ce dépôt est publié par le processus de publication : chaque version est un unique commit, étiqueté `v0.1.10` pour
 celle-ci.
 
 ## Contribuer et sécurité

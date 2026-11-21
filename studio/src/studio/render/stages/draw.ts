@@ -32,6 +32,7 @@ import { withAnimatedFraming } from '@/studio/stabilization/framing-keyframes'
 import { timedStageAsync } from '@/studio/render/timings'
 import type { VideoItem } from '@/types/timeline'
 import type { StagedFrame } from './pipeline'
+import type { PreviewBox } from './preview-size'
 import { timelineFramePlan, type SourceFramePlan } from './plan'
 import { needsExactSourceFrame, needsSourceStages } from './predicates'
 
@@ -65,6 +66,16 @@ function framedAt(item: VideoItem, frame: number, rctx: ItemRenderContext): Vide
   return withAnimatedFraming(item, keyframes, frame - item.from)
 }
 
+/**
+ * The box a preview shows the clip's staged picture in (design 8.10): its transform's, in the canvas's pixels, which
+ * the picture is contained in. None in an export, and none for a clip with a corner pin, which may stretch the picture
+ * past its box.
+ */
+function previewBoxOf(item: VideoItem, box: { width: number; height: number }, rctx: ItemRenderContext): PreviewBox | undefined {
+  if (rctx.renderMode !== 'preview' || item.cornerPin !== undefined) return undefined
+  return { width: Math.abs(box.width), height: Math.abs(box.height) }
+}
+
 /** The clip's staged picture, or `null` when a preview cannot draw it at all */
 async function stagedPicture(
   item: VideoItem,
@@ -72,6 +83,7 @@ async function stagedPicture(
   rctx: ItemRenderContext,
   renderSpan: RenderTimelineSpan | undefined,
   sourceFrameOffset: number,
+  box: { width: number; height: number },
 ): Promise<StagedFrame | null> {
   const stages = rctx.stages
   const plan = timelineFramePlan(item, frame, rctx.fps, renderSpan, sourceFrameOffset)
@@ -86,7 +98,7 @@ async function stagedPicture(
   }
   if (!stages) return null
   try {
-    return await stages.render(framed, source)
+    return await stages.render(framed, source, previewBoxOf(item, box, rctx))
   } catch (error) {
     log.warn('a staged clip could not be drawn in the preview', {
       clip: item.id,
@@ -108,15 +120,17 @@ export async function resolveStagedParticipantSource(
   freeCutSource: () => Promise<ResolvedGpuMediaParticipantSource | null>,
 ): Promise<ResolvedGpuMediaParticipantSource | null> {
   const staged = stagesFromProvider(participant.item, rctx)
-    ? await stagedPicture(participant.item, frame, rctx, participant.renderSpan, 0)
+    ? await stagedPicture(participant.item, frame, rctx, participant.renderSpan, 0, participant.transform)
     : await stagedFreeCutPicture(participant, frame, rctx, freeCutSource)
   if (!staged) return null
+  // The size the picture stands for: the media pipeline reads the texture by its share of that size, so a preview's
+  // smaller texture (design 8.10) is placed, cropped and fitted exactly as the full-size one
   return {
     kind: 'staged',
     item: participant.item,
     texture: staged.texture,
-    sourceWidth: staged.width,
-    sourceHeight: staged.height,
+    sourceWidth: staged.natural.width,
+    sourceHeight: staged.natural.height,
   }
 }
 
@@ -196,7 +210,7 @@ export async function drawStagedVideoItem(
   sourceFrameOffset: number,
   renderSpan: RenderTimelineSpan | undefined,
 ): Promise<boolean> {
-  const staged = await stagedPicture(item, frame, rctx, renderSpan, sourceFrameOffset)
+  const staged = await stagedPicture(item, frame, rctx, renderSpan, sourceFrameOffset, transform)
   const device = staged ? await rctx.stages?.device() : null
   if (!staged || !device) return false
   if (preciseOutputActive(rctx.renderMode) && !eightBitClips.has(item.id)) {

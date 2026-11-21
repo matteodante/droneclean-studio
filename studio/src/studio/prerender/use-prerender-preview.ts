@@ -70,7 +70,11 @@ export function usePrerenderPreview(inputs: PrerenderHostInputs): boolean {
       }
     })
     const unsubscribeRanges = usePrerenderStore.subscribe((state, previous) => {
-      if (state.ranges !== previous.ranges) update()
+      if (state.ranges === previous.ranges) return
+      // Nothing rendered any more (Clear, an edit of every frame, another project): the player lets go of the
+      // decoders and the runs it holds now, or up to 1 GB of encoded frames stays alive until the next playback
+      if (state.ranges.length === 0) prerenderPlayer.reset()
+      update()
     })
     return () => {
       unsubscribePlayback()

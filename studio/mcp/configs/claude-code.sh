@@ -3,5 +3,5 @@
 #   APP="/Applications/DroneClean Studio.app/Contents/Resources/mcp/droneclean-mcp"
 #   claude mcp add droneclean -- "APP"
 #
-# The same server for Claude Desktop and OpenCode; the app needs
-# Settings → Agent access switched on once.
+# The same server for Claude Desktop and OpenCode. Agent access is on by default;
+# Settings → Agent access switches it off.

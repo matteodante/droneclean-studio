@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
-import type { SourceFrame, SourceFrameProvider } from '@/studio/render/frames/types'
+import type { FrameReduction, SourceFrame, SourceFrameProvider } from '@/studio/render/frames/types'
 import type { VideoItem } from '@/types/timeline'
 import type { ClipStageState } from './failure'
 import type { MotionBlurStage } from '@/studio/motion-blur/stage'
@@ -43,8 +43,14 @@ function fakeDevice() {
       return texture
     },
     createBuffer: () => ({ destroy: () => undefined }),
+    // The preview's frame reduction (design 8.10): one pass, logged as `reduce`
+    createShaderModule: () => ({}),
+    createRenderPipeline: () => ({ getBindGroupLayout: () => ({}) }),
+    createSampler: () => ({}),
+    createBindGroup: () => ({}),
     createCommandEncoder: () => ({
       copyTextureToTexture: () => log.push('copy'),
+      beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end: () => log.push('reduce') }),
       finish: () => ({}),
     }),
     queue: {
@@ -59,7 +65,7 @@ function fakeDevice() {
 function fakeProvider(log: string[]) {
   const source = { width: 320, height: 240, format: 'rgba16float', createView: () => ({ of: 'source' }) } as unknown as GPUTexture
   const provider = {
-    frameAt: vi.fn(async (_item: VideoItem, index: number): Promise<SourceFrame> => {
+    frameAt: vi.fn(async (_item: VideoItem, index: number, _reduce?: FrameReduction): Promise<SourceFrame> => {
       log.push(`frame ${index}`)
       return { texture: source, index, width: 320, height: 240, origin: 'webcodecs' }
     }),
@@ -881,6 +887,118 @@ describe('the vector motion blur (design 9.2)', () => {
 
     expect(vectorDestroyed).toHaveBeenCalledTimes(1)
     expect(textures.filter((texture) => texture.label === 'staged-neighbour').every((texture) => texture.destroyed)).toBe(true)
+  })
+})
+
+describe('a preview at the size it shows (design 8.10)', () => {
+  /** A box the stabilized 300x170 picture is shown at half its size in: level 2 */
+  const half = { width: 150, height: 85 }
+
+  it('reduces the decoded frame and every stage’s output to the box’s scale, and says the size it stands for', async () => {
+    const { pipeline, log, provider, textures } = setup('preview')
+    const staged = await pipeline.render(item({ stabilize: true, 'input-colour': true }), 12, half)
+
+    // The frame's pixels are the stabilized picture's: 320x240 to the stabilized picture's half, 320 / (2 * 320/300)
+    expect(log).toEqual([
+      'frame 12',
+      'reduce',
+      'submit',
+      'release',
+      'stabilize 12 150x113>150x85 rgba16float',
+      'input-colour 12 150x85>150x85 rgba16float',
+      'submit',
+    ])
+    expect(staged).toMatchObject({ kind: 'fresh', width: 150, height: 85, natural: { width: 300, height: 170 } })
+    // The provider's frame goes back as soon as it is reduced; the reduced one is the pipeline's
+    expect(provider.release).toHaveBeenCalledTimes(1)
+    expect(textures.filter((texture) => texture.label === 'reduced-source-frame').map((t) => `${t.width}x${t.height}`)).toEqual(['150x113'])
+  })
+
+  it('reduces nothing in an export, whatever box it is given', async () => {
+    const { pipeline, log } = setup('export')
+    const staged = await pipeline.render(item({ stabilize: true }), 12, half)
+
+    expect(log).toEqual(['frame 12', 'stabilize 12 320x240>300x170 rgba16float', 'submit', 'release'])
+    expect(staged).toMatchObject({ width: 300, height: 170, natural: { width: 300, height: 170 } })
+  })
+
+  it('reduces nothing with no box, or in a box as large as the picture', async () => {
+    const { pipeline, log } = setup('preview')
+    const clip = item({ stabilize: true })
+    await pipeline.render(clip, 1)
+    await pipeline.render(clip, 2, { width: 300, height: 170 })
+
+    expect(log).toEqual([
+      'frame 1', 'stabilize 1 320x240>300x170 rgba16float', 'submit', 'release',
+      'frame 2', 'stabilize 2 320x240>300x170 rgba16float', 'submit', 'release',
+    ])
+  })
+
+  it('keeps its sizes while the box changes inside a level, and changes them at the next level', async () => {
+    const { pipeline, log } = setup('preview')
+    const clip = item({ stabilize: true })
+    const first = await pipeline.render(clip, 1, half)
+    const second = await pipeline.render(clip, 2, { width: 140, height: 80 })
+    const third = await pipeline.render(clip, 3, { width: 100, height: 57 })
+
+    expect(second.texture).toBe(first.texture)
+    expect([first, second, third].map((frame) => `${frame.width}x${frame.height}`)).toEqual(['150x85', '150x85', '100x57'])
+    expect(log.filter((line) => line.startsWith('stabilize'))).toEqual([
+      'stabilize 1 150x113>150x85 rgba16float',
+      'stabilize 2 150x113>150x85 rgba16float',
+      'stabilize 3 100x75>100x57 rgba16float',
+    ])
+  })
+
+  it('gathers a blend from reduced frames, at the reduced size', async () => {
+    const { pipeline, gatherCalls, provider, log } = setup('preview')
+    const staged = await pipeline.render(item({ 'input-colour': true }), plan([8, 0.5], [9, 0.5]), { width: 160, height: 120 })
+
+    expect(gatherCalls).toEqual(['gather rgba16float 160x120'])
+    expect(log.filter((line) => line.startsWith('input-colour'))).toEqual([
+      'input-colour 8 160x120>160x120 rgba16float',
+      'input-colour 9 160x120>160x120 rgba16float',
+    ])
+    expect(staged).toMatchObject({ width: 160, height: 120, natural: { width: 320, height: 240 } })
+    expect(provider.release).toHaveBeenCalledTimes(2)
+  })
+
+  it('measures and interpolates an optical-flow frame between reduced frames', async () => {
+    const { pipeline, flowCalls, log } = setup('preview')
+    const between = { samples: [{ index: 8, weight: 0.5 }, { index: 9, weight: 0.5 }], flow: { phase: 0.5 } }
+    const staged = await pipeline.render(item({ stabilize: true }), between, half)
+
+    expect(flowCalls).toEqual(['flow rgba16float 150x113'])
+    expect(log).toContain('stabilize 8.5 150x113>150x85 rgba16float')
+    expect(staged).toMatchObject({ width: 150, height: 85, natural: { width: 300, height: 170 } })
+  })
+
+  it('takes a frame the provider already reduced as it is: no second reduction', async () => {
+    const { pipeline, log, provider, textures } = setup('preview')
+    const small = { width: 150, height: 113, format: 'rgba16float', createView: () => ({ of: 'small' }) } as unknown as GPUTexture
+    provider.frameAt.mockImplementation(async (_item, index, reduce) => {
+      log.push(`frame ${index}`)
+      // The reduction the pipeline asks for, of the file's size
+      expect(reduce?.({ width: 320, height: 240 })).toMatchObject({ width: 150, height: 113 })
+      return { texture: small, index, width: 150, height: 113, origin: 'webcodecs', natural: { width: 320, height: 240 } }
+    })
+    const staged = await pipeline.render(item({ stabilize: true }), 12, half)
+
+    expect(log).toEqual(['frame 12', 'stabilize 12 150x113>150x85 rgba16float', 'submit', 'release'])
+    expect(textures.some((texture) => texture.label === 'reduced-source-frame')).toBe(false)
+    expect(staged).toMatchObject({ width: 150, height: 85, natural: { width: 300, height: 170 } })
+  })
+
+  it('never reduces a frame the caller decoded (renderFrame), even after a render with a box', async () => {
+    const { pipeline, log } = setup('preview')
+    const clip = item({ 'input-colour': true })
+    await pipeline.render(clip, 1, { width: 160, height: 120 })
+    log.length = 0
+    const texture = { width: 320, height: 240, format: 'rgba16float' } as unknown as GPUTexture
+    const staged = await pipeline.renderFrame(clip, { texture, index: 6, width: 320, height: 240, origin: 'webcodecs' })
+
+    expect(log).toEqual(['input-colour 6 320x240>320x240 rgba16float', 'submit'])
+    expect(staged).toMatchObject({ width: 320, height: 240, natural: { width: 320, height: 240 } })
   })
 })
 

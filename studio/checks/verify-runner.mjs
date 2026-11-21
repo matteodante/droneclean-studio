@@ -51,6 +51,8 @@ export function buildSteps({ withQuick = true, fresh = false } = {}) {
   }
   steps.push({ id: 'unit', run: 'vp test run', needs: [], mb: 3700 })
   steps.push({ id: 'network', run: 'npm run check:network', needs: ['build'], mb: 1500 })
+  // The editor's own WebGPU passes on the real GPU (checks/gpu-passes.mjs): a shader that does not compile fails here
+  steps.push({ id: 'gpu-passes', run: 'npm run check:gpu-passes', needs: [], mb: 800 })
   steps.push({ id: 'desktop:check', run: 'npm run desktop:check', needs: [], mb: 300 })
   // workspace-lock-race.test.mjs starts two processes 3 ms apart; it failed ("Unexpected end of JSON input") when the
   // unit suite had the CPU, on 19 Nov 2026, so this step never runs beside `unit`

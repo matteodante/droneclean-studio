@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'ドローン映像: 補正、グレーディング、速度、共有',
   description:
-    'ジャイロによる手ぶれ補正とフレーミング、D-Log M プロファイル、ルックと空、イージング付きのスピードランプ、モーションブラーとなめらかなスローモーション、ビートマーカー、ワンクリックのスムーズ編集、Instagram リールの書き出し、エージェントアクセスを説明します。',
+    'ジャイロによる手ぶれ補正とフレーミング、D-Log M プロファイル、ルックと空、イージング付きのスピードランプ、モーションブラーとなめらかなスローモーション、ビートマーカー、ワンクリックのスムーズ編集、Instagram リール、TikTok、YouTube Shorts 向けの書き出し、エージェントアクセスを説明します。',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Instagram 向けに書き出す',
+      title: 'Instagram・TikTok・Shorts 向けに書き出す',
       blocks: [
         {
           kind: 'paragraph',
-          text: '**Instagram リール**プリセットは、Meta のリール仕様に従っています。プロジェクトのフレームレートの H.264 MP4、1080x1920（Instagram が表示するフレーム）、60 fps で 20 Mbps または 30 fps で 12 Mbps（Meta の最大 25 Mbps 以内）、128 kbps の AAC 音声、ファイルの先頭にインデックス、編集リストなしです。Instagram はアップロードのたびに再エンコードしますが、専用のフレームとサイズにしておけば、2回目のスケーリングを避けられます。',
+          text: '**Instagram リール**プリセットは、Meta のリール仕様に従っています。プロジェクトのフレームレートの H.264 MP4、60 fps で 20 Mbps または 30 fps で 12 Mbps（Meta の最大 25 Mbps 以内）、128 kbps の AAC 音声、ファイルの先頭にインデックス、編集リストなしです。縦向き（9:16）のプロジェクトではフレームが 1080x1920 になり、これが Instagram の表示するフレームです。それ以外のプロジェクトでは、プロジェクトの形を保ち（16:9 なら 1920x1080）、引き伸ばすことはありません。Instagram はアップロードのたびに再エンコードしますが、専用のフレームとサイズにしておけば、2回目のスケーリングを避けられます。',
         },
         {
           kind: 'paragraph',
-          text: '**TikTok** と **YouTube Shorts** のプリセットは、プロジェクトのフレームレート（最大 60 fps）で同じ縦型 1080x1920 の H.264 MP4 を作ります。**YouTube Shorts** は YouTube が公開している 1080p のビットレートを使います: 60 fps で 12 Mbps、30 fps で 8 Mbps、音声は AAC ステレオ 384 kbps です。TikTok はビットレートを公開していないため、**TikTok** は私たちが選んだ 60 fps で 16 Mbps、30 fps で 10 Mbps を使い、音声は AAC 128 kbps です。どちらのプラットフォームもアップロードをすべて再エンコードします。',
+          text: '**TikTok** と **YouTube Shorts** のプリセットは、プロジェクトのフレームレート（最大 60 fps）で同じ H.264 MP4 を作ります。縦向きのプロジェクトでは 1080x1920、それ以外ではプロジェクトそのままの形です。**YouTube Shorts** は YouTube が公開している 1080p のビットレートを使います: 60 fps で 12 Mbps、30 fps で 8 Mbps、音声は AAC ステレオ 384 kbps です。TikTok はビットレートを公開していないため、**TikTok** は私たちが選んだ 60 fps で 16 Mbps、30 fps で 10 Mbps を使い、音声は AAC 128 kbps です。どちらのプラットフォームもアップロードをすべて再エンコードします。縦向きの動画にするには、1080x1920 の縦向きプロジェクトから始めてください。手ぶれ補正のフレーミングが、ドローン映像のどの部分を残すかを決めます。',
         },
       ],
     },

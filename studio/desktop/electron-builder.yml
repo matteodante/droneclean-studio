@@ -15,6 +15,23 @@ directories:
   # "build/" folder, which studio/.gitignore would keep out of the repository.
   buildResources: resources
 
+# Runs before signing: removes the usage strings the app does not need from the macOS Info.plist
+afterPack: scripts/after-pack.cjs
+
+# Electron fuses (flipped at packaging): the packaged app ignores NODE_OPTIONS and `--inspect`, so a process that can
+# set an environment variable or a flag cannot run code inside it (review finding F3; src/main/launch-env.ts has the
+# same rule for DRONECLEAN_*). RunAsNode stays on: the MCP launcher runs under the app's own binary with
+# ELECTRON_RUN_AS_NODE=1. The asar fuses stay off while the builds are unsigned. The test build (`package:electron:test`)
+# turns the inspect arguments back on: Playwright drives the app's main process through `--inspect`, and with the fuse
+# off the e2e tests could not even launch it (21 Nov 2026).
+electronFuses:
+  runAsNode: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  # Flipping a fuse rewrites the binary, and macOS on Apple silicon kills a binary whose signature no longer matches
+  # at once: the test build, which skips signing, did not even start (21 Nov 2026). Re-signed ad hoc right after.
+  resetAdHocDarwinSignature: true
+
 files:
   - out/**/*
   - package.json
@@ -51,6 +68,8 @@ mac:
   category: public.app-category.video
   # Without this string macOS never shows the microphone prompt: the voice-over recording would wait for ever
   # (src/main/microphone.ts asks, and the page says what to do when the answer is no).
+  # Electron's own Info.plist also carries camera, Bluetooth and audio-capture strings ("This app needs access to the
+  # camera"); the app uses none of them, so scripts/after-pack.cjs removes them before the bundle is signed.
   extendInfo:
     NSMicrophoneUsageDescription: DroneClean Studio records your voice-over from the microphone, only when you press Record.
   icon: resources/icon.icns

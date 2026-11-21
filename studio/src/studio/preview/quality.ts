@@ -1,8 +1,8 @@
 // The preview quality (the program monitor's "Playback resolution", as in Premiere: Full, 1/2, 1/4). The setting is
 // FreeCut's own (`usePlaybackStore.previewQuality`, kept in the browser's storage for the whole app); here it scales
 // the size the preview renders at, so a lower quality draws fewer pixels: the composite, the effects and the
-// pre-render all run at the smaller size. The stages that work on the source frame (stabilization, optical flow)
-// keep the source's size; proxies are the switch that makes those smaller.
+// pre-render all run at the smaller size, and so do the stages that work on the source frame (stabilization, optical
+// flow, motion blur), which the preview draws at the size each clip is shown (design 8.10, `render/stages/preview-size.ts`).
 
 /** The qualities the menu offers, in its order */
 export const PREVIEW_QUALITY_LEVELS = [1, 0.5, 0.25] as const

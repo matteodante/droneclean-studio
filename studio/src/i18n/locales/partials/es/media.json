@@ -35,11 +35,11 @@
       "transcribeFailed": "No se pudo transcribir",
       "transcribing": "Transcribiendo",
       "transcriptDeleteFailed": "No se pudo eliminar la transcripción",
-      "transcriptDeleteFailedFor": "No se pudo eliminar la transcripción de \"{{name}}\"",
+      "transcriptDeleteFailedFor": "No se pudieron eliminar las transcripciones de {{failed}} de {{total}} clips",
       "transcriptDeletedFor": "Transcripción de \"{{name}}\" eliminada",
       "transcriptProgressAria": "Progreso de la transcripción",
       "transcriptReadyFor": "Transcripción lista para \"{{name}}\"",
-      "transcriptionFailedFor": "Falló la transcripción de \"{{name}}\"",
+      "transcriptionFailedFor": "La transcripción falló en {{failed}} de {{total}} clips",
       "transcriptsDeleted": "Transcripciones eliminadas",
       "transcriptsReady": "Transcripciones listas",
       "menuUpscale": "Escalar",
@@ -140,7 +140,7 @@
     "library": {
       "aiAnalysisProgress": "Análisis con IA",
       "allTypes": "Todos los tipos",
-      "analyzingMultiple": "Analizando {{count}} clips…",
+      "analyzingMultiple": "Analizando {{current}} de {{total}}…",
       "analyzingSingle": "Analizando…",
       "andJoiner": " y ",
       "assetsCount": "{{count}} recursos",
@@ -173,12 +173,12 @@
       "gridItemSize": "Tamaño de miniatura",
       "groupAudio": "Audio",
       "groupGifs": "GIF",
-      "groupImages": "Imagenes",
+      "groupImages": "Imágenes",
       "groupLottie": "Lottie",
-      "groupVideos": "Videos",
+      "groupVideos": "Vídeos",
       "import": "Importar",
       "importFromUrlDescription": "Importa un archivo multimedia desde una URL directa.",
-      "importFromUrlHint": "Pega un enlace directo a un archivo de video, audio, imagen o GIF.",
+      "importFromUrlHint": "Pega un enlace directo a un archivo de vídeo, audio, imagen o GIF.",
       "importFromUrlTitle": "Importar desde URL",
       "importMediaFiles": "Importar archivos multimedia",
       "importMediaFromUrl": "Importar multimedia desde URL",
@@ -206,7 +206,7 @@
       "showMediaLibrary": "Mostrar biblioteca de medios",
       "sortDate": "Ordenar por fecha",
       "sortName": "Ordenar por nombre",
-      "sortSize": "Ordenar por tamano",
+      "sortSize": "Ordenar por tamaño",
       "transcriptGenerationProgress": "Progreso de la transcripción",
       "url": "URL",
       "viewMissingMedia": "Ver medios faltantes",
@@ -214,7 +214,7 @@
       "checkingWorkspaceHealthShort": "Comprobando",
       "allShort": "TODO",
       "typeShort": {
-        "video": "VIDEO",
+        "video": "VÍDEO",
         "audio": "AUDIO",
         "image": "IMAGEN",
         "lottie": "LOTTIE"
@@ -222,7 +222,7 @@
       "sortShort": {
         "name": "NOMBRE",
         "date": "FECHA",
-        "size": "TAMANO"
+        "size": "TAMAÑO"
       },
       "missingCount_one": "{{count}} faltante",
       "missingCount_other": "{{count}} faltantes",
@@ -318,7 +318,7 @@
       "audio": "Audio",
       "image": "Imagen",
       "lottie": "Lottie",
-      "video": "Video"
+      "video": "Vídeo"
     },
     "unsupportedCodec": {
       "bodyMultiple": "{{count}} archivos usan códecs que tu navegador no puede decodificar. Es posible que no se reproduzcan correctamente.",

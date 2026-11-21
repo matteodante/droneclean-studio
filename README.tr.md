@@ -134,7 +134,7 @@ FFmpeg gerekir).
 | `studio/web/` | Web düzenleyicisinin statik sunucusu. |
 | `gyroflow/` | [Gyroflow](https://github.com/gyroflow/gyroflow)'un (GPL-3.0) bir fork'u; `gyroflow/wasm/` onun motorunu düzenleyici için derler. |
 
-Bu depo sürüm süreci tarafından yayımlanır: her sürüm tek bir commit'tir ve bu sürüm için etiketi `v0.1.9`'dır.
+Bu depo sürüm süreci tarafından yayımlanır: her sürüm tek bir commit'tir ve bu sürüm için etiketi `v0.1.10`'dır.
 
 ## Katkı ve güvenlik
 

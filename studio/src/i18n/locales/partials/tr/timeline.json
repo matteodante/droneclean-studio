@@ -37,14 +37,14 @@
     },
     "captions": {
       "addedFromTranscript": "Transkriptten eklendi",
-      "addedWithModel": "{{model}} ile eklendi",
+      "addedWithModel": "Model ile eklendi",
       "autoFailed": "\"{{clip}}\" için transkript altyazıları eklenemedi.",
       "failedGenerateSegment": "Segment oluşturulamadı",
       "failedUpdateSegment": "Segment güncellenemedi",
-      "refreshedWithModel": "{{model}} ile yenilendi",
+      "refreshedWithModel": "Model ile yenilendi",
       "removedFromSegment": "Segmentten kaldırıldı",
       "updatedFromTranscript": "Transkriptten güncellendi",
-      "updatedWithModel": "{{model}} ile güncellendi"
+      "updatedWithModel": "Model ile güncellendi"
     },
     "clipIndicators": {
       "hasKeyframes": "Ana kareler var",
@@ -308,7 +308,7 @@
     "reverseConform": {
       "cancellingDescription": "Ters oynatma hazırlığı iptal ediliyor.",
       "couldNotPrepare": "Ters oynatma hazırlanamadı",
-      "progressDescription": "Medya ters oynatma için hazırlanıyor.",
+      "progressDescription": "{{total}} klipten {{current}}. hazırlanıyor…",
       "titleCancelling": "İptal ediliyor",
       "titleFailed": "Hazırlama başarısız",
       "titlePreparing": "Ters oynatma hazırlanıyor"

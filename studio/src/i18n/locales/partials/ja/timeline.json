@@ -312,7 +312,7 @@
     "reverseConform": {
       "cancellingDescription": "キャンセル中...",
       "couldNotPrepare": "準備できませんでした",
-      "progressDescription": "処理中...",
+      "progressDescription": "クリップ {{current}} / {{total}} を準備中…",
       "titleCancelling": "キャンセル中",
       "titleFailed": "失敗しました",
       "titlePreparing": "準備中"

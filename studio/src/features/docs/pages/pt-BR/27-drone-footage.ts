@@ -5,7 +5,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Filmagens de drone: estabilizar, corrigir cor, acelerar, compartilhar',
   description:
-    'Estabilização por giroscópio e enquadramento, o perfil D-Log M, looks e o céu, rampas de velocidade com suavização, desfoque de movimento e câmera lenta suave, marcadores de batida, a edição suave em um clique, a exportação em Reel do Instagram e o acesso de agentes.',
+    'Estabilização por giroscópio e enquadramento, o perfil D-Log M, looks e o céu, rampas de velocidade com suavização, desfoque de movimento e câmera lenta suave, marcadores de batida, a edição suave em um clique, a exportação para Reels do Instagram, TikTok e YouTube Shorts e o acesso de agentes.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -113,15 +113,15 @@ const page = {
       ],
     },
     {
-      title: 'Exportar para o Instagram',
+      title: 'Exportar para Instagram, TikTok e Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'A predefinição **Reel do Instagram** segue a especificação de Reels da Meta: MP4 H.264 na taxa de quadros do projeto, 1080x1920 (o quadro que o Instagram exibe), 20 Mbps a 60 fps ou 12 Mbps a 30 fps, abaixo do máximo de 25 Mbps da Meta, com som AAC a 128 kbps, o índice no início do arquivo e sem lista de edição. O Instagram recodifica todo upload; entregar a ele o quadro e o tamanho próprios evita uma segunda mudança de escala.',
+          text: 'A predefinição **Reel do Instagram** segue a especificação de Reels da Meta: MP4 H.264 na taxa de quadros do projeto, 20 Mbps a 60 fps ou 12 Mbps a 30 fps, abaixo do máximo de 25 Mbps da Meta, com som AAC a 128 kbps, o índice no início do arquivo e sem lista de edição. Em um projeto vertical (9:16), o quadro é de 1080x1920, o que o Instagram exibe; em qualquer outro projeto, a predefinição mantém a forma do projeto (1920x1080 em um de 16:9) e nunca a estica. O Instagram recodifica todo upload; entregar a ele o quadro e o tamanho próprios evita uma segunda mudança de escala.',
         },
         {
           kind: 'paragraph',
-          text: 'As predefinições **TikTok** e **YouTube Shorts** geram o mesmo MP4 H.264 vertical em 1080x1920 na taxa de quadros do projeto (até 60 fps). **YouTube Shorts** usa as taxas de 1080p publicadas pelo YouTube: 12 Mbps a 60 fps ou 8 Mbps a 30 fps, com áudio AAC estéreo a 384 kbps. O TikTok não publica uma taxa de bits, então **TikTok** usa 16 Mbps a 60 fps ou 10 Mbps a 30 fps, escolhidos por nós, com AAC a 128 kbps. As duas plataformas recodificam todo envio.',
+          text: 'As predefinições **TikTok** e **YouTube Shorts** geram o mesmo MP4 H.264 na taxa de quadros do projeto (até 60 fps): em 1080x1920 em um projeto vertical e na própria forma do projeto em qualquer outro. **YouTube Shorts** usa as taxas de 1080p publicadas pelo YouTube: 12 Mbps a 60 fps ou 8 Mbps a 30 fps, com áudio AAC estéreo a 384 kbps. O TikTok não publica uma taxa de bits, então **TikTok** usa 16 Mbps a 60 fps ou 10 Mbps a 30 fps, escolhidos por nós, com AAC a 128 kbps. As duas plataformas recodificam todo envio. Para um vídeo vertical, comece de um projeto vertical de 1080x1920; o enquadramento da estabilização escolhe então a parte da imagem do drone que fica.',
         },
       ],
     },

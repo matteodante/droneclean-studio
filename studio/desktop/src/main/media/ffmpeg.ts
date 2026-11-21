@@ -559,9 +559,19 @@ export function configureFfmpegOverride(allow: boolean): void {
 }
 let cachedCapabilities: Promise<NativeEngineCapabilities> | undefined
 
-/** The binaries of this run, resolved once; null when the machine has none. */
+/**
+ * What to tell the user when there is no FFmpeg. `DRONECLEAN_FFMPEG` is only read by an unpackaged run
+ * (`configureFfmpegOverride`), so an installed app does not offer it: its FFmpeg is part of the install.
+ */
+export function missingFfmpegMessage(overrideAllowed: boolean = allowEnvOverride): string {
+  return overrideAllowed
+    ? 'no FFmpeg binary: set DRONECLEAN_FFMPEG to one, or add ffmpeg to PATH'
+    : 'the FFmpeg that comes with DroneClean Studio is missing or cannot be run: reinstall the app'
+}
+
+/** The binaries of this run, resolved once they are found; null (not remembered) when the machine has none. */
 export function ffmpegLocation(): FfmpegLocation | null {
-  if (cachedLocation === undefined) {
+  if (cachedLocation === undefined || cachedLocation === null) {
     cachedLocation = resolveFfmpegLocation({
       env: process.env,
       resourcesPath: process.resourcesPath,
@@ -578,16 +588,27 @@ export function ffmpegLocation(): FfmpegLocation | null {
  * is `available: false` and the message says how to point the shell at one.
  */
 export function ffmpegCapabilities(): Promise<NativeEngineCapabilities> {
-  cachedCapabilities ??= probeCapabilities()
+  if (cachedCapabilities === undefined) {
+    const probe = probeCapabilities()
+    cachedCapabilities = probe
+    // A probe that found nothing usable (a slow first start, a binary still being scanned) is not remembered: the
+    // next call asks again instead of leaving native export off until the app restarts.
+    void probe.then(
+      (result) => {
+        if (!result.available && cachedCapabilities === probe) cachedCapabilities = undefined
+      },
+      () => {
+        if (cachedCapabilities === probe) cachedCapabilities = undefined
+      },
+    )
+  }
   return cachedCapabilities
 }
 
 async function probeCapabilities(): Promise<NativeEngineCapabilities> {
   const location = ffmpegLocation()
   if (location === null) {
-    return unavailableCapabilities(
-      'no FFmpeg binary: set DRONECLEAN_FFMPEG to one, or add ffmpeg to PATH',
-    )
+    return unavailableCapabilities(missingFfmpegMessage())
   }
   try {
     const [version, decoders, encoders, hwaccels] = await Promise.all([

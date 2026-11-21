@@ -159,16 +159,19 @@ function halfToFloat(half: number): number {
 
 const BYTES_PER_PIXEL: Record<string, number> = { rgba8unorm: 4, rgba16float: 8, rgba32float: 16 }
 
-function inputTexture(gpuDevice: GPUDevice): GPUTexture {
-  const [width, height] = opened().input
+function inputTexture(gpuDevice: GPUDevice, factor = 1): GPUTexture {
+  const [fullWidth, fullHeight] = opened().input
+  const width = fullWidth / factor
+  const height = fullHeight / factor
   const texture = gpuDevice.createTexture({
     size: { width, height },
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
   })
+  const bytes = factor === 1 ? getFrameBytes() : boxReduce(getFrameBytes(), fullWidth, fullHeight, factor)
   gpuDevice.queue.writeTexture(
     { texture },
-    getFrameBytes(),
+    bytes,
     { bytesPerRow: width * 4, rowsPerImage: height },
     {
       width,
@@ -176,6 +179,30 @@ function inputTexture(gpuDevice: GPUDevice): GPUTexture {
     },
   )
   return texture
+}
+
+/** An RGBA8 picture with each `factor` x `factor` block averaged (a whole factor of both sides), as a preview reduces */
+function boxReduce(rgba: Uint8Array, width: number, height: number, factor: number): Uint8Array {
+  if (width % factor !== 0 || height % factor !== 0) {
+    throw new Error(`a ${width}x${height} picture is not a whole number of ${factor}-pixel blocks`)
+  }
+  const outWidth = width / factor
+  const outHeight = height / factor
+  const out = new Uint8Array(outWidth * outHeight * 4)
+  const area = factor * factor
+  for (let y = 0; y < outHeight; y++) {
+    for (let x = 0; x < outWidth; x++) {
+      for (let channel = 0; channel < 4; channel++) {
+        let sum = 0
+        for (let dy = 0; dy < factor; dy++) {
+          const row = (y * factor + dy) * width
+          for (let dx = 0; dx < factor; dx++) sum += rgba[(row + x * factor + dx) * 4 + channel] ?? 0
+        }
+        out[(y * outWidth + x) * 4 + channel] = Math.round(sum / area)
+      }
+    }
+  }
+  return out
 }
 
 /** One frame through the stage, read back and turned into the 8-bit RGBA the comparison is on */
@@ -268,10 +295,68 @@ async function timeOnGpu(
   return { msPerFrame, frames }
 }
 
+/**
+ * The stage drawing the frame at a `factor`-th of the stabilized picture's size (design 8.10, the preview's reduced
+ * stages): from the full frame, or from the frame box-reduced by the same factor as the preview reduces it, into an
+ * `rgba16float` texture written through Gyroflow's output rect. Compared with the CPU warp box-reduced by the factor:
+ * what the preview would show of the full-size picture. Also its cost, 20 draws back to back.
+ */
+async function warpReduced(factor: number, reducedInput: boolean): Promise<Comparison & { msPerFrame: number; size: string }> {
+  const { cpu } = kept
+  if (!cpu) throw new Error('run the CPU warp first')
+  const gpuDevice = await gpu()
+  const stage = await stageFor('rgba16float')
+  const [fullWidth, fullHeight] = opened().output
+  const width = fullWidth / factor
+  const height = fullHeight / factor
+  const input = inputTexture(gpuDevice, reducedInput ? factor : 1)
+  const target = gpuDevice.createTexture({
+    size: { width, height },
+    format: 'rgba16float',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+  })
+  const draw = (): void => {
+    const encoder = gpuDevice.createCommandEncoder()
+    stage.warp(encoder, input, target, frameData())
+    gpuDevice.queue.submit([encoder.finish()])
+  }
+  draw()
+  await gpuDevice.queue.onSubmittedWorkDone()
+  const t0 = performance.now()
+  for (let i = 0; i < 20; i++) draw()
+  await gpuDevice.queue.onSubmittedWorkDone()
+  const msPerFrame = (performance.now() - t0) / 20
+
+  const bytesPerRow = width * 8
+  const readback = gpuDevice.createBuffer({
+    size: bytesPerRow * height,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  })
+  const copy = gpuDevice.createCommandEncoder()
+  copy.copyTextureToBuffer({ texture: target }, { buffer: readback, bytesPerRow, rowsPerImage: height }, { width, height })
+  gpuDevice.queue.submit([copy.finish()])
+  await readback.mapAsync(GPUMapMode.READ)
+  const halves = new Uint16Array(readback.getMappedRange().slice(0))
+  readback.unmap()
+  const drawn = new Uint8Array(width * height * 4)
+  for (let i = 0; i < drawn.length; i++) drawn[i] = Math.max(0, Math.min(255, Math.round(halfToFloat(halves[i] ?? 0) * 255)))
+  target.destroy()
+  input.destroy()
+  readback.destroy()
+  return { ...comparePictures(boxReduce(cpu, fullWidth, fullHeight, factor), drawn, width, height), msPerFrame, size: `${width}x${height}` }
+}
+
 /** PSNR of the last frame the stage drew against the last CPU warp, over R, G and B of every pixel */
 function compare(): Comparison {
   const { cpu, last, width, height } = kept
   if (!cpu || !last) throw new Error('warp both frames first')
+  return comparePictures(cpu, last, width, height)
+}
+
+/** PSNR of `picture` against `reference`, over R, G and B of every pixel */
+function comparePictures(reference: Uint8Array, picture: Uint8Array, width: number, height: number): Comparison {
+  const cpu = reference
+  const last = picture
   let squares = 0
   let max = 0
   let differ = 0
@@ -400,6 +485,7 @@ const probe = {
   },
 
   warpWithStage,
+  warpReduced,
   timeOnGpu,
   compare,
 

@@ -76,6 +76,9 @@ export function fingerprintInputFor(
       height: input.height,
       backgroundColor: input.backgroundColor ?? null,
       previewQuality,
+      // The size the frames are drawn at follows the player's size for a large project (preview-render-size.ts):
+      // frames drawn at another size are stale, or they play back soft after the window is resized
+      renderSize: [host.renderSize.width, host.renderSize.height],
       useProxy,
       renderText: host.renderText,
       project: metadata

@@ -6,11 +6,14 @@
  * `mapRequestUrl` decides what a request means and `resolveInsideDist` turns that
  * into a file of `dist/`; `parseMediaRoute` claims the media route first, so an
  * id is looked up in `main/media.ts`'s allow-list instead of in `dist/`. This
- * module adds the isolation headers, the streams and the HTTP answers.
+ * module adds the isolation headers, the streams and the HTTP answers, and puts
+ * the Content-Security-Policy (`content-security-policy.ts`) on every response
+ * of the scheme, in the one place they all pass.
  */
 import { ipcMain, protocol } from 'electron'
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
+import { withContentSecurityPolicy } from './content-security-policy'
 import { resolveInsideDist } from './dist-files'
 import {
   MEDIA_PATH_ALLOW_CHANNEL,
@@ -86,14 +89,16 @@ export function registerAppProtocol(distDir: string): MediaPathAccess {
   if (!fs.existsSync(distDir)) {
     console.error(`[desktop] the built editor is missing at ${distDir}; run "npm run build" in studio/desktop`)
   }
-  protocol.handle(APP_SCHEME, (request) =>
-    serve(distDir, media, request).catch((error: unknown) => {
-      console.error('[desktop] serving', request.url, 'failed:', error)
-      return new Response('Internal error', {
-        status: 500,
-        headers: responseHeaders('text/plain; charset=utf-8'),
-      })
-    }),
+  protocol.handle(APP_SCHEME, async (request) =>
+    withContentSecurityPolicy(
+      await serve(distDir, media, request).catch((error: unknown) => {
+        console.error('[desktop] serving', request.url, 'failed:', error)
+        return new Response('Internal error', {
+          status: 500,
+          headers: responseHeaders('text/plain; charset=utf-8'),
+        })
+      }),
+    ),
   )
   return media
 }

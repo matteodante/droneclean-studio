@@ -82,6 +82,18 @@ describe('parseLookText', () => {
     expect(result).toEqual({ ok: false, failure: { code: 'too-large', size: 66 } })
   })
 
+  it('reads 0…1 however the exporter writes it: 0 1, 0.0 1.0, 0.000000 1.000000', () => {
+    for (const range of ['0 1', '0.0 1.0', '0.000000 1.000000', '0.0 1']) {
+      const text = [`LUT_3D_INPUT_RANGE ${range}`, ...cube2(IDENTITY_RED_FASTEST).split('\n')].join('\n')
+      expect(parseLookText(text), range).toMatchObject({ ok: true })
+    }
+  })
+
+  it('reports a range whose values are not numbers', () => {
+    const text = ['LUT_3D_INPUT_RANGE 0 one', ...cube2(IDENTITY_RED_FASTEST).split('\n')].join('\n')
+    expect(parseLookText(text)).toMatchObject({ ok: false, failure: { code: 'invalid' } })
+  })
+
   it('refuses an input range other than 0…1 instead of reading it as 0…1', () => {
     const text = ['LUT_3D_INPUT_RANGE 0 2', ...cube2(IDENTITY_RED_FASTEST).split('\n')].join('\n')
 

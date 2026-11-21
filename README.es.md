@@ -136,7 +136,7 @@ En `studio/`, `npm run check:quick` ejecuta las comprobaciones rápidas y `npm r
 | `studio/web/` | El servidor estático del editor web. |
 | `gyroflow/` | Un fork de [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` compila su motor para el editor. |
 
-Este repositorio lo publica el proceso de lanzamiento: cada versión es un único commit, con la etiqueta `v0.1.9`
+Este repositorio lo publica el proceso de lanzamiento: cada versión es un único commit, con la etiqueta `v0.1.10`
 para esta.
 
 ## Contribuir y seguridad

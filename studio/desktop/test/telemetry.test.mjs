@@ -159,7 +159,7 @@ test('the page, the main process and the launcher name one Sentry project, one P
 })
 
 const SCRUB_SAMPLES = [
-  'ENOENT: /Volumes/SSD/Avata 2 - 15 novembre 2026/DJI_0001.MP4 missing',
+  'ENOENT: /Volumes/My Drive/Flights - March 2026/DJI_0001.MP4 missing',
   'failed on "DJI_20261115124704_0020_D.MP4"',
   'C:\\Users\\Ann Lee\\Videos\\clip.mov is busy',
   'at file:///home/ann/x.js',

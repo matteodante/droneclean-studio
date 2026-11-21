@@ -75,7 +75,7 @@
     "form": {
       "createTitle": "Crear nuevo proyecto",
       "editTitle": "Editar proyecto",
-      "createSubtitle": "Configura tu espacio de edición de video",
+      "createSubtitle": "Configura tu espacio de edición de vídeo",
       "editSubtitle": "Actualiza los ajustes de tu proyecto",
       "projectDetails": "Detalles del proyecto",
       "projectName": "Nombre del proyecto",
@@ -113,7 +113,7 @@
       "deleteN_one": "Eliminar {{count}}",
       "deleteN_other": "Eliminar {{count}}",
       "welcomeTitle": "Te damos la bienvenida a DroneClean Studio",
-      "welcomeDescription": "Empieza creando tu primer proyecto de video. Elige la resolución, la frecuencia de fotogramas y empieza a editar.",
+      "welcomeDescription": "Empieza creando tu primer proyecto de vídeo. Elige la resolución, la frecuencia de fotogramas y empieza a editar.",
       "noResultsTitle": "No se encontraron proyectos",
       "noResultsDescription": "No encontramos ningún proyecto que coincida con tu búsqueda. Prueba a ajustar los filtros o los términos de búsqueda.",
       "projectCount_one": "{{count}} proyecto",
@@ -433,7 +433,7 @@
           "insertEdit": "Edición de inserción",
           "overwriteEdit": "Edición de sobrescritura",
           "saveProject": "Guardar proyecto",
-          "exportVideo": "Exportar video",
+          "exportVideo": "Exportar vídeo",
           "openSceneBrowser": "Abrir el explorador de escenas (buscar subtítulos de IA)",
           "animateWorkspace": "Cambiar al espacio de trabajo de Animación"
         },

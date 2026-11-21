@@ -136,7 +136,7 @@ Google Chrome e do FFmpeg).
 | `studio/web/` | O servidor estático do editor web. |
 | `gyroflow/` | Um fork do [Gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0); `gyroflow/wasm/` compila o motor dele para o editor. |
 
-Este repositório é publicado pelo processo de lançamento: cada versão é um único commit, com a tag `v0.1.9` para
+Este repositório é publicado pelo processo de lançamento: cada versão é um único commit, com a tag `v0.1.10` para
 esta.
 
 ## Contribuição e segurança

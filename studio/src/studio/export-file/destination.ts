@@ -10,6 +10,7 @@
  * - **Neither:** `unsupported`, and the export keeps its old route (a scratch file in the browser's
  *   private storage, then a download).
  */
+import { i18n } from '@/i18n'
 import { getDesktopBridge } from '@/studio/desktop/bridge'
 import { openDestination, type ExportOutputDestination } from './writable'
 import type { ExportFileBridge } from './wire'
@@ -96,7 +97,11 @@ async function chooseInDesktopShell(
   extension: string,
   native: true | undefined,
 ): Promise<ExportDestinationChoice> {
-  const answer = await shell.choose({ suggestedName, extension, ...(native === true ? { native } : {}) })
+  const answer = await shell.choose({
+    suggestedName,
+    extension,
+    title: i18n.t('export.dialog.titleSettings', { defaultValue: 'Export' }),
+    ...(native === true ? { native } : {}) })
   if (!answer.ok) throw new Error(answer.message)
   if (answer.value === null) return { status: 'declined' }
   const { id, path } = answer.value

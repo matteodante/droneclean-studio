@@ -39,6 +39,7 @@ import { EXPORT_FILE_SCHEME_PRIVILEGES, registerExportFileProtocol } from './exp
 import { NATIVE_ENCODE_SCHEME_PRIVILEGES, registerNativeEncodeProtocol } from './media/encode-protocol'
 import { NATIVE_FRAME_SCHEME_PRIVILEGES, registerNativeFrameProtocol } from './media/frame-protocol'
 import { configureFfmpegOverride } from './media/ffmpeg'
+import { decideExternalLink, isGuideUrl } from './external-links'
 import { decidePermissionCheck, decidePermissionRequest } from './permissions'
 import { resolveLaunchEnvironment } from './launch-env'
 import { APP_HOST, APP_SCHEME, APP_URL } from './protocol'
@@ -248,9 +249,18 @@ function createWindow(hidden = false): BrowserWindow {
     if (mainWindow === window) mainWindow = null
   })
 
-  // Links leave the app: https in the system browser, everything else is refused.
+  // Links leave the app: an https page of a host the editor links to opens in the system browser
+  // (`external-links.ts`); the user guide, which the toolbar opens "in a new tab", opens in this window, as the
+  // workspace splash's guide links do (its "Open Studio" leads back); anything else is dropped and the log says why.
+  // No second window of the app is ever opened.
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:')) void shell.openExternal(url)
+    if (isGuideUrl(url, DEV_URL)) {
+      void window.loadURL(url)
+      return { action: 'deny' }
+    }
+    const link = decideExternalLink(url)
+    if (link.open) void shell.openExternal(link.url)
+    else console.warn(`[desktop] a link was not opened: ${link.reason}`)
     return { action: 'deny' }
   })
 
@@ -306,7 +316,7 @@ if (!app.requestSingleInstanceLock()) {
     installMicrophoneIpc(systemPreferences)
     installPermissionPolicy(session.defaultSession)
     installAgentAccessPreload(session.defaultSession)
-    installWorkspaceOwnerLock(session.defaultSession)
+    installWorkspaceOwnerLock(session.defaultSession, DEV_URL)
 
     // The agent access and its IPC come first, and the window after them: the
     // page can call the IPC as soon as it loads, and anything awaited between

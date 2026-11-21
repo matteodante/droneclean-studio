@@ -7,7 +7,7 @@ const page = {
   slug: 'drone-footage',
   title: 'Drohnenaufnahmen: stabilisieren, graden, beschleunigen, teilen',
   description:
-    'Gyro-Stabilisierung und Bildausschnitt, das Profil D-Log M, Looks und der Himmel, Geschwindigkeitsrampen mit Easing, Bewegungsunschärfe und flüssige Zeitlupe, Beat-Marker, der weiche Schnitt mit einem Klick, der Export als Instagram Reel und der Agenten-Zugriff.',
+    'Gyro-Stabilisierung und Bildausschnitt, das Profil D-Log M, Looks und der Himmel, Geschwindigkeitsrampen mit Easing, Bewegungsunschärfe und flüssige Zeitlupe, Beat-Marker, der weiche Schnitt mit einem Klick, der Export für Instagram Reels, TikTok und YouTube Shorts und der Agenten-Zugriff.',
   category: 'Creative Tools',
   related: ['effects-color', 'keyframes', 'export', 'properties'],
   sections: [
@@ -115,15 +115,15 @@ const page = {
       ],
     },
     {
-      title: 'Export für Instagram',
+      title: 'Export für Instagram, TikTok und Shorts',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Die Vorgabe **Instagram Reel** folgt der Reel-Spezifikation von Meta: H.264-MP4 mit der Bildrate des Projekts, 1080x1920 (das Bild, das Instagram zeigt), 20 Mbit/s bei 60 fps oder 12 Mbit/s bei 30 fps, unter dem Maximum von 25 Mbit/s bei Meta, mit AAC-Ton bei 128 kbit/s, dem Index am Dateianfang und ohne Edit List. Instagram codiert jeden Upload neu; wenn du ihm sein eigenes Bild und seine eigene Größe gibst, vermeidest du eine zweite Skalierung.',
+          text: 'Die Vorgabe **Instagram Reel** folgt der Reel-Spezifikation von Meta: H.264-MP4 mit der Bildrate des Projekts, 20 Mbit/s bei 60 fps oder 12 Mbit/s bei 30 fps, unter dem Maximum von 25 Mbit/s bei Meta, mit AAC-Ton bei 128 kbit/s, dem Index am Dateianfang und ohne Edit List. In einem Hochformat-Projekt (9:16) ist das Bild 1080x1920, das Bild, das Instagram zeigt; in jedem anderen Projekt behält die Vorgabe die Form des Projekts (1920x1080 bei 16:9) und streckt sie nie. Instagram codiert jeden Upload neu; wenn du ihm sein eigenes Bild und seine eigene Größe gibst, vermeidest du eine zweite Skalierung.',
         },
         {
           kind: 'paragraph',
-          text: 'Die Voreinstellungen **TikTok** und **YouTube Shorts** liefern dasselbe vertikale H.264-MP4 in 1080x1920 mit der Bildrate des Projekts (bis 60 fps). **YouTube Shorts** nutzt die von YouTube veröffentlichten 1080p-Raten: 12 Mbit/s bei 60 fps oder 8 Mbit/s bei 30 fps, mit AAC-Stereo bei 384 kbit/s. TikTok veröffentlicht keine Bitrate, deshalb nutzt **TikTok** 16 Mbit/s bei 60 fps oder 10 Mbit/s bei 30 fps, von uns gewählt, mit AAC bei 128 kbit/s. Beide Plattformen kodieren jeden Upload neu.',
+          text: 'Die Voreinstellungen **TikTok** und **YouTube Shorts** liefern dasselbe H.264-MP4 mit der Bildrate des Projekts (bis 60 fps): 1080x1920 in einem Hochformat-Projekt, in jedem anderen die Form des Projekts selbst. **YouTube Shorts** nutzt die von YouTube veröffentlichten 1080p-Raten: 12 Mbit/s bei 60 fps oder 8 Mbit/s bei 30 fps, mit AAC-Stereo bei 384 kbit/s. TikTok veröffentlicht keine Bitrate, deshalb nutzt **TikTok** 16 Mbit/s bei 60 fps oder 10 Mbit/s bei 30 fps, von uns gewählt, mit AAC bei 128 kbit/s. Beide Plattformen kodieren jeden Upload neu. Für ein Hochformat-Video beginne mit einem Hochformat-Projekt in 1080x1920; der Bildausschnitt der Stabilisierung wählt dann den Teil der Drohnenaufnahme, der bleibt.',
         },
       ],
     },

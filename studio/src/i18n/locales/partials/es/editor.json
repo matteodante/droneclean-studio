@@ -114,6 +114,10 @@
       "noClip": "No hay clips para animar",
       "animatedClip": "Animado"
     },
+    "colorTimeline": {
+      "label": "Línea de tiempo de color",
+      "noClip": "No hay clips para corregir el color"
+    },
     "animatePresets": {
       "title": "Biblioteca de movimiento",
       "animationsHeading": "Animaciones",
@@ -674,7 +678,7 @@
       "cropping": "Recorte",
       "fadeIn": "Fundido de entrada",
       "fadeOut": "Fundido de salida",
-      "playback": "Reproduccion",
+      "playback": "Reproducción",
       "resetCropBottom": "Restablecer recorte inferior",
       "resetCropLeft": "Restablecer recorte izquierdo",
       "resetCropRight": "Restablecer recorte derecho",

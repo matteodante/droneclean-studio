@@ -18,7 +18,7 @@ describe('the page and the desktop shell', () => {
 
   it('scrub messages the same way', () => {
     for (const sample of [
-      'ENOENT: /Volumes/SSD/Avata 2 - 15 novembre 2026/DJI_0001.MP4 missing',
+      'ENOENT: /Volumes/My Drive/Flights - March 2026/DJI_0001.MP4 missing',
       'failed on "DJI_20261115124704_0020_D.MP4"',
       'C:\\Users\\Ann Lee\\Videos\\clip.mov is busy',
       'look sunset.cube not found',
@@ -26,7 +26,7 @@ describe('the page and the desktop shell', () => {
     ]) {
       expect(scrubText(sample)).toBe(mainScrub(sample))
     }
-    expect(scrubText('ENOENT: /Volumes/SSD/Avata 2 - 15 novembre 2026/DJI_0001.MP4 missing')).toBe(
+    expect(scrubText('ENOENT: /Volumes/My Drive/Flights - March 2026/DJI_0001.MP4 missing')).toBe(
       'ENOENT: <path> missing',
     )
   })

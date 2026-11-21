@@ -33,6 +33,9 @@ afterEach(() => {
 
 /** Load `index.js` fresh and let its `whenReady` work run. */
 async function launch({ isPackaged, env = {}, argv = [], productName }) {
+  // A test that launches more than once quits the shell it launched before (its agent socket, its loader patch).
+  fake?.restore()
+  fake = null
   for (const key of Object.keys(require.cache)) {
     if (key.startsWith(outMain)) delete require.cache[key]
   }

@@ -22,7 +22,7 @@ interface FakeSample {
   displayHeight: number
   closed: boolean
   draw(context: unknown, ...args: number[]): void
-  toVideoFrame(): never
+  toVideoFrame(): unknown
   close(): void
 }
 
@@ -74,9 +74,7 @@ vi.mock('mediabunny', () => {
       closed: false,
       draw: (context: unknown, ...args: number[]) =>
         state.draws.push({ context, timestamp: made.timestamp, args }),
-      toVideoFrame: () => {
-        throw new Error('the VideoFrame path converts the transfer: never taken')
-      },
+      toVideoFrame: () => ({ videoFrameOf: made.timestamp }),
       close() {
         made.closed = true
       },
@@ -178,14 +176,16 @@ describe('the mediabunny sample reader', () => {
     expect(state.streams).toHaveLength(3)
   })
 
-  it('draws the sample on a 2D canvas at its size, as FreeCut’s decoder does, and hands that canvas over', async () => {
+  it('draws the sample on a 2D canvas at its size, as FreeCut’s decoder does, when its picture is read', async () => {
     const reader = createMediabunnySampleReader()
     const first = await reader.sampleAt(FILE, mid(60))
+    // Nothing is drawn until the picture is asked for: the preview takes the frame itself
+    expect(state.draws).toEqual([])
+    expect(first?.image).toBe(first?.image)
     const second = await reader.sampleAt(FILE, mid(61))
+    expect(second?.image).toBe(state.canvases[0])
     expect(state.canvases).toHaveLength(1)
     expect(state.canvases[0]).toMatchObject({ width: 1920, height: 1080 })
-    expect(first?.image).toBe(state.canvases[0])
-    expect(second?.image).toBe(state.canvases[0])
     expect(state.draws.map((d) => [Math.round(d.timestamp * 30), d.args])).toEqual([
       [60, [0, 0, 1920, 1080]],
       [61, [0, 0, 1920, 1080]],
@@ -193,6 +193,15 @@ describe('the mediabunny sample reader', () => {
     // The stream owns its samples: the caller's close frees nothing the next frame may still need
     second!.close()
     expect(state.decoded.at(-1)!.closed).toBe(false)
+  })
+
+  it('hands the preview the decoder’s own frame, a new one each time, without drawing anything', async () => {
+    const reader = createMediabunnySampleReader()
+    const sample = await reader.sampleAt(FILE, mid(30))
+    const frame = sample!.videoFrame!() as unknown as { videoFrameOf: number }
+    expect(Math.round(frame.videoFrameOf * 30)).toBe(30)
+    expect(state.draws).toEqual([])
+    expect(state.canvases).toEqual([])
   })
 
   it('hands over the colour tags of the track with every sample, for the provider’s BT.709 check', async () => {

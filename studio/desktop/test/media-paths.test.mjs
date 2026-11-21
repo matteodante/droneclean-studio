@@ -17,6 +17,7 @@ import {
   MediaPathAccess,
   mediaContentType,
   mediaIdForPath,
+  sensitiveFolderReason,
   serveMediaRequest,
 } from '../out/main/media.js'
 import { MEDIA_ID_PATTERN, parseMediaRoute } from '../out/main/protocol.js'
@@ -273,4 +274,46 @@ test('D9: a UNC path is refused by describe and allow on Windows', async () => {
   await assert.rejects(access.describe(['\\\\server\\share\\a.mp4']), /network|UNC/i)
   await assert.rejects(access.describe(['//server/share/a.mp4']), /network|UNC/i)
   await assert.rejects(access.allow(['\\\\?\\UNC\\server\\share']), /network|UNC/i)
+})
+
+test('F5: hidden folders of the home folder, ~/Library and AppData cannot be named', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'droneclean-home-'))
+  try {
+    const put = (...parts) => {
+      const file = path.join(home, ...parts)
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, 'x')
+      return fs.realpathSync(file)
+    }
+    const hidden = put('.config', 'tool', 'a.jpg')
+    const library = put('Library', 'Application Support', 'App', 'b.png')
+    const footage = put('Movies', 'Avata', 'c.mp4')
+    const hiddenFile = put('Movies', '.d.mp4')
+    const access = new MediaPathAccess({ homeDir: home, platform: 'darwin' })
+
+    await assert.rejects(() => access.describe([hidden]), /hidden folder/)
+    await assert.rejects(() => access.describe([library]), /Library folder/)
+    await assert.rejects(() => access.allow([path.dirname(hidden)]), /hidden folder/)
+    await assert.rejects(() => access.allow([path.join(home, 'Library')]), /Library folder/)
+    await assert.rejects(() => access.allow([path.dirname(library)]), /Library folder/)
+    assert.equal((await access.describe([footage])).length, 1, 'footage in the home folder is still named')
+    assert.equal((await access.describe([hiddenFile])).length, 1, 'a hidden file name is not a hidden folder')
+    assert.deepEqual(await access.allow([path.dirname(footage)]), [path.dirname(footage)])
+    assert.equal(await access.registeredFile(hidden), null)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('F5: the Windows rules, judged on any machine', () => {
+  const env = { APPDATA: 'C:\\Users\\Pilot\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\Pilot\\AppData\\Local' }
+  const home = 'C:\\Users\\Pilot'
+  const judge = (file) => sensitiveFolderReason(file, home, 'win32', env)
+  assert.match(judge('C:\\Users\\Pilot\\AppData\\Roaming\\X\\a.jpg'), /programs keep/)
+  assert.match(judge('c:\\users\\pilot\\appdata\\local\\x\\a.jpg'), /programs keep/)
+  assert.match(judge('C:\\Users\\Pilot\\AppData\\LocalLow\\x\\a.jpg'), /AppData/)
+  assert.match(judge('C:\\Users\\Pilot\\.ssh\\a.jpg'), /hidden/)
+  assert.equal(judge('C:\\Users\\Pilot\\Videos\\Avata\\a.mp4'), null)
+  assert.equal(judge('D:\\Footage\\.cache\\a.mp4'), null, 'outside the home folder only AppData is judged')
+  assert.equal(sensitiveFolderReason('/Users/p/Library/x/a.png', '/Users/p', 'linux', {}), null, 'Library is a macOS folder')
 })
